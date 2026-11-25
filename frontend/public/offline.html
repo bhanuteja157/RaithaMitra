@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RaithaMitra — Offline Mode</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #F7F5ED;
+      color: #20372A;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      max-width: 460px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 10px; color: #166534; }
+    p { font-size: 0.92rem; line-height: 1.5; color: #374151; margin: 0 0 16px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    a, button {
+      background: #166534;
+      color: #ffffff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    a.secondary { background: #e5e7eb; color: #1f2937; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>You are currently offline</h1>
+    <p>
+      This specific page was not previously cached while online. Your saved farm snapshots,
+      offline drafts, and pending synchronization queue remain safely stored in IndexedDB.
+    </p>
+    <div class="actions">
+      <a href="/">Open Cached Dashboard</a>
+      <a href="/sync-center" class="secondary">Open Sync Center</a>
+      <button onclick="window.location.reload()">Retry Connection</button>
+    </div>
+  </div>
+</body>
+</html>

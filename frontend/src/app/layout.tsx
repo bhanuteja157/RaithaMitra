@@ -20,6 +20,11 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'RaithaMitra — AI-Powered Agricultural Intelligence',
   description: 'From Seed to Sale, One Intelligent Companion. Developed by Syntax Squad for HackWarts 2026.',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/icons/icon-192.png',
+    apple: '/icons/icon-192.png',
+  },
 };
 
 export default function RootLayout({

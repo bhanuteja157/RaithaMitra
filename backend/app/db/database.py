@@ -937,6 +937,26 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_dec_runs_user_farm ON agricultural_decision_runs(user_id, farm_id, created_at DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_dec_recs_run ON agricultural_decision_recommendations(run_id, status)")
 
+    # 21. Offline-First Synchronization & Atomic Idempotency Receipts (AD-31)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS sync_operation_receipts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        farm_id TEXT,
+        operation_type TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL,
+        payload_hash TEXT NOT NULL,
+        risk_class TEXT NOT NULL CHECK(risk_class IN ('low_risk', 'consequential')),
+        status TEXT NOT NULL CHECK(status IN ('synchronized', 'confirmation_required', 'conflict_detected', 'failed')),
+        result_resource_id TEXT,
+        response_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(user_id, operation_type, idempotency_key),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sync_receipts_user ON sync_operation_receipts(user_id, created_at DESC)")
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts

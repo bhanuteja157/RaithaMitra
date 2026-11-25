@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { OfflineStatusBar } from '../offline/OfflineStatusBar';
 import { OnboardingModal } from '../modals/OnboardingModal';
 import { LocationSelectorModal } from '../modals/LocationSelectorModal';
 import { PersistentVoiceAssistant } from '../assistant/PersistentVoiceAssistant';
@@ -46,6 +47,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex flex-col flex-1 md:pl-72">
         <TopBar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+        <OfflineStatusBar />
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto space-y-6">
           {children}
         </main>
