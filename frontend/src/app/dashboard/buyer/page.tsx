@@ -26,6 +26,11 @@ export default function BuyerDashboardPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (currentUser.role !== 'buyer') {
+      setListings([]);
+      setOrders([]);
+      return;
+    }
     async function fetchBuyerData() {
       setLoading(true);
       try {
@@ -41,7 +46,7 @@ export default function BuyerDashboardPage() {
       }
     }
     fetchBuyerData();
-  }, []);
+  }, [currentUser.id, currentUser.role]);
 
   return (
     <div className="space-y-6">

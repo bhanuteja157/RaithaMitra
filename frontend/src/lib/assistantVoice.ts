@@ -30,8 +30,8 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
   {
     id: 'nursery',
-    route: '/nursery-marketplace',
-    keywords: ['nursery', 'sapling', 'seedling', 'ನರ್ಸರಿ', 'नर्सरी', 'నర్సరీ'],
+    route: '/biointel#nurseries',
+    keywords: ['nursery', 'nurseries', 'sapling', 'seedling', 'buy seeds', 'ನರ್ಸರಿ', 'नर्सरी', 'నర్సరీ'],
     allowedRoles: ['farmer', 'buyer'],
     label: { en: 'Nursery Marketplace', kn: 'ನರ್ಸರಿ ಮಾರುಕಟ್ಟೆ', hi: 'नर्सरी मार्केटप्लेस', te: 'నర్సరీ మార్కెట్' },
     description: {
@@ -56,8 +56,8 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
   {
     id: 'bidding',
-    route: '/bidding',
-    keywords: ['bidding', 'smart bidding', 'bid', 'auction', 'ಬಿಡ್ಡಿಂಗ್', 'बोली', 'బిడ్డింగ్'],
+    route: '/smart-market?section=bidding',
+    keywords: ['bidding', 'smart bidding', 'bid', 'auction', 'smart market', 'ಬಿಡ್ಡಿಂಗ್', 'बोली', 'బిడ్డింగ్'],
     allowedRoles: ['farmer', 'buyer'],
     label: { en: 'Smart Bidding', kn: 'ಸ್ಮಾರ್ಟ್ ಬಿಡ್ಡಿಂಗ್', hi: 'स्मार्ट बिडिंग', te: 'స్మార్ట్ బిడ్డింగ్' },
     description: {
@@ -70,7 +70,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   {
     id: 'transport',
     route: '/transport',
-    keywords: ['transport', 'logistics', 'truck', 'vehicle', 'ಸಾರಿಗೆ', 'परिवहन', 'రవాణా'],
+    keywords: ['transport', 'logistics', 'truck', 'vehicle', 'post harvest', 'ಸಾರಿಗೆ', 'परिवहन', 'రవాణా'],
     allowedRoles: ['farmer', 'buyer', 'driver'],
     label: { en: 'Transport Connect', kn: 'ಟ್ರಾನ್ಸ್‌ಪೋರ್ಟ್ ಕನೆಕ್ಟ್', hi: 'ट्रांसपोर्ट कनेक्ट', te: 'ట్రాన్స్‌పోర్ట్ కనెక్ట్' },
     description: {
@@ -83,7 +83,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   {
     id: 'digital-farming',
     route: '/digital-farming',
-    keywords: ['digital farming', 'simulator', 'polygon', 'boundary', 'ಡಿಜಿಟಲ್ ಕೃಷಿ', 'डिजिटल खेती', 'డిజిటల్ వ్యవసాయం'],
+    keywords: ['digital farming', 'digital farm', 'simulator', 'polygon', 'boundary', 'satellite', 'farm twin', 'ಡಿಜಿಟಲ್ ಕೃಷಿ', 'डिजिटल खेती', 'డిజిటల్ వ్యవసాయం'],
     allowedRoles: ['farmer'],
     label: { en: 'Digital Farming', kn: 'ಡಿಜಿಟಲ್ ಕೃಷಿ', hi: 'डिजिटल खेती', te: 'డిజిటల్ వ్యవసాయం' },
     description: {
@@ -95,7 +95,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
   {
     id: 'market-intelligence',
-    route: '/market-intelligence',
+    route: '/smart-market?section=market_intel',
     keywords: ['market intelligence', 'mandi', 'sell now', 'selling', 'ಮಾರುಕಟ್ಟೆ', 'मंडी', 'మార్కెట్'],
     allowedRoles: ['farmer', 'buyer'],
     label: { en: 'Market Intelligence', kn: 'ಮಾರುಕಟ್ಟೆ ಬುದ್ಧಿವಂತಿಕೆ', hi: 'मार्केट इंटेलिजेंस', te: 'మార్కెట్ ఇంటెలిజెన్స్' },
@@ -108,7 +108,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
   {
     id: 'irrigation',
-    route: '/irrigation',
+    route: '/farm-management?section=irrigation',
     keywords: ['irrigation', 'water', 'drip', 'ನೀರಾವರಿ', 'सिंचाई', 'నీటిపారుదల'],
     allowedRoles: ['farmer'],
     label: { en: 'Precision Irrigation', kn: 'ನಿಖರ ನೀರಾವರಿ', hi: 'सटीक सिंचाई', te: 'ఖచ్చితమైన నీటిపారుదల' },
@@ -121,7 +121,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
   {
     id: 'climate',
-    route: '/climate',
+    route: '/farm-management?section=climate',
     keywords: ['climate', 'weather', 'rain', 'ಹವಾಮಾನ', 'मौसम', 'వాతావరణం'],
     allowedRoles: ['farmer'],
     label: { en: 'Climate Intelligence', kn: 'ಹವಾಮಾನ ಮಾಹಿತಿ', hi: 'जलवायु बुद्धिमत्ता', te: 'వాతావరణ సమాచారం' },
@@ -133,8 +133,34 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
     },
   },
   {
+    id: 'soil',
+    route: '/farm-management?section=soil',
+    keywords: ['soil', 'nutrients', 'fertilizer', 'ಮಣ್ಣು', 'मिट्टी', 'నేల'],
+    allowedRoles: ['farmer'],
+    label: { en: 'Soil & Nutrients', kn: 'ಮಣ್ಣು ಮತ್ತು ಪೋಷಕಾಂಶಗಳು', hi: 'मिट्टी और पोषक तत्व', te: 'నేల మరియు పోషకాలు' },
+    description: {
+      en: 'You can inspect soil nutrient health and fertilizer guidance here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ಮಣ್ಣಿನ ಪೋಷಕಾಂಶ ಮತ್ತು ಗೊಬ್ಬರ ಸಲಹೆಗಳನ್ನು ನೋಡಬಹುದು.',
+      hi: 'यहाँ आप मिट्टी के पोषक तत्व और उर्वरक सलाह देख सकते हैं।',
+      te: 'ఇక్కడ మీరు నేల పోషకాలు మరియు ఎరువుల సూచనలను చూడవచ్చు.',
+    },
+  },
+  {
+    id: 'farm-management',
+    route: '/farm-management',
+    keywords: ['farm management', 'ಕೃಷಿ ನಿರ್ವಹಣೆ', 'खेत प्रबंधन'],
+    allowedRoles: ['farmer'],
+    label: { en: 'Farm Management', kn: 'ಕೃಷಿ ನಿರ್ವಹಣೆ', hi: 'खेत प्रबंधन', te: 'పొలం నిర్వహణ' },
+    description: {
+      en: 'You can manage climate, precision irrigation, and soil nutrients here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ಹವಾಮಾನ, ನೀರಾವರಿ ಮತ್ತು ಮಣ್ಣಿನ ನಿರ್ವಹಣೆಯನ್ನು ನೋಡಬಹುದು.',
+      hi: 'यहाँ आप मौसम, सिंचाई और मिट्टी प्रबंधन देख सकते हैं।',
+      te: 'ఇక్కడ మీరు వాతావరణం, నీటిపారుదల మరియు నేల నిర్వహణ చూడవచ్చు.',
+    },
+  },
+  {
     id: 'diagnostics',
-    route: '/diagnostics',
+    route: '/crop-health?section=diagnostics',
     keywords: ['diagnostic', 'disease', 'pest', 'ರೋಗ', 'रोग', 'వ్యాధి'],
     allowedRoles: ['farmer'],
     label: { en: 'Crop Diagnostics', kn: 'ಬೆಳೆ ರೋಗ ಪತ್ತೆ', hi: 'फसल निदान', te: 'పంట వ్యాధి నిర్ధారణ' },
@@ -143,6 +169,45 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
       kn: 'ಇಲ್ಲಿ ನೀವು ಬೆಳೆ ಆರೋಗ್ಯ ಸೂಚಕಗಳನ್ನು ಪರಿಶೀಲಿಸಬಹುದು.',
       hi: 'यहाँ आप फसल स्वास्थ्य संकेतकों की जांच कर सकते हैं।',
       te: 'ఇక్కడ మీరు పంట ఆరోగ్య సూచికలను చూడవచ్చు.',
+    },
+  },
+  {
+    id: 'surveillance',
+    route: '/crop-health?section=surveillance',
+    keywords: ['surveillance', 'crop health', 'camera', 'monitor', 'ಬೆಳೆ ಆರೋಗ್ಯ', 'फसल स्वास्थ्य'],
+    allowedRoles: ['farmer'],
+    label: { en: 'Crop Health & Surveillance', kn: 'ಬೆಳೆ ಆರೋಗ್ಯ ಮತ್ತು ಕಣ್ಗಾವಲು', hi: 'फसल स्वास्थ्य और निगरानी', te: 'పంట ఆరోగ్యం మరియు నిఘా' },
+    description: {
+      en: 'You can monitor live field surveillance and crop health here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ಜಮೀನಿನ ಕಣ್ಗಾವಲು ಮತ್ತು ಬೆಳೆ ಆರೋಗ್ಯವನ್ನು ನೋಡಬಹುದು.',
+      hi: 'यहाँ आप खेत की निगरानी और फसल स्वास्थ्य देख सकते हैं।',
+      te: 'ఇక్కడ మీరు పొలం నిఘా మరియు పంట ఆరోగ్యాన్ని చూడవచ్చు.',
+    },
+  },
+  {
+    id: 'finance',
+    route: '/finance-benefits?section=finance',
+    keywords: ['finance', 'ledger', 'loan', 'profit', 'expense', 'ಹಣಕಾಸು', 'वित्त', 'ఆర్థిక'],
+    allowedRoles: ['farmer'],
+    label: { en: 'Farm Finance Ledger', kn: 'ಕೃಷಿ ಹಣಕಾಸು', hi: 'कृषि वित्त', te: 'వ్యవసాయ ఆర్థికం' },
+    description: {
+      en: 'You can track farm expenses, revenue, and loan readiness here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ಕೃಷಿ ವೆಚ್ಚ ಮತ್ತು ಆದಾಯವನ್ನು ಪರಿಶೀಲಿಸಬಹುದು.',
+      hi: 'यहाँ आप कृषि खर्च और आय की जांच कर सकते हैं।',
+      te: 'ఇక్కడ మీరు వ్యవసాయ ఖర్చులు మరియు ఆదాయాన్ని చూడవచ్చు.',
+    },
+  },
+  {
+    id: 'schemes',
+    route: '/finance-benefits?section=schemes',
+    keywords: ['scheme', 'subsidy', 'government', 'pm-kisan', 'pmfby', 'ಯೋಜನೆ', 'योजना', 'పథకం'],
+    allowedRoles: ['farmer'],
+    label: { en: 'Government Schemes', kn: 'ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು', hi: 'सरकारी योजनाएं', te: 'ప్రభుత్వ పథకాలు' },
+    description: {
+      en: 'You can check eligible government schemes and subsidies here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ಅರ್ಹ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು ಮತ್ತು ಸಬ್ಸಿಡಿಗಳನ್ನು ನೋಡಬಹುದು.',
+      hi: 'यहाँ आप पात्र सरकारी योजनाओं और सब्सिडी की जांच कर सकते हैं।',
+      te: 'ఇక్కడ మీరు అర్హమైన ప్రభుత్వ పథకాలను చూడవచ్చు.',
     },
   },
   {
@@ -293,4 +358,182 @@ export function speakWithDeviceVoice(
 
   synth.speak(utterance);
   return { spoken: true };
+}
+
+export type WaterAvailabilityOption = 'Abundant' | 'Moderate' | 'Scarce';
+
+export type AgenticTaskCommand =
+  | {
+      type: 'biointel_plan';
+      crop: string;
+      areaAcres: number | null;
+      budgetInr: number | null;
+      waterAvailability: WaterAvailabilityOption | null;
+      openNurseries: boolean;
+    }
+  | {
+      type: 'digital_farm_control';
+      action: 'play' | 'pause' | 'resume' | 'summary';
+    }
+  | {
+      type: 'labour_hire';
+      workersCount: number;
+      workType: string;
+      workDate: string;
+    }
+  | {
+      type: 'bidding_action';
+      subAction: 'check_offers' | 'prepare_listing';
+      crop?: string;
+      quantityKg?: number;
+      minPricePerKg?: number;
+    }
+  | {
+      type: 'transport_action';
+      subAction: 'find_vehicles' | 'prepare_booking';
+      cargoWeightKg?: number;
+      crop?: string;
+    };
+
+const CROP_ALIASES: Array<{ canonical: string; terms: string[] }> = [
+  { canonical: 'Tomato', terms: ['tomato', 'tomatoes', 'ಟೊಮೆಟೊ', 'टमाटर', 'టొమాటో'] },
+  { canonical: 'Maize', terms: ['maize', 'corn', 'ಮೆಕ್ಕೆಜೋಳ', 'मक्का', 'మొక్కజొన్న'] },
+  { canonical: 'Paddy', terms: ['paddy', 'rice', 'ಭತ್ತ', 'धान', 'వరి'] },
+  { canonical: 'Wheat', terms: ['wheat', 'ಗೋಧಿ', 'गेहूं', 'గోధుమ'] },
+  { canonical: 'Ragi', terms: ['ragi', 'millet', 'ರಾಗಿ', 'रागी', 'రాగి'] },
+  { canonical: 'Groundnut', terms: ['groundnut', 'peanut', 'ಕಡಲೆಕಾಯಿ', 'मूंगफली', 'వేరుశెనగ'] },
+  { canonical: 'Cotton', terms: ['cotton', 'ಹತ್ತಿ', 'कपास', 'పత్తి'] },
+  { canonical: 'Sugarcane', terms: ['sugarcane', 'ಕಬ್ಬು', 'गन्ना', 'చెరకు'] },
+  { canonical: 'Onion', terms: ['onion', 'ಈರುಳ್ಳಿ', 'प्याज', 'ఉల్లిపాయ'] },
+  { canonical: 'Potato', terms: ['potato', 'ಆಲೂಗಡ್ಡೆ', 'आलू', 'బంగాళాదుంప'] },
+  { canonical: 'Chilli', terms: ['chilli', 'chili', 'ಮೆಣಸಿನಕಾಯಿ', 'मिर्च', 'మిర్చి'] },
+];
+
+export function extractCropFromText(query: string): string | null {
+  const q = query.toLowerCase();
+  for (const entry of CROP_ALIASES) {
+    if (entry.terms.some((t) => q.includes(t))) return entry.canonical;
+  }
+  return null;
+}
+
+export function extractWaterAvailability(query: string): WaterAvailabilityOption | null {
+  const q = query.toLowerCase();
+  if (['abundant', 'plenty', 'high water', 'canal', 'flood', 'ಹೆಚ್ಚು', 'अधिक', 'ఎక్కువ'].some((w) => q.includes(w))) {
+    return 'Abundant';
+  }
+  if (['scarce', 'low water', 'less water', 'rainfed', 'ಕಡಿಮೆ', 'कम', 'తక్కువ'].some((w) => q.includes(w))) {
+    return 'Scarce';
+  }
+  if (['moderate', 'medium', 'drip', 'borewell', 'ಮಧ್ಯಮ', 'मध्यम', 'మధ్యస్థం'].some((w) => q.includes(w))) {
+    return 'Moderate';
+  }
+  return null;
+}
+
+export function parseConfirmationReply(query: string): boolean | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  if (/^(yes|yeah|yep|confirm|proceed|ok|okay|publish|submit|book|post|ಹೌದು|ಸರಿ|हाँ|ठीक है|అవును)\b/i.test(q)) {
+    return true;
+  }
+  if (/^(no|nope|cancel|stop|abort|don't|do not|ಬೇಡ|रद्द|नहीं|వద్దు)\b/i.test(q)) {
+    return false;
+  }
+  return null;
+}
+
+function resolveRelativeDate(query: string): string {
+  const d = new Date();
+  if (/\b(tomorrow|ನಾಳೆ|कल|రేపు)\b/i.test(query)) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d.toISOString().split('T')[0];
+}
+
+export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+
+  // 1. Digital Farm simulation controls
+  const hasSimContext = /(simulation|digital farm|crop growth|harvest summary|growth)/i.test(q);
+  if (hasSimContext || /^(play|pause|resume|explain harvest)/i.test(q)) {
+    if (/\b(pause|stop)\b/i.test(q)) return { type: 'digital_farm_control', action: 'pause' };
+    if (/\b(resume|continue)\b/i.test(q)) return { type: 'digital_farm_control', action: 'resume' };
+    if (/\b(explain|summary|harvest|report)\b/i.test(q)) return { type: 'digital_farm_control', action: 'summary' };
+    if (/\b(start|play|run)\b/i.test(q)) return { type: 'digital_farm_control', action: 'play' };
+  }
+
+  // 2. Labour hiring draft
+  if (/(hire|book|find|post).*(worker|workers|labour|labor|ಕಾರ್ಮಿಕ|श्रमिक)/i.test(q)) {
+    const countMatch = q.match(/(\d+)\s*(?:worker|workers|labour|labor|people|men|women|ಕಾರ್ಮಿಕ|श्रमिक)/i);
+    const workersCount = countMatch ? Math.max(1, Math.min(100, Number(countMatch[1]))) : 2;
+    let workType = 'Harvesting';
+    if (/weed/i.test(q)) workType = 'Weeding';
+    else if (/plant|sow|transplant/i.test(q)) workType = 'Planting';
+    else if (/irrigat|water/i.test(q)) workType = 'Irrigation';
+    else if (/spray|fertiliz/i.test(q)) workType = 'Spraying';
+    else if (/plough|land/i.test(q)) workType = 'Land Preparation';
+    return {
+      type: 'labour_hire',
+      workersCount,
+      workType,
+      workDate: resolveRelativeDate(q),
+    };
+  }
+
+  // 3. Smart Bidding offers / listing
+  if (/(check|show|any|list).*(bid|bids|offer|offers|buyer)/i.test(q)) {
+    return { type: 'bidding_action', subAction: 'check_offers' };
+  }
+  const sellMatch = q.match(/(?:sell|list|auction)\s+(\d+(?:\.\d+)?)\s*(?:kg|kilo|kilogram|quintal)?/i);
+  if (sellMatch && (extractCropFromText(q) || /bid|market|lot/i.test(q))) {
+    const priceMatch = q.match(/(?:at|for|min|minimum|₹|rs\.?)\s*(\d+(?:\.\d+)?)/i);
+    return {
+      type: 'bidding_action',
+      subAction: 'prepare_listing',
+      crop: extractCropFromText(q) || 'Tomato',
+      quantityKg: Number(sellMatch[1]),
+      minPricePerKg: priceMatch ? Number(priceMatch[1]) : 25,
+    };
+  }
+
+  // 4. Transport Connect lookup / booking
+  if (/(find|book|check|need).*(transport|truck|vehicle|tempo|tractor|ಸಾರಿಗೆ|वाहन)/i.test(q)) {
+    const weightMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:kg|ton|tons|quintal)/i);
+    const cargoWeightKg = weightMatch ? Number(weightMatch[1]) : undefined;
+    return {
+      type: 'transport_action',
+      subAction: cargoWeightKg ? 'prepare_booking' : 'find_vehicles',
+      cargoWeightKg,
+      crop: extractCropFromText(q) || undefined,
+    };
+  }
+
+  // 5. BioIntel seed/crop planning
+  const crop = extractCropFromText(q);
+  const areaMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:acre|acres|ac|ಎಕರೆ|एकड़|ఎకరాల|ఎకరం)/i);
+  const kBudgetMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:k|thousand)\b/i);
+  const rawBudgetMatch = q.match(/(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये)?/i);
+  const budgetInr = kBudgetMatch
+    ? Math.round(Number(kBudgetMatch[1]) * 1000)
+    : rawBudgetMatch
+      ? Number(rawBudgetMatch[1].replace(/,/g, ''))
+      : null;
+  const waterAvailability = extractWaterAvailability(q);
+  const isPlanningIntent = /(plan|cultivat|seed|invest|calculate|recommend|grow|biointel)/i.test(q);
+  const openNurseries = /(nurser|seedling|sapling|buy seed|nearby)/i.test(q);
+
+  if ((crop && (areaMatch || budgetInr || isPlanningIntent)) || (isPlanningIntent && (areaMatch || budgetInr))) {
+    return {
+      type: 'biointel_plan',
+      crop: crop || 'Tomato',
+      areaAcres: areaMatch ? Number(areaMatch[1]) : null,
+      budgetInr,
+      waterAvailability,
+      openNurseries,
+    };
+  }
+
+  return null;
 }

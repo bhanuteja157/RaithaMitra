@@ -67,7 +67,7 @@ export function SeedInvestmentPlanner({
   onSelectCrop,
   onVarietySelectedForNursery,
 }: SeedInvestmentPlannerProps) {
-  const { currentFarm, language } = useFarm();
+  const { currentFarm, currentUser, language } = useFarm();
   const planSectionRef = useRef<HTMLDivElement | null>(null);
 
   // 1. Simplified Mandatory Inputs
@@ -221,6 +221,73 @@ export function SeedInvestmentPlanner({
       planSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 400);
   };
+
+  // Voice-driven BioIntel form fill + auto-plan generation (user-scoped)
+  useEffect(() => {
+    const applyVoiceDraft = (draft: {
+      userId?: string;
+      crop?: string;
+      areaAcres?: number;
+      budgetInr?: number;
+      waterAvailability?: WaterAvailabilityLevel;
+      autoGenerate?: boolean;
+    }) => {
+      if (!draft || (draft.userId && draft.userId !== currentUser.id)) return;
+      const preset = getCropPreset(draft.crop || crop);
+      const nextArea = Math.max(0.1, Number(draft.areaAcres || areaAcres));
+      const nextBudget = Math.max(0, Number(draft.budgetInr ?? budgetInr));
+      const nextWater = draft.waterAvailability || waterAvailability;
+
+      setCrop(preset.name);
+      setAreaAcres(nextArea);
+      setBudgetInr(nextBudget);
+      setWaterAvailability(nextWater);
+      setVarieties(preset.varieties);
+      setInput({
+        crop: preset.name,
+        variety: preset.defaultVariety,
+        areaAcres: nextArea,
+        seedQtyPerAcreKg: preset.seedRatePerAcreKg,
+        seedPricePerKg: preset.seedPricePerKg,
+        fertilizerExpensesInr: Math.round(preset.fertilizerExpensesPerAcreInr * nextArea),
+        labourExpensesInr: Math.round(preset.labourExpensesPerAcreInr * nextArea),
+        irrigationExpensesInr: Math.round(preset.irrigationExpensesPerAcreInr * nextArea),
+        otherExpensesInr: Math.round(preset.otherExpensesPerAcreInr * nextArea),
+        availableBudgetInr: nextBudget,
+        expectedYieldPerAcreKg: preset.expectedYieldPerAcreKg,
+        expectedSellingPricePerKg: preset.expectedSellingPricePerKg,
+      });
+      onSelectCrop?.(preset.name);
+      onVarietySelectedForNursery?.({
+        crop: preset.name,
+        varietyName: preset.defaultVariety,
+        requiredSeedKg: Number((nextArea * preset.seedRatePerAcreKg).toFixed(2)),
+        budgetInr: nextBudget,
+      });
+      if (draft.autoGenerate) {
+        handleGeneratePlan();
+      }
+      try {
+        window.localStorage.removeItem('rm_voice_biointel_draft_v1');
+      } catch {
+        // ignore
+      }
+    };
+
+    try {
+      const raw = window.localStorage.getItem('rm_voice_biointel_draft_v1');
+      if (raw) applyVoiceDraft(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+
+    const onVoiceFill = (e: Event) => {
+      const custom = e as CustomEvent;
+      if (custom.detail) applyVoiceDraft(custom.detail);
+    };
+    window.addEventListener('rm-biointel-voice-fill', onVoiceFill);
+    return () => window.removeEventListener('rm-biointel-voice-fill', onVoiceFill);
+  }, [currentUser.id]);
 
   const handleSelectVariety = (v: VarietyComparisonInput) => {
     setInput((prev) => ({

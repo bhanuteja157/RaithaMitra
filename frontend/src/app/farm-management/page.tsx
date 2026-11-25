@@ -7,17 +7,23 @@ import ClimatePage from '@/app/climate/page';
 import IrrigationPage from '@/app/irrigation/page';
 import SoilNutrientsPage from '@/app/soil-nutrients/page';
 import { FarmToCarePayload, loadFarmToCareTransfer } from '@/lib/workflowBridge';
+import { useFarm } from '@/context/FarmContext';
 import { CloudSun, Droplets, Sprout, ArrowRight } from 'lucide-react';
 
 type Section = 'climate' | 'irrigation' | 'soil';
 
 export default function FarmManagementPage() {
+  const { currentUser } = useFarm();
   const [section, setSection] = useState<Section>('climate');
   const [farmCtx, setFarmCtx] = useState<FarmToCarePayload | null>(null);
 
   useEffect(() => {
-    setFarmCtx(loadFarmToCareTransfer());
-  }, []);
+    const sec = new URLSearchParams(window.location.search).get('section');
+    if (sec === 'climate' || sec === 'irrigation' || sec === 'soil') {
+      setSection(sec);
+    }
+    setFarmCtx(loadFarmToCareTransfer(currentUser.id));
+  }, [currentUser.id]);
 
   return (
     <div className="space-y-5">

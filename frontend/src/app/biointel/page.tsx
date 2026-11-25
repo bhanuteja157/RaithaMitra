@@ -238,12 +238,14 @@ export default function BioIntelPage() {
       />
 
       {/* Section 3: Find Seeds & Nurseries (auto-prefilled from selected variety) */}
-      <BioIntelNurseryFinder
-        crop={nurserySelection.crop || selectedCrop}
-        varietyName={nurserySelection.varietyName}
-        requiredSeedKg={nurserySelection.requiredSeedKg}
-        budgetInr={nurserySelection.budgetInr}
-      />
+      <div id="nurseries">
+        <BioIntelNurseryFinder
+          crop={nurserySelection.crop || selectedCrop}
+          varietyName={nurserySelection.varietyName}
+          requiredSeedKg={nurserySelection.requiredSeedKg}
+          budgetInr={nurserySelection.budgetInr}
+        />
+      </div>
 
       {/* Expandable Scientific & Biological Research (Optional) */}
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">

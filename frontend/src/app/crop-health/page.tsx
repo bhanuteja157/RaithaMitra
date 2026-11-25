@@ -5,17 +5,23 @@ import React, { useEffect, useState } from 'react';
 import DiagnosticsPage from '@/app/diagnostics/page';
 import SurveillancePage from '@/app/surveillance/page';
 import { FarmToCarePayload, loadFarmToCareTransfer } from '@/lib/workflowBridge';
+import { useFarm } from '@/context/FarmContext';
 import { Microscope, Activity } from 'lucide-react';
 
 type Section = 'diagnostics' | 'surveillance';
 
 export default function CropHealthPage() {
+  const { currentUser } = useFarm();
   const [section, setSection] = useState<Section>('diagnostics');
   const [farmCtx, setFarmCtx] = useState<FarmToCarePayload | null>(null);
 
   useEffect(() => {
-    setFarmCtx(loadFarmToCareTransfer());
-  }, []);
+    const sec = new URLSearchParams(window.location.search).get('section');
+    if (sec === 'diagnostics' || sec === 'surveillance') {
+      setSection(sec);
+    }
+    setFarmCtx(loadFarmToCareTransfer(currentUser.id));
+  }, [currentUser.id]);
 
   return (
     <div className="space-y-5">

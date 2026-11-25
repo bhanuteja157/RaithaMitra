@@ -21,6 +21,10 @@ export default function DriverDashboardPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (currentUser.role !== 'driver') {
+      setBookings([]);
+      return;
+    }
     async function loadDriverData() {
       setLoading(true);
       try {
@@ -34,7 +38,7 @@ export default function DriverDashboardPage() {
       }
     }
     loadDriverData();
-  }, [currentUser.id]);
+  }, [currentUser.id, currentUser.role]);
 
   const totalEarnings = bookings
     .filter(b => b.status === 'delivered')

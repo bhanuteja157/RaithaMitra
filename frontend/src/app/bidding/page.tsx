@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarm } from '@/context/FarmContext';
+import { saveOrderToTransportTransfer } from '@/lib/workflowBridge';
 import { BiddingListing, PurchaseOrder } from '@/types';
 import {
   Gavel,
@@ -139,6 +140,22 @@ export default function SmartBiddingPage() {
         method: 'POST'
       });
       if (res.ok) {
+        const confirmed = await res.json().catch(() => null);
+        const matchedListing = listings.find((l) => l.id === listingId);
+        if (matchedListing) {
+          saveOrderToTransportTransfer(
+            {
+              orderId: confirmed?.order_id || confirmed?.id || listingId,
+              cropName: matchedListing.crop_name,
+              quantityKg: matchedListing.quantity_kg,
+              pickupLocation: matchedListing.location,
+              deliveryLocation: 'Yeshwanthpur APMC Yard, Bengaluru',
+              farmerName: currentUser.name,
+              transferredAt: new Date().toISOString(),
+            },
+            currentUser.id
+          );
+        }
         setFeedback("Sale confirmed! Purchase order created. Click 'Arrange Transportation' below.");
         fetchListingDetails(listingId);
         loadData();

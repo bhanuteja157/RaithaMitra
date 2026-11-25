@@ -5,6 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
 import { TransportVehicle, TransportBooking } from '@/types';
+import { loadOrderToTransportTransfer } from '@/lib/workflowBridge';
+import PostHarvestPage from '@/app/post-harvest/page';
 import {
   Truck,
   PlusCircle,
@@ -17,12 +19,14 @@ import {
   ArrowRight,
   ShieldAlert,
   Boxes,
-  Compass
+  Compass,
+  Warehouse
 } from 'lucide-react';
 
 function TransportConnectContent() {
   const searchParams = useSearchParams();
   const { currentFarm, currentUser } = useFarm();
+  const [section, setSection] = useState<'transport' | 'post_harvest'>('transport');
 
   const [drivers, setDrivers] = useState<TransportVehicle[]>([]);
   const [bookings, setBookings] = useState<TransportBooking[]>([]);
@@ -62,6 +66,16 @@ function TransportConnectContent() {
   useEffect(() => {
     loadData();
   }, [cargoWeight]);
+
+  useEffect(() => {
+    const transfer = loadOrderToTransportTransfer(currentUser.id);
+    if (transfer) {
+      if (!searchParams.get('crop')) setProduceCrop(transfer.cropName);
+      if (!searchParams.get('weight')) setCargoWeight(transfer.quantityKg);
+      if (!searchParams.get('pickup')) setPickupAddr(transfer.pickupLocation);
+      setDestAddr(transfer.deliveryLocation);
+    }
+  }, [currentUser.id, searchParams]);
 
   const handleBookDriver = async (driver: TransportVehicle) => {
     const estDistance = 60.0;
@@ -168,6 +182,35 @@ function TransportConnectContent() {
           <span>Evaluate Shared Load</span>
         </button>
       </div>
+
+      <div className="grid grid-cols-2 gap-2 max-w-md">
+        {[
+          { id: 'transport' as const, label: 'Book Transport', icon: Truck },
+          { id: 'post_harvest' as const, label: 'Post-Harvest & Storage', icon: Warehouse },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSection(tab.id)}
+              className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition ${
+                section === tab.id
+                  ? 'bg-purple-700 text-white border-purple-700'
+                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {section === 'post_harvest' ? (
+        <PostHarvestPage />
+      ) : (
+        <>
 
       {feedback && (
         <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-sm font-semibold flex items-center gap-2">
@@ -435,6 +478,8 @@ function TransportConnectContent() {
           ))}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

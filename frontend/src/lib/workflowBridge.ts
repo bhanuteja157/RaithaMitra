@@ -89,20 +89,36 @@ export interface FinanceWorkflowSnapshot {
   updatedAt: string;
 }
 
-export const saveSeedToDigitalFarmTransfer = (p: SeedToDigitalFarmPayload) => writeJson(KEYS.seedToFarm, p);
-export const loadSeedToDigitalFarmTransfer = () => readJson<SeedToDigitalFarmPayload>(KEYS.seedToFarm);
+function scopedKey(baseKey: string, userId?: string): string {
+  return userId ? `${baseKey}__${userId}` : baseKey;
+}
 
-export const saveFarmToCareTransfer = (p: FarmToCarePayload) => writeJson(KEYS.farmToCare, p);
-export const loadFarmToCareTransfer = () => readJson<FarmToCarePayload>(KEYS.farmToCare);
+export const saveSeedToDigitalFarmTransfer = (p: SeedToDigitalFarmPayload, userId?: string) =>
+  writeJson(scopedKey(KEYS.seedToFarm, userId), p);
+export const loadSeedToDigitalFarmTransfer = (userId?: string) =>
+  readJson<SeedToDigitalFarmPayload>(scopedKey(KEYS.seedToFarm, userId));
 
-export const saveHarvestToLabourTransfer = (p: HarvestToLabourPayload) => writeJson(KEYS.harvestToLabour, p);
-export const loadHarvestToLabourTransfer = () => readJson<HarvestToLabourPayload>(KEYS.harvestToLabour);
+export const saveFarmToCareTransfer = (p: FarmToCarePayload, userId?: string) =>
+  writeJson(scopedKey(KEYS.farmToCare, userId), p);
+export const loadFarmToCareTransfer = (userId?: string) =>
+  readJson<FarmToCarePayload>(scopedKey(KEYS.farmToCare, userId));
 
-export const saveHarvestToBiddingDraft = (p: HarvestToBiddingDraft) => writeJson(KEYS.harvestToBidding, p);
-export const loadHarvestToBiddingDraft = () => readJson<HarvestToBiddingDraft>(KEYS.harvestToBidding);
+export const saveHarvestToLabourTransfer = (p: HarvestToLabourPayload, userId?: string) =>
+  writeJson(scopedKey(KEYS.harvestToLabour, userId), p);
+export const loadHarvestToLabourTransfer = (userId?: string) =>
+  readJson<HarvestToLabourPayload>(scopedKey(KEYS.harvestToLabour, userId));
 
-export const saveOrderToTransportTransfer = (p: OrderToTransportPayload) => writeJson(KEYS.orderToTransport, p);
-export const loadOrderToTransportTransfer = () => readJson<OrderToTransportPayload>(KEYS.orderToTransport);
+export const saveHarvestToBiddingDraft = (p: HarvestToBiddingDraft, userId?: string) =>
+  writeJson(scopedKey(KEYS.harvestToBidding, userId), p);
+export const loadHarvestToBiddingDraft = (userId?: string) =>
+  readJson<HarvestToBiddingDraft>(scopedKey(KEYS.harvestToBidding, userId));
 
-export const saveFinanceSnapshot = (p: FinanceWorkflowSnapshot) => writeJson(KEYS.financeSnapshot, p);
-export const loadFinanceSnapshot = () => readJson<FinanceWorkflowSnapshot>(KEYS.financeSnapshot);
+export const saveOrderToTransportTransfer = (p: OrderToTransportPayload, userId?: string) =>
+  writeJson(scopedKey(KEYS.orderToTransport, userId), p);
+export const loadOrderToTransportTransfer = (userId?: string) =>
+  readJson<OrderToTransportPayload>(scopedKey(KEYS.orderToTransport, userId));
+
+export const saveFinanceSnapshot = (p: FinanceWorkflowSnapshot, userId?: string) =>
+  writeJson(scopedKey(KEYS.financeSnapshot, userId), p);
+export const loadFinanceSnapshot = (userId?: string) =>
+  readJson<FinanceWorkflowSnapshot>(scopedKey(KEYS.financeSnapshot, userId));

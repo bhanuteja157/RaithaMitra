@@ -5,17 +5,23 @@ import React, { useEffect, useState } from 'react';
 import FinancePage from '@/app/finance/page';
 import SchemesPage from '@/app/schemes/page';
 import { FinanceWorkflowSnapshot, loadFinanceSnapshot } from '@/lib/workflowBridge';
+import { useFarm } from '@/context/FarmContext';
 import { Coins, Award } from 'lucide-react';
 
 type Section = 'finance' | 'schemes';
 
 export default function FinanceBenefitsPage() {
+  const { currentUser } = useFarm();
   const [section, setSection] = useState<Section>('finance');
   const [snapshot, setSnapshot] = useState<FinanceWorkflowSnapshot | null>(null);
 
   useEffect(() => {
-    setSnapshot(loadFinanceSnapshot());
-  }, []);
+    const sec = new URLSearchParams(window.location.search).get('section');
+    if (sec === 'finance' || sec === 'schemes') {
+      setSection(sec);
+    }
+    setSnapshot(loadFinanceSnapshot(currentUser.id));
+  }, [currentUser.id]);
 
   return (
     <div className="space-y-5">

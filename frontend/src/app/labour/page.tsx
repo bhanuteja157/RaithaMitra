@@ -4,6 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { useFarm } from '@/context/FarmContext';
 import { LabourJob, LabourProfile } from '@/types';
+import { loadHarvestToLabourTransfer } from '@/lib/workflowBridge';
+import ResourcesPage from '@/app/resources/page';
 import {
   Users2,
   PlusCircle,
@@ -15,11 +17,13 @@ import {
   HardHat,
   Sparkles,
   Phone,
-  MessageSquare
+  MessageSquare,
+  Tractor
 } from 'lucide-react';
 
 export default function LabourConnectPage() {
   const { currentFarm, currentUser } = useFarm();
+  const [section, setSection] = useState<'jobs' | 'resources'>('jobs');
   const [jobs, setJobs] = useState<LabourJob[]>([]);
   const [workers, setWorkers] = useState<LabourProfile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,7 +58,19 @@ export default function LabourConnectPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+    const transfer = loadHarvestToLabourTransfer(currentUser.id);
+    if (transfer) {
+      setNewJob((prev) => ({
+        ...prev,
+        title: `${transfer.crop} Harvesting`,
+        job_type: 'Harvesting',
+        crop_type: transfer.crop || prev.crop_type,
+        work_location: transfer.locationLabel || prev.work_location,
+        work_date: transfer.expectedHarvestDate || prev.work_date,
+        required_workers: transfer.recommendedWorkers || prev.required_workers,
+      }));
+    }
+  }, [currentUser.id]);
 
   const handlePostJob = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,6 +176,35 @@ export default function LabourConnectPage() {
           <span>Post Agricultural Job</span>
         </button>
       </div>
+
+      <div className="grid grid-cols-2 gap-2 max-w-md">
+        {[
+          { id: 'jobs' as const, label: 'Hire Workers & Jobs', icon: Users2 },
+          { id: 'resources' as const, label: 'Equipment & Resources', icon: Tractor },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSection(tab.id)}
+              className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition ${
+                section === tab.id
+                  ? 'bg-blue-700 text-white border-blue-700'
+                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {section === 'resources' ? (
+        <ResourcesPage />
+      ) : (
+        <>
 
       {feedback && (
         <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-sm font-semibold flex items-center gap-2">
@@ -406,6 +451,8 @@ export default function LabourConnectPage() {
             </form>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

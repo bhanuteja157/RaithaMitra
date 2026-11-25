@@ -303,6 +303,39 @@ export function DigitalFarmingWorkspace() {
     return () => window.clearInterval(timer);
   }, [sim.isPlaying, sim.harvested, sim.speedDaysPerSec, isCinematic, selectedCrop, activeAreaAcres, profile]);
 
+  // Voice-driven Digital Farm playback & summary control
+  useEffect(() => {
+    const applyControl = (action?: string | null) => {
+      if (!action) return;
+      if (action === 'play' || action === 'resume') {
+        setSim((prev) => ({ ...prev, started: true, isPlaying: true }));
+      } else if (action === 'pause') {
+        setSim((prev) => ({ ...prev, isPlaying: false }));
+      } else if (action === 'summary') {
+        setSim((prev) => ({ ...prev, started: true }));
+      }
+      try {
+        window.sessionStorage.removeItem('rm_df_pending_action');
+      } catch {
+        // ignore
+      }
+    };
+
+    try {
+      const pending = window.sessionStorage.getItem('rm_df_pending_action');
+      if (pending) applyControl(pending);
+    } catch {
+      // ignore
+    }
+
+    const onControl = (e: Event) => {
+      const custom = e as CustomEvent<{ action?: string }>;
+      applyControl(custom.detail?.action);
+    };
+    window.addEventListener('rm-df-control', onControl);
+    return () => window.removeEventListener('rm-df-control', onControl);
+  }, []);
+
   const financialSummary = useMemo(
     () => calculateDetailedFinancials(finInputs, activeAreaAcres, profile.budgetInr),
     [finInputs, activeAreaAcres, profile.budgetInr]

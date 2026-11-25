@@ -24,6 +24,11 @@ export default function LabourDashboardPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (currentUser.role !== 'labour') {
+      setProfile(null);
+      setMyJobs([]);
+      return;
+    }
     async function loadLabourData() {
       setLoading(true);
       try {
@@ -39,7 +44,7 @@ export default function LabourDashboardPage() {
       }
     }
     loadLabourData();
-  }, [currentUser.id]);
+  }, [currentUser.id, currentUser.role]);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">

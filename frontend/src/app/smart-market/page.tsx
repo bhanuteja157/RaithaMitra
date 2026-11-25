@@ -6,17 +6,23 @@ import BiddingPage from '@/app/bidding/page';
 import MarketIntelligencePage from '@/app/market-intelligence/page';
 import MarketplacePage from '@/app/marketplace/page';
 import { HarvestToBiddingDraft, loadHarvestToBiddingDraft } from '@/lib/workflowBridge';
+import { useFarm } from '@/context/FarmContext';
 import { Gavel, TrendingUp, ShoppingBag } from 'lucide-react';
 
 type Section = 'bidding' | 'market_intel' | 'marketplace';
 
 export default function SmartMarketPage() {
+  const { currentUser } = useFarm();
   const [section, setSection] = useState<Section>('bidding');
   const [draft, setDraft] = useState<HarvestToBiddingDraft | null>(null);
 
   useEffect(() => {
-    setDraft(loadHarvestToBiddingDraft());
-  }, []);
+    const sec = new URLSearchParams(window.location.search).get('section');
+    if (sec === 'bidding' || sec === 'market_intel' || sec === 'marketplace') {
+      setSection(sec);
+    }
+    setDraft(loadHarvestToBiddingDraft(currentUser.id));
+  }, [currentUser.id]);
 
   return (
     <div className="space-y-5">
