@@ -175,6 +175,12 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "classification": "read_only",
         "provenance": "AD-25 Satellite & Geospatial Intelligence",
     },
+    "get_post_harvest_intelligence": {
+        "description": "Retrieve farmer's post-harvest inventory levels, crop-specific storage conditions, shelf-life estimates, and sell-vs-store guidance.",
+        "allowed_roles": ["farmer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-27 Post-Harvest Intelligence & Storage KB",
+    },
     "find_government_schemes": {
         "description": "Retrieve verified Indian government agricultural schemes and official links.",
         "allowed_roles": ["farmer", "buyer", "labour", "driver", "admin"],
@@ -816,6 +822,61 @@ async def execute_tool(
                 "moisture_status": fusion.get("moisture_status"),
                 "irrigation_guidance": fusion.get("irrigation_guidance"),
                 "change_detection": hist.get("change_detection"),
+            },
+            "cards": cards,
+            "sources": sources,
+            "provenance": meta["provenance"],
+        }
+
+    if tool_name == "get_post_harvest_intelligence":
+        from backend.app.features.post_harvest.service import get_post_harvest_summary
+        from backend.app.features.post_harvest.shelf_life import estimate_shelf_life
+        from backend.app.features.post_harvest.storage_knowledge import get_crop_storage_profile
+
+        crop = params.get("crop") or (farm["primary_crop"] if farm else "Tomato")
+        summary = get_post_harvest_summary(user["user_id"], user["role"], farm["id"] if farm else None)
+        profile = get_crop_storage_profile(crop)
+        shelf = estimate_shelf_life(crop=crop)
+
+        rec_t = profile["recommended_temp_c"]
+        rec_rh = profile["recommended_rh_pct"]
+        amb = profile["ambient_shelf_life_days"]
+        opt = profile["optimal_shelf_life_days"]
+
+        metrics: Dict[str, Any] = {
+            "Crop": profile["crop"],
+            "Recommended Temp": f"{rec_t['min']}–{rec_t['max']}°C",
+            "Recommended RH": f"{rec_rh['min']:.0f}–{rec_rh['max']:.0f}%",
+            "Ambient Shelf Life": f"{amb['min']}–{amb['max']} days",
+            "Optimal Storage Life": f"{opt['min']}–{opt['max']} days",
+            "Available Inventory": f"{summary['total_available_kg']:,.0f} kg ({summary['lot_count']} lots)",
+            "Reserved / Sold": f"{summary['total_reserved_kg']:,.0f} / {summary['total_sold_kg']:,.0f} kg",
+        }
+        highlights = [
+            f"Suitable methods: {', '.join(profile['suitable_storage_methods'][:2])}.",
+            f"Packaging: {profile['packaging']}.",
+            "Open /post-harvest to run Sell-Now vs Store economic simulation with your target prices.",
+        ]
+        cards.append(
+            StructuredCard(
+                card_type="post_harvest",
+                title=f"Post-Harvest & Storage Intelligence — {profile['crop']}",
+                metrics=metrics,
+                highlights=highlights,
+            )
+        )
+        sources.append(SourceReference(title="; ".join(profile["references"]), source="AD-27 Scientific Storage KB", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": {
+                "crop": profile["crop"],
+                "recommended_temp_c": rec_t,
+                "recommended_rh_pct": rec_rh,
+                "ambient_shelf_life_days": amb,
+                "optimal_shelf_life_days": opt,
+                "requires_refrigeration": profile["requires_refrigeration"],
+                "inventory_summary": summary,
+                "shelf_life": shelf,
             },
             "cards": cards,
             "sources": sources,

@@ -452,6 +452,123 @@ def init_db():
     ON satellite_observations_cache(farm_id, acquisition_timestamp DESC)
     """)
 
+    # 17. Post-Harvest Management & Cold Storage Intelligence (AD-27)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS harvest_records (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        crop TEXT NOT NULL,
+        variety TEXT,
+        cultivated_area_ha REAL NOT NULL,
+        expected_harvest_date TEXT NOT NULL,
+        estimated_yield_kg REAL NOT NULL,
+        actual_harvested_kg REAL,
+        crop_maturity TEXT DEFAULT 'Optimal',
+        harvest_quality TEXT DEFAULT 'Grade A',
+        damaged_quantity_kg REAL DEFAULT 0.0,
+        is_simulated INTEGER NOT NULL DEFAULT 0,
+        digital_farming_notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS post_harvest_lots (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        harvest_record_id TEXT,
+        crop TEXT NOT NULL,
+        variety TEXT,
+        harvest_date TEXT NOT NULL,
+        initial_quantity_kg REAL NOT NULL,
+        available_quantity_kg REAL NOT NULL,
+        reserved_quantity_kg REAL NOT NULL DEFAULT 0.0,
+        sold_quantity_kg REAL NOT NULL DEFAULT 0.0,
+        transported_quantity_kg REAL NOT NULL DEFAULT 0.0,
+        damaged_quantity_kg REAL NOT NULL DEFAULT 0.0,
+        discarded_quantity_kg REAL NOT NULL DEFAULT 0.0,
+        quality_grade TEXT NOT NULL DEFAULT 'Grade A',
+        storage_method TEXT NOT NULL DEFAULT 'Ambient Ventilated',
+        storage_location TEXT NOT NULL DEFAULT 'On-Farm Shed',
+        recorded_temp_c REAL,
+        recorded_humidity_pct REAL,
+        packaging_type TEXT DEFAULT 'Ventilated Plastic Crates',
+        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'reserved', 'depleted', 'discarded')),
+        linked_listing_id TEXT,
+        linked_transport_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS post_harvest_lot_events (
+        id TEXT PRIMARY KEY,
+        lot_id TEXT NOT NULL,
+        farmer_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        quantity_kg REAL NOT NULL DEFAULT 0.0,
+        delta_available_kg REAL NOT NULL DEFAULT 0.0,
+        notes TEXT,
+        reference_id TEXT,
+        idempotency_key TEXT UNIQUE,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (lot_id) REFERENCES post_harvest_lots(id) ON DELETE CASCADE,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS post_harvest_storage_records (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        lot_id TEXT,
+        facility_name TEXT NOT NULL,
+        facility_source TEXT NOT NULL DEFAULT 'manual',
+        commodity TEXT NOT NULL,
+        quantity_kg REAL NOT NULL,
+        start_date TEXT NOT NULL,
+        expected_retrieval_date TEXT NOT NULL,
+        target_temp_c REAL,
+        target_humidity_pct REAL,
+        storage_rate_inr_per_day REAL NOT NULL DEFAULT 0.0,
+        loading_charges_inr REAL NOT NULL DEFAULT 0.0,
+        handling_charges_inr REAL NOT NULL DEFAULT 0.0,
+        other_expenses_inr REAL NOT NULL DEFAULT 0.0,
+        total_estimated_cost_inr REAL NOT NULL DEFAULT 0.0,
+        reservation_status TEXT NOT NULL DEFAULT 'draft' CHECK(reservation_status IN ('draft', 'requested', 'confirmed_external', 'completed', 'cancelled')),
+        financial_tx_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS post_harvest_manual_facilities (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL,
+        facility_name TEXT NOT NULL,
+        location TEXT NOT NULL,
+        district TEXT,
+        state TEXT,
+        latitude REAL,
+        longitude REAL,
+        contact_info TEXT,
+        storage_categories TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ph_lots_farmer ON post_harvest_lots(farmer_id, farm_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ph_events_lot ON post_harvest_lot_events(lot_id, created_at DESC)")
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts

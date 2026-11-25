@@ -152,6 +152,33 @@ def _build_local_reply(
             f"and estimated net profit ₹{d['estimated_profit_inr']:,.0f} (using {d['variety']}).{warn}"
         )
 
+    if intent == "post_harvest_query":
+        inv = d.get("inventory_summary", {})
+        rec_t = d.get("recommended_temp_c", {})
+        opt = d.get("optimal_shelf_life_days", {})
+        amb = d.get("ambient_shelf_life_days", {})
+        avail = inv.get("total_available_kg", 0)
+        if lang == "kn":
+            return (
+                f"{d.get('crop')} ಸಂಗ್ರಹಣೆ: ತಾಪಮಾನ {rec_t.get('min')}–{rec_t.get('max')}°C, ಶೆಲ್ಫ್ ಲೈಫ್ {amb.get('min')}–{amb.get('max')} ದಿನ (ಸಾಮಾನ್ಯ) / {opt.get('min')}–{opt.get('max')} ದಿನ (ಸೂಕ್ತ). "
+                f"ಲಭ್ಯವಿರುವ ದಾಸ್ತಾನು: {avail:,.0f} ಕೆಜಿ."
+            )
+        if lang == "hi":
+            return (
+                f"{d.get('crop')} भंडारण: तापमान {rec_t.get('min')}–{rec_t.get('max')}°C, शेल्फ लाइफ {amb.get('min')}–{amb.get('max')} दिन (सामान्य) / {opt.get('min')}–{opt.get('max')} दिन (उचित भंडारण)। "
+                f"उपलब्ध स्टॉक: {avail:,.0f} किग्रा।"
+            )
+        if lang == "te":
+            return (
+                f"{d.get('crop')} నిల్వ: ఉష్ణోగ్రత {rec_t.get('min')}–{rec_t.get('max')}°C, నిల్వ కాలం {amb.get('min')}–{amb.get('max')} రోజులు / {opt.get('min')}–{opt.get('max')} రోజులు. "
+                f"అందుబాటులో ఉన్న స్టాక్: {avail:,.0f} కిలోలు."
+            )
+        return (
+            f"{d.get('crop')} storage guide: {rec_t.get('min')}–{rec_t.get('max')}°C, ambient shelf life {amb.get('min')}–{amb.get('max')} days "
+            f"(up to {opt.get('min')}–{opt.get('max')} days in optimal storage). Current available inventory: {avail:,.0f} kg. "
+            f"Use /post-harvest to compare Sell Now vs Store with your exact prices and transport costs."
+        )
+
     if intent == "satellite_intelligence":
         if d.get("error"):
             return d["error"]
@@ -393,6 +420,7 @@ async def handle_assistant_chat(
         "finance_query": ("get_financial_intelligence", {}),
         "finance_what_if": ("get_financial_intelligence", {"price_drop_pct": classified.get("price_drop_pct")}),
         "satellite_intelligence": ("get_satellite_intelligence", {}),
+        "post_harvest_query": ("get_post_harvest_intelligence", {"crop": classified.get("crop")}),
         "schemes": ("find_government_schemes", {}),
         "crop_health": ("check_crop_health_adapter", {"crop": classified.get("crop")}),
     }
