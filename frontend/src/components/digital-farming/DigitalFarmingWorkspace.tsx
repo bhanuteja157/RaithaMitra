@@ -50,13 +50,7 @@ import {
   calculateWhatIfScenarios,
 } from '@/lib/digital-farming/simulator';
 import { DF_I18N, DFLanguage } from '@/lib/digital-farming/i18n';
-import { VirtualFieldVisualizer } from './VirtualFieldVisualizer';
 import {
-  Play,
-  Pause,
-  SkipForward,
-  FastForward,
-  RotateCcw,
   CheckCircle2,
   Droplets,
   Sprout,
@@ -78,6 +72,15 @@ const GeospatialFarmMap = dynamic(() => import('./GeospatialFarmMap'), {
   loading: () => (
     <div className="h-96 rounded-2xl border border-zinc-200 bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
       Loading interactive geospatial map...
+    </div>
+  ),
+});
+
+const SatelliteCropTimeLapse = dynamic(() => import('./SatelliteCropTimeLapse'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-96 rounded-2xl border border-zinc-200 bg-zinc-900 flex items-center justify-center text-sm text-zinc-300">
+      Loading satellite time-lapse simulator...
     </div>
   ),
 });
@@ -146,10 +149,12 @@ export function DigitalFarmingWorkspace() {
     [activeAreaAcres, profile, avgForecastTemp, sortBy]
   );
 
-  // Phase 4 & 5: Simulation State
+  // Phase 4 & 5: Simulation State + History for Previous Day
   const [sim, setSim] = useState<SimulationState>(() =>
     createInitialSimulationState(CROP_CATALOG[0], profile)
   );
+  const [simHistory, setSimHistory] = useState<SimulationState[]>([]);
+  const [isCinematic, setIsCinematic] = useState<boolean>(false);
   const [activityNotice, setActivityNotice] = useState<string>('');
 
   // Phase 9: Financial Inputs
@@ -257,14 +262,22 @@ export function DigitalFarmingWorkspace() {
     };
   }, [activeLat, activeLon]);
 
-  // Play loop timer
+  // Play loop timer (supports 1x/2x/5x/10x and ~30s Cinematic Time-Lapse)
   useEffect(() => {
     if (!sim.isPlaying || sim.harvested) return;
+    const intervalMs = isCinematic ? 300 : 750;
+    const daysPerTick = isCinematic
+      ? Math.max(1, Math.round(selectedCrop.durationDays / 100))
+      : sim.speedDaysPerSec;
+
     const timer = window.setInterval(() => {
-      setSim((prev) => advanceSimulationDays(prev, prev.speedDaysPerSec, selectedCrop, activeAreaAcres, profile));
-    }, 900);
+      setSim((prev) => {
+        setSimHistory((h) => [...h.slice(-60), prev]);
+        return advanceSimulationDays(prev, daysPerTick, selectedCrop, activeAreaAcres, profile);
+      });
+    }, intervalMs);
     return () => window.clearInterval(timer);
-  }, [sim.isPlaying, sim.harvested, selectedCrop, activeAreaAcres, profile]);
+  }, [sim.isPlaying, sim.harvested, sim.speedDaysPerSec, isCinematic, selectedCrop, activeAreaAcres, profile]);
 
   const financialSummary = useMemo(
     () => calculateDetailedFinancials(finInputs, activeAreaAcres, profile.budgetInr),
@@ -302,6 +315,8 @@ export function DigitalFarmingWorkspace() {
     const crop = CROP_CATALOG.find((c) => c.id === cropId) || CROP_CATALOG[0];
     setSelectedCropId(crop.id);
     setSim(createInitialSimulationState(crop, profile));
+    setSimHistory([]);
+    setIsCinematic(false);
     setFinInputs(buildDefaultFinancialInputs(crop, activeAreaAcres));
     setActivityNotice('');
     setActiveStep('simulator');
@@ -315,13 +330,37 @@ export function DigitalFarmingWorkspace() {
 
   const handleActivity = (activity: VirtualActivityType) => {
     const res = performVirtualActivity(sim, activity, selectedCrop, activeAreaAcres);
+    if (!res.rejected) {
+      setSimHistory((h) => [...h.slice(-60), sim]);
+    }
     setSim(res.nextState);
     setActivityNotice(res.message);
   };
 
+  const handleStepDay = (delta: number) => {
+    setSimHistory((h) => [...h.slice(-60), sim]);
+    setSim((prev) => advanceSimulationDays(prev, delta, selectedCrop, activeAreaAcres, profile));
+  };
+
+  const handlePreviousDay = () => {
+    if (simHistory.length === 0) return;
+    const prev = simHistory[simHistory.length - 1];
+    setSimHistory((h) => h.slice(0, -1));
+    setSim({ ...prev, isPlaying: false });
+  };
+
+  const handleScrubDay = (targetDay: number) => {
+    const clamped = Math.max(0, Math.min(selectedCrop.durationDays, targetDay));
+    const base = createInitialSimulationState(selectedCrop, profile);
+    const reconstructed =
+      clamped > 0 ? advanceSimulationDays(base, clamped, selectedCrop, activeAreaAcres, profile) : base;
+    setSimHistory([]);
+    setSim({ ...reconstructed, scenario: sim.scenario, scenarioIntensity: sim.scenarioIntensity, speedDaysPerSec: sim.speedDaysPerSec });
+  };
+
   const handleAdvanceToNextStage = () => {
     const stepDays = Math.max(5, Math.round(selectedCrop.durationDays / 8));
-    setSim((prev) => advanceSimulationDays(prev, stepDays, selectedCrop, activeAreaAcres, profile));
+    handleStepDay(stepDays);
   };
 
   const handleAnalyzeBestSelling = () => {
@@ -797,13 +836,14 @@ export function DigitalFarmingWorkspace() {
       {/* STEP 4: INTERACTIVE DIGITAL FARMING SIMULATOR */}
       {activeStep === 'simulator' && (
         <div className="space-y-5">
-          {/* Controls & Crop Switcher */}
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+          {/* Crop Switcher Bar */}
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-semibold text-zinc-600 dark:text-zinc-300">Active Crop:</span>
               <select
                 value={selectedCropId}
                 onChange={(e) => startCultivatingCrop(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-sm font-semibold bg-zinc-50 dark:bg-zinc-800"
+                className="px-3 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-sm font-semibold bg-zinc-50 dark:bg-zinc-800"
               >
                 {CROP_CATALOG.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -811,91 +851,46 @@ export function DigitalFarmingWorkspace() {
                   </option>
                 ))}
               </select>
-
-              <button
-                type="button"
-                onClick={() => setSim((p) => ({ ...p, started: true, isPlaying: !p.isPlaying }))}
-                disabled={sim.harvested}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold disabled:opacity-40"
-              >
-                {sim.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                {sim.isPlaying ? t.pause : sim.started ? t.play : t.startCultivation}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSim((p) => advanceSimulationDays(p, 1, selectedCrop, activeAreaAcres, profile))
-                }
-                disabled={sim.harvested}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold"
-              >
-                <SkipForward className="w-3.5 h-3.5" /> {t.nextDay}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSim((p) => advanceSimulationDays(p, 7, selectedCrop, activeAreaAcres, profile))
-                }
-                disabled={sim.harvested}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold"
-              >
-                <FastForward className="w-3.5 h-3.5" /> {t.advance7Days}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAdvanceToNextStage}
-                disabled={sim.harvested}
-                className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold"
-              >
-                Next Stage
-              </button>
-
-              <select
-                value={sim.speedDaysPerSec}
-                onChange={(e) =>
-                  setSim((p) => ({ ...p, speedDaysPerSec: Number(e.target.value) as 1 | 3 | 7 }))
-                }
-                className="px-2.5 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs bg-zinc-50 dark:bg-zinc-800"
-              >
-                <option value={1}>Speed: 1x</option>
-                <option value={3}>Speed: 3x</option>
-                <option value={7}>Speed: 7x</option>
-              </select>
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleActivity('harvest')}
-                disabled={sim.harvested || sim.growthPct < 85}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold disabled:opacity-40"
-              >
-                <Wheat className="w-3.5 h-3.5" /> {t.completeHarvest}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSim(createInitialSimulationState(selectedCrop, profile));
-                  setActivityNotice('');
-                }}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs"
-              >
-                <RotateCcw className="w-3.5 h-3.5" /> Restart
-              </button>
-            </div>
+            <span className="text-xs text-zinc-500">
+              Mapped Field: <strong>{confirmedFarm.name}</strong> ({activeAreaAcres} acres)
+            </span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Left 2 cols: Virtual Field + Activities + Log */}
+            {/* Left 2 cols: Satellite Time-Lapse + Activities + Log */}
             <div className="lg:col-span-2 space-y-4">
-              <VirtualFieldVisualizer
+              <SatelliteCropTimeLapse
                 points={points}
                 crop={selectedCrop}
                 sim={sim}
                 areaAcres={activeAreaAcres}
+                projectedProfitInr={financialSummary.netProfitInr}
+                estimatedHarvestDate={estimatedHarvestDate}
+                canStepBack={simHistory.length > 0}
+                isCinematic={isCinematic}
+                onTogglePlay={() =>
+                  setSim((p) => ({ ...p, started: true, isPlaying: !p.isPlaying }))
+                }
+                onToggleCinematic={() => {
+                  setIsCinematic((c) => {
+                    const next = !c;
+                    if (next) setSim((p) => ({ ...p, started: true, isPlaying: true }));
+                    return next;
+                  });
+                }}
+                onStepDay={handleStepDay}
+                onPreviousDay={handlePreviousDay}
+                onNextStage={handleAdvanceToNextStage}
+                onScrubDay={handleScrubDay}
+                onSpeedChange={(spd) => setSim((p) => ({ ...p, speedDaysPerSec: spd }))}
+                onRestart={() => {
+                  setSim(createInitialSimulationState(selectedCrop, profile));
+                  setSimHistory([]);
+                  setIsCinematic(false);
+                  setActivityNotice('');
+                }}
+                onHarvest={() => handleActivity('harvest')}
               />
 
               {/* Virtual Agricultural Activities */}

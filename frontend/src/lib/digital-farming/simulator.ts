@@ -78,7 +78,7 @@ export interface ActivityLogEntry {
 export interface SimulationState {
   started: boolean;
   isPlaying: boolean;
-  speedDaysPerSec: 1 | 3 | 7;
+  speedDaysPerSec: number;
   currentDay: number;
   totalDays: number;
   stage: GrowthStageId;
