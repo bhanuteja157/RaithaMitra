@@ -7,6 +7,7 @@ Parity with Supabase schema structure.
 import sqlite3
 import json
 import os
+import re
 from pathlib import Path
 from datetime import datetime, date, timezone
 
@@ -14,8 +15,38 @@ DB_DIR = Path("database")
 DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "raithamitra.db"
 
+
+def normalize_phone_e164(phone_raw: str, country_code: str = "+91") -> str:
+    """Normalize a phone number to strict E.164 format (defaults to +91)."""
+    if not phone_raw or not isinstance(phone_raw, str):
+        raise ValueError("Mobile number is required.")
+    cleaned = re.sub(r"[\s\-\(\)]", "", phone_raw.strip())
+    cc = re.sub(r"[^\d+]", "", (country_code or "+91").strip())
+    if not cc.startswith("+"):
+        cc = f"+{cc}"
+
+    if cleaned.startswith("+"):
+        normalized = cleaned
+    elif cleaned.startswith("00"):
+        normalized = f"+{cleaned[2:]}"
+    elif cc == "+91" and len(cleaned) == 12 and cleaned.startswith("91"):
+        normalized = f"+{cleaned}"
+    elif cc == "+91" and len(cleaned) == 11 and cleaned.startswith("0"):
+        normalized = f"+91{cleaned[1:]}"
+    elif re.fullmatch(r"\d{10}", cleaned):
+        normalized = f"{cc}{cleaned}"
+    else:
+        raise ValueError("Enter a valid mobile number with 10 digits or E.164 format.")
+
+    if normalized.startswith("+91"):
+        if not re.fullmatch(r"\+91[6-9]\d{9}", normalized):
+            raise ValueError("Enter a valid 10-digit Indian mobile number.")
+    elif not re.fullmatch(r"\+[1-9]\d{7,14}", normalized):
+        raise ValueError("Enter a valid international E.164 mobile number.")
+    return normalized
+
 def get_db_connection():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=15.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -257,8 +288,71 @@ def init_db():
     )
     """)
 
+    # 13. Safe backward-compatible migration for Mobile OTP & Unique Phone Ownership (AD-14)
+    for alter_sql in [
+        "ALTER TABLE users ADD COLUMN phone_normalized TEXT",
+        "ALTER TABLE users ADD COLUMN phone_verified INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN account_status TEXT NOT NULL DEFAULT 'active'",
+    ]:
+        try:
+            cursor.execute(alter_sql)
+        except sqlite3.OperationalError:
+            pass
+
+    cursor.execute("SELECT id, phone FROM users WHERE phone_normalized IS NULL AND phone IS NOT NULL")
+    for u_row in cursor.fetchall():
+        try:
+            norm = normalize_phone_e164(u_row["phone"])
+            cursor.execute(
+                "UPDATE users SET phone_normalized = ? WHERE id = ?",
+                (norm, u_row["id"]),
+            )
+        except (ValueError, sqlite3.IntegrityError):
+            pass
+
+    cursor.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_normalized_unique
+    ON users(phone_normalized)
+    WHERE phone_normalized IS NOT NULL AND phone_normalized != ''
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS phone_otps (
+        id TEXT PRIMARY KEY,
+        phone_normalized TEXT NOT NULL,
+        otp_hash TEXT NOT NULL,
+        purpose TEXT NOT NULL DEFAULT 'auth',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        max_attempts INTEGER NOT NULL DEFAULT 5,
+        expires_at TEXT NOT NULL,
+        consumed_at TEXT,
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS otp_verification_tokens (
+        token_hash TEXT PRIMARY KEY,
+        phone_normalized TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        consumed_at TEXT,
+        created_at TEXT NOT NULL
+    )
+    """)
+
     conn.commit()
     seed_demo_accounts(cursor)
+    # Backfill phone_normalized for any newly seeded accounts
+    cursor.execute("SELECT id, phone FROM users WHERE phone_normalized IS NULL AND phone IS NOT NULL")
+    for u_row in cursor.fetchall():
+        try:
+            norm = normalize_phone_e164(u_row["phone"])
+            cursor.execute(
+                "UPDATE users SET phone_normalized = ? WHERE id = ?",
+                (norm, u_row["id"]),
+            )
+        except (ValueError, sqlite3.IntegrityError):
+            pass
     conn.commit()
     conn.close()
 

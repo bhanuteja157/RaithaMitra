@@ -14,6 +14,9 @@ interface FarmContextType {
   token: string | null;
   login: (credentials: { email: string; password: string; role?: UserRole }) => Promise<{ success: boolean; error?: string; redirect_url?: string }>;
   registerUser: (data: any) => Promise<{ success: boolean; error?: string; redirect_url?: string }>;
+  sendOtp: (phone: string, countryCode?: string) => Promise<{ success: boolean; masked_phone?: string; cooldown_seconds?: number; sms_configured?: boolean; error?: string }>;
+  verifyOtp: (phone: string, otp: string, countryCode?: string) => Promise<{ success: boolean; status?: 'authenticated' | 'needs_registration'; verification_token?: string; masked_phone?: string; redirect_url?: string; error?: string }>;
+  registerWithOtp: (payload: { verification_token: string; name: string; role: UserRole; preferred_language?: string }) => Promise<{ success: boolean; redirect_url?: string; error?: string }>;
   logout: () => Promise<void>;
   switchDemoUser: (role: UserRole) => Promise<void>;
   farms: Farm[];
@@ -200,6 +203,90 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       return { success: true, redirect_url: resData.redirect_url };
     } catch (err: any) {
       return { success: false, error: err.message || 'Network error' };
+    }
+  };
+
+  const sendOtp = async (phone: string, countryCode = '+91') => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const res = await fetch(`${backendUrl}/auth/otp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, country_code: countryCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.detail || 'Failed to send OTP' };
+      return {
+        success: true,
+        masked_phone: data.masked_phone,
+        cooldown_seconds: data.cooldown_seconds,
+        sms_configured: data.sms_configured,
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error connecting to OTP service' };
+    }
+  };
+
+  const verifyOtp = async (phone: string, otp: string, countryCode = '+91') => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const res = await fetch(`${backendUrl}/auth/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp, country_code: countryCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.detail || 'Invalid verification code' };
+
+      if (data.status === 'authenticated' && data.user) {
+        const user: User = data.user;
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+        setIsDemoMode(Boolean(user.is_demo));
+        setToken(data.access_token);
+        localStorage.setItem('rm_user', JSON.stringify(user));
+        localStorage.setItem('rm_token', data.access_token);
+        localStorage.setItem('rm_is_demo', user.is_demo ? 'true' : 'false');
+        return { success: true, status: 'authenticated' as const, redirect_url: data.redirect_url };
+      }
+
+      return {
+        success: true,
+        status: 'needs_registration' as const,
+        verification_token: data.verification_token,
+        masked_phone: data.masked_phone,
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error verifying OTP' };
+    }
+  };
+
+  const registerWithOtp = async (payload: {
+    verification_token: string;
+    name: string;
+    role: UserRole;
+    preferred_language?: string;
+  }) => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const res = await fetch(`${backendUrl}/auth/otp/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.detail || 'Registration failed' };
+      const user: User = data.user;
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      setIsDemoMode(false);
+      setToken(data.access_token);
+      localStorage.setItem('rm_user', JSON.stringify(user));
+      localStorage.setItem('rm_token', data.access_token);
+      localStorage.setItem('rm_is_demo', 'false');
+      return { success: true, redirect_url: data.redirect_url };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error during registration' };
     }
   };
 
@@ -595,6 +682,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         token,
         login,
         registerUser,
+        sendOtp,
+        verifyOtp,
+        registerWithOtp,
         logout,
         switchDemoUser,
         farms,

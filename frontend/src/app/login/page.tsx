@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
 import { UserRole, Language } from '@/types';
+import { MobileOtpFlow } from '@/components/auth/MobileOtpFlow';
 import {
   Sprout,
   Building2,
@@ -27,7 +28,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, registerUser, switchDemoUser, language, setLanguage, setIsOnboardingOpen } = useFarm();
 
-  const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'demo'>('signin');
+  const [activeTab, setActiveTab] = useState<'otp' | 'signin' | 'register' | 'demo'>('otp');
   const [selectedRole, setSelectedRole] = useState<UserRole>('farmer');
   
   // Sign In state
@@ -276,39 +277,51 @@ export default function LoginPage() {
 
           <div className="bg-white dark:bg-zinc-950 border border-[#DCD8CA] dark:border-zinc-800 rounded-2xl p-5 md:p-6 space-y-6">
             {/* Navigation Mode Tabs */}
-        <div className="grid grid-cols-3 gap-2 p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-2xl">
+        <div className="grid grid-cols-4 gap-1.5 p-1.5 bg-[#F7F5ED] dark:bg-zinc-900 rounded-2xl">
+          <button
+            onClick={() => { setActiveTab('otp'); setErrorMsg(null); }}
+            className={`py-2 text-xs font-bold rounded-xl transition-all ${
+              activeTab === 'otp'
+                ? 'bg-[#173C2B] text-white shadow-sm'
+                : 'text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            Mobile OTP
+          </button>
           <button
             onClick={() => { setActiveTab('signin'); setErrorMsg(null); }}
-            className={`py-2.5 text-xs font-bold rounded-xl transition-all ${
+            className={`py-2 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'signin'
                 ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
             }`}
           >
-            Sign In
+            Password
           </button>
           <button
             onClick={() => { setActiveTab('register'); setErrorMsg(null); }}
-            className={`py-2.5 text-xs font-bold rounded-xl transition-all ${
+            className={`py-2 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'register'
                 ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
             }`}
           >
-            Register Account
+            Register
           </button>
           <button
             onClick={() => { setActiveTab('demo'); setErrorMsg(null); }}
-            className={`py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1 ${
               activeTab === 'demo'
-                ? 'bg-amber-500 text-white shadow-sm'
-                : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Try Demo (Judging)</span>
+            <Sparkles className="w-3 h-3" />
+            <span>Demo</span>
           </button>
         </div>
+
+        {activeTab === 'otp' && <MobileOtpFlow />}
 
         {/* Error Alert */}
         {errorMsg && (
