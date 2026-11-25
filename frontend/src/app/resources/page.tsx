@@ -3,10 +3,11 @@
 
 import React from 'react';
 import { useFarm } from '@/context/FarmContext';
+import { SmartLocationSelector } from '@/components/location/SmartLocationSelector';
 import { Tractor, Users, Clock, CheckCircle2 } from 'lucide-react';
 
 export default function ResourcesPage() {
-  const { currentFarm } = useFarm();
+  const { currentFarm, labourLocation, setLabourLocation } = useFarm();
 
   return (
     <div className="space-y-6">
@@ -48,6 +49,19 @@ export default function ResourcesPage() {
           <div className="text-[11px] text-zinc-400">Confirmed for Harvest Week</div>
         </div>
       </div>
+
+      {/* Simplified Labour Job Discovery Location */}
+      <SmartLocationSelector
+        role="labour"
+        initialLocation={{
+          latitude: labourLocation?.latitude ?? currentFarm?.latitude ?? 12.5234,
+          longitude: labourLocation?.longitude ?? currentFarm?.longitude ?? 76.8976,
+          village: labourLocation?.village ?? currentFarm?.village ?? '',
+          district: labourLocation?.district ?? currentFarm?.district ?? '',
+          state: labourLocation?.state ?? currentFarm?.state ?? 'Karnataka',
+        }}
+        onConfirmLocation={(loc) => setLabourLocation(loc)}
+      />
     </div>
   );
 }

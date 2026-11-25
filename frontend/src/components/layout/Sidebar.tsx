@@ -26,7 +26,9 @@ import {
   User,
   ExternalLink,
   CheckCircle2,
-  Clock
+  Clock,
+  Dna,
+  Store
 } from 'lucide-react';
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -49,14 +51,16 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         { name: t('irrigation'), href: '/irrigation', icon: Droplets, status: 'prototype' },
         { name: t('diagnostics'), href: '/diagnostics', icon: Microscope, status: 'prototype' },
         { name: t('soilNutrients'), href: '/soil-nutrients', icon: Sprout, status: 'prototype' },
+        { name: t('biointel'), href: '/biointel', icon: Dna, status: 'operational' },
       ],
     },
     {
       title: t('economicIntel'),
       items: [
+        { name: t('nurseryMarketplace'), href: '/nursery-marketplace', icon: Store, status: 'operational' },
         { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
         { name: t('simulation'), href: '/simulation', icon: LineChart, status: 'prototype' },
-        { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'prototype' },
+        { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'operational' },
         { name: t('postHarvest'), href: '/post-harvest', icon: Warehouse, status: 'prototype' },
       ],
     },

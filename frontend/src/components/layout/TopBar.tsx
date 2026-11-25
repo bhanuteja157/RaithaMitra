@@ -29,6 +29,7 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
     refreshData,
     isLoading,
     setIsOnboardingOpen,
+    setIsLocationModalOpen,
     recommendations,
     t
   } = useFarm();
@@ -91,7 +92,17 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
                 ))}
               </div>
 
-              <div className="pt-2 mt-2 border-t border-zinc-200 dark:border-zinc-800">
+              <div className="pt-2 mt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
+                <button
+                  onClick={() => {
+                    setFarmDropdownOpen(false);
+                    setIsLocationModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm font-semibold rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  {t('updateFarmLocation')}
+                </button>
                 <button
                   onClick={() => {
                     setFarmDropdownOpen(false);

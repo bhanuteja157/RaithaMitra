@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useFarm } from '@/context/FarmContext';
 import { FarmCreate } from '@/types';
+import { SmartLocationSelector } from '@/components/location/SmartLocationSelector';
 import { X, Sprout, CheckCircle2 } from 'lucide-react';
 
 export function OnboardingModal() {
@@ -150,6 +151,37 @@ export function OnboardingModal() {
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                 placeholder="e.g. Karnataka"
                 className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-rm-primary focus:outline-none"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <SmartLocationSelector
+                role="farmer"
+                compactMap={true}
+                title="Agricultural Land Location"
+                subtitle="Confirm your farm parcel coordinates (updates Village, District, State & Weather)."
+                confirmLabel="Apply Location to Onboarding Form"
+                initialLocation={{
+                  latitude: formData.latitude,
+                  longitude: formData.longitude,
+                  village: formData.village,
+                  district: formData.district,
+                  state: formData.state,
+                }}
+                onConfirmLocation={(loc) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    village: loc.village,
+                    district: loc.district,
+                    state: loc.state,
+                    pin_code: loc.pin_code,
+                    formatted_address: loc.formatted_address,
+                    location_source: loc.location_source,
+                    location_accuracy_m: loc.location_accuracy_m,
+                  }));
+                }}
               />
             </div>
 

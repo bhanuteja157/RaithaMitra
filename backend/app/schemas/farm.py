@@ -28,6 +28,10 @@ class FarmBase(BaseModel):
     )
     available_water_m3: float = Field(default=10000.0, ge=0, description="Estimated available water volume in cubic meters")
     cultivation_budget_inr: float = Field(default=50000.0, ge=0, description="Allocated seasonal cultivation budget in INR")
+    pin_code: Optional[str] = Field(None, description="Postal PIN code")
+    formatted_address: Optional[str] = Field(None, description="Resolved formatted address")
+    location_source: Optional[Literal["gps", "map", "search", "manual"]] = Field(None, description="How coordinates were selected")
+    location_accuracy_m: Optional[float] = Field(None, ge=0, description="GPS accuracy in meters")
 
 class FarmCreate(FarmBase):
     pass
@@ -51,6 +55,10 @@ class FarmUpdate(BaseModel):
     water_source: Optional[Literal["Borewell", "Open Well", "Canal", "Farm Pond / Tank", "River / Stream", "Rainwater Only"]] = None
     available_water_m3: Optional[float] = None
     cultivation_budget_inr: Optional[float] = None
+    pin_code: Optional[str] = None
+    formatted_address: Optional[str] = None
+    location_source: Optional[Literal["gps", "map", "search", "manual"]] = None
+    location_accuracy_m: Optional[float] = None
 
 class Farm(FarmBase):
     id: str

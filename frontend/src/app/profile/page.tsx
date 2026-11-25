@@ -3,10 +3,11 @@
 
 import React from 'react';
 import { useFarm } from '@/context/FarmContext';
+import { SmartLocationSelector } from '@/components/location/SmartLocationSelector';
 import { User, MapPin, Phone, ShieldCheck, Sprout } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { currentFarm } = useFarm();
+  const { currentFarm, updateFarmLocation } = useFarm();
 
   return (
     <div className="space-y-6">
@@ -75,6 +76,29 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Existing Farm Location without creating duplicates */}
+      {currentFarm && (
+        <SmartLocationSelector
+          role="farmer"
+          title={`Edit Farm Location — ${currentFarm.farm_name}`}
+          subtitle="Adjust your agricultural parcel coordinates. Changes update weather, climate, satellite, and nursery discovery."
+          initialLocation={{
+            latitude: currentFarm.latitude,
+            longitude: currentFarm.longitude,
+            village: currentFarm.village,
+            district: currentFarm.district,
+            state: currentFarm.state,
+            pin_code: currentFarm.pin_code,
+            formatted_address: currentFarm.formatted_address,
+            location_source: currentFarm.location_source,
+            location_accuracy_m: currentFarm.location_accuracy_m,
+          }}
+          onConfirmLocation={async (loc) => {
+            await updateFarmLocation(currentFarm.id, loc);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 // frontend/src/context/FarmContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Farm, FarmSummary, WeatherResponse, RecommendationResponse, Language, Theme, FarmCreate } from '@/types';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { Farm, FarmSummary, WeatherResponse, RecommendationResponse, Language, Theme, FarmCreate, SelectedLocation } from '@/types';
 import { TRANSLATIONS } from '@/lib/translations';
 
 interface FarmContextType {
@@ -20,8 +20,15 @@ interface FarmContextType {
   isLoading: boolean;
   isOnboardingOpen: boolean;
   setIsOnboardingOpen: (open: boolean) => void;
-  refreshData: () => Promise<void>;
+  isLocationModalOpen: boolean;
+  setIsLocationModalOpen: (open: boolean) => void;
+  buyerDeliveryLocation: SelectedLocation | null;
+  setBuyerDeliveryLocation: (loc: SelectedLocation) => void;
+  labourLocation: SelectedLocation | null;
+  setLabourLocation: (loc: SelectedLocation) => void;
+  refreshData: (farmOverride?: Farm) => Promise<void>;
   createFarm: (data: FarmCreate) => Promise<boolean>;
+  updateFarmLocation: (farmId: string, loc: SelectedLocation) => Promise<boolean>;
 }
 
 const DEFAULT_FARM: Farm = {
@@ -60,8 +67,12 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
+  const [buyerDeliveryLocation, setBuyerDeliveryLocationState] = useState<SelectedLocation | null>(null);
+  const [labourLocation, setLabourLocationState] = useState<SelectedLocation | null>(null);
+  const fetchSeqRef = useRef<number>(0);
 
-  // Initialize preferences from localStorage if client-side
+  // Initialize preferences & persisted locations from localStorage if client-side
   useEffect(() => {
     const savedLang = localStorage.getItem('rm_lang') as Language;
     if (savedLang && (savedLang === 'en' || savedLang === 'kn' || savedLang === 'hi')) {
@@ -76,7 +87,38 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         document.documentElement.classList.remove('dark');
       }
     }
+    try {
+      const savedFarms = localStorage.getItem('rm_farms_saved');
+      if (savedFarms) {
+        const parsed = JSON.parse(savedFarms);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setFarms(parsed);
+        }
+      }
+      const savedFarmId = localStorage.getItem('rm_current_farm_id');
+      if (savedFarmId) setCurrentFarmId(savedFarmId);
+      const savedBuyerLoc = localStorage.getItem('rm_buyer_delivery_loc');
+      if (savedBuyerLoc) setBuyerDeliveryLocationState(JSON.parse(savedBuyerLoc));
+      const savedLabourLoc = localStorage.getItem('rm_labour_loc');
+      if (savedLabourLoc) setLabourLocationState(JSON.parse(savedLabourLoc));
+    } catch {
+      // Ignore malformed localStorage
+    }
   }, []);
+
+  const setBuyerDeliveryLocation = (loc: SelectedLocation) => {
+    setBuyerDeliveryLocationState(loc);
+    try {
+      localStorage.setItem('rm_buyer_delivery_loc', JSON.stringify(loc));
+    } catch {}
+  };
+
+  const setLabourLocation = (loc: SelectedLocation) => {
+    setLabourLocationState(loc);
+    try {
+      localStorage.setItem('rm_labour_loc', JSON.stringify(loc));
+    } catch {}
+  };
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
@@ -100,46 +142,63 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   const currentFarm = farms.find(f => f.id === currentFarmId) || farms[0] || null;
 
-  const fetchBackendData = async () => {
+  const fetchBackendData = async (farmOverride?: Farm) => {
+    const requestSeq = ++fetchSeqRef.current;
     setIsLoading(true);
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+    let activeFarm = farmOverride || farms.find(f => f.id === currentFarmId) || DEFAULT_FARM;
     try {
-      // 1. Fetch farms
-      const farmsRes = await fetch(`${backendUrl}/farms`);
-      if (farmsRes.ok) {
-        const farmList = await farmsRes.json();
-        if (farmList.length > 0) {
-          setFarms(farmList);
+      // 1. Fetch farms only when not overriding with newly saved farm
+      if (!farmOverride) {
+        const farmsRes = await fetch(`${backendUrl}/farms`);
+        if (farmsRes.ok && requestSeq === fetchSeqRef.current) {
+          const farmList: Farm[] = await farmsRes.json();
+          if (farmList.length > 0) {
+            // Merge any locally saved location overrides so refresh preserves saved coordinates
+            let localSaved: Farm[] = [];
+            try {
+              const raw = localStorage.getItem('rm_farms_saved');
+              if (raw) localSaved = JSON.parse(raw);
+            } catch {}
+            const merged = farmList.map((bf) => {
+              const lf = localSaved.find((x) => x.id === bf.id);
+              if (lf && new Date(lf.updated_at).getTime() > new Date(bf.updated_at).getTime()) {
+                return lf;
+              }
+              return bf;
+            });
+            setFarms(merged);
+            activeFarm = merged.find(f => f.id === currentFarmId) || merged[0] || activeFarm;
+          }
         }
       }
 
-      const activeFarm = farms.find(f => f.id === currentFarmId) || DEFAULT_FARM;
-
-      // 2. Fetch live weather
+      // 2. Fetch live weather using activeFarm's saved coordinates
       const weatherRes = await fetch(`${backendUrl}/weather?lat=${activeFarm.latitude}&lon=${activeFarm.longitude}`);
-      if (weatherRes.ok) {
+      if (weatherRes.ok && requestSeq === fetchSeqRef.current) {
         const wData = await weatherRes.json();
         setWeather(wData);
       }
 
       // 3. Fetch summary
       const summaryRes = await fetch(`${backendUrl}/farms/${activeFarm.id}/summary`);
-      if (summaryRes.ok) {
+      if (summaryRes.ok && requestSeq === fetchSeqRef.current) {
         const sData = await summaryRes.json();
         setSummary(sData);
       }
 
       // 4. Fetch recommendations
       const recsRes = await fetch(`${backendUrl}/recommendations?farm_id=${activeFarm.id}`);
-      if (recsRes.ok) {
+      if (recsRes.ok && requestSeq === fetchSeqRef.current) {
         const rData = await recsRes.json();
         setRecommendations(rData);
       }
     } catch (err) {
+      if (requestSeq !== fetchSeqRef.current) return;
       console.warn("Using local prototype cache for farm data:", err);
-      // Fallback deterministic local state
+      // Fallback deterministic local state (never mark offline fallback as live)
       setSummary({
-        farm: currentFarm || DEFAULT_FARM,
+        farm: activeFarm,
         soil_moisture_pct: 18.5,
         crop_health_status: "Vigorous / Optimal",
         daily_water_demand_mm: 5.29,
@@ -176,10 +235,10 @@ export function FarmProvider({ children }: { children: ReactNode }) {
           { date: "2026-12-01", temp_max_c: 31.0, temp_min_c: 19.5, precipitation_sum_mm: 0.0, rain_probability_max_pct: 15, et0_fao56_mm: 4.6, condition_text: "Clear" },
         ],
         provenance: {
-          source: "Open-Meteo High Resolution Weather API",
-          timestamp: "2026-11-25T09:30:00Z",
-          quality: "live_telemetry",
-          is_live: true
+          source: "Local Prototype Cache (Offline Fallback)",
+          timestamp: new Date().toISOString(),
+          quality: "estimated_fallback",
+          is_live: false
         }
       });
       setRecommendations({
@@ -272,12 +331,68 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const updateFarmLocation = async (farmId: string, loc: SelectedLocation): Promise<boolean> => {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+    const patchBody = {
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      village: loc.village,
+      district: loc.district,
+      state: loc.state,
+      pin_code: loc.pin_code,
+      formatted_address: loc.formatted_address,
+      location_source: loc.location_source,
+      location_accuracy_m: loc.location_accuracy_m,
+    };
+
+    let updatedFarm: Farm | null = null;
+    try {
+      const res = await fetch(`${backendUrl}/farms/${farmId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchBody),
+      });
+      if (res.ok) {
+        updatedFarm = await res.json();
+      }
+    } catch {
+      // Continue with local persistence adapter if backend is offline
+    }
+
+    const nextFarms = farms.map((f) => {
+      if (f.id !== farmId) return f;
+      if (updatedFarm) return updatedFarm;
+      return {
+        ...f,
+        ...patchBody,
+        updated_at: loc.updated_at,
+      };
+    });
+
+    const targetFarm = nextFarms.find((f) => f.id === farmId);
+    setFarms(nextFarms);
+    try {
+      localStorage.setItem('rm_farms_saved', JSON.stringify(nextFarms));
+      localStorage.setItem('rm_current_farm_id', farmId);
+    } catch {}
+
+    if (targetFarm) {
+      await fetchBackendData(targetFarm);
+    }
+    return true;
+  };
+
   return (
     <FarmContext.Provider
       value={{
         farms,
         currentFarm,
-        setCurrentFarmId,
+        setCurrentFarmId: (id: string) => {
+          setCurrentFarmId(id);
+          try {
+            localStorage.setItem('rm_current_farm_id', id);
+          } catch {}
+        },
         summary,
         weather,
         recommendations,
@@ -289,8 +404,15 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         isLoading,
         isOnboardingOpen,
         setIsOnboardingOpen,
+        isLocationModalOpen,
+        setIsLocationModalOpen,
+        buyerDeliveryLocation,
+        setBuyerDeliveryLocation,
+        labourLocation,
+        setLabourLocation,
         refreshData: fetchBackendData,
-        createFarm
+        createFarm,
+        updateFarmLocation
       }}
     >
       {children}
