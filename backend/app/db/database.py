@@ -359,6 +359,71 @@ def init_db():
     )
     """)
 
+    # 14. AD-23 Intelligent Agricultural Assistant Tables (Additive Migration)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agri_conversations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        farm_id TEXT,
+        language TEXT NOT NULL DEFAULT 'en',
+        title TEXT NOT NULL,
+        memory_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agri_messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+        content TEXT NOT NULL,
+        language TEXT NOT NULL DEFAULT 'en',
+        intent TEXT,
+        tools_executed_json TEXT NOT NULL DEFAULT '[]',
+        cards_json TEXT NOT NULL DEFAULT '[]',
+        alerts_json TEXT NOT NULL DEFAULT '[]',
+        citations_json TEXT NOT NULL DEFAULT '[]',
+        suggested_actions_json TEXT NOT NULL DEFAULT '[]',
+        follow_ups_json TEXT NOT NULL DEFAULT '[]',
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (conversation_id) REFERENCES agri_conversations(id) ON DELETE CASCADE
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agri_action_confirmations (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        farm_id TEXT,
+        action_type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        idempotency_key TEXT UNIQUE NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'confirmed', 'cancelled', 'executed', 'failed')),
+        result_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (conversation_id) REFERENCES agri_conversations(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_agri_conversations_user
+    ON agri_conversations(user_id, updated_at DESC)
+    """)
+
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_agri_messages_conv
+    ON agri_messages(conversation_id, created_at ASC)
+    """)
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts
