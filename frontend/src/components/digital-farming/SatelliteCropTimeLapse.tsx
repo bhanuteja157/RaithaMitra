@@ -6,7 +6,12 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LatLonPoint } from '@/lib/digital-farming/geo';
 import { CropCatalogItem } from '@/lib/digital-farming/crops';
-import { GROWTH_STAGES, SimulationState } from '@/lib/digital-farming/simulator';
+import {
+  computeCropPhenologyMetrics,
+  GROWTH_STAGES,
+  SimulationState,
+} from '@/lib/digital-farming/simulator';
+import RealisticCropGrowthCanvas from './RealisticCropGrowthCanvas';
 import {
   Play,
   Pause,
@@ -21,6 +26,9 @@ import {
   Film,
   RefreshCw,
   Wheat,
+  Sprout,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 
 interface SatelliteCropTimeLapseProps {
@@ -182,7 +190,8 @@ export default function SatelliteCropTimeLapse({
   const satLayerRef = useRef<L.TileLayer | null>(null);
   const osmLayerRef = useRef<L.TileLayer | null>(null);
 
-  const [viewMode, setViewMode] = useState<'satellite' | 'drone'>('satellite');
+  const [viewMode, setViewMode] = useState<'botanical' | 'drone' | 'satellite'>('botanical');
+  const [botanicalZoom, setBotanicalZoom] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [tileError, setTileError] = useState<boolean>(false);
   const [useOsmFallback, setUseOsmFallback] = useState<boolean>(false);
@@ -509,19 +518,29 @@ export default function SatelliteCropTimeLapse({
                 );
               }
 
-              // Drone-only blossom / fruit accents at close zoom
-              if (
-                mode === 'drone' &&
-                (curSim.stage === 'flowering' || curSim.stage === 'fruit_formation' || curSim.stage === 'maturity') &&
-                n3 > 0.78
-              ) {
-                ctx.fillStyle =
-                  curSim.stage === 'flowering'
-                    ? '#fef08a'
-                    : curCrop.id === 'tomato' || curCrop.id === 'chilli'
-                      ? '#dc2626'
-                      : '#f59e0b';
-                ctx.fillRect(px + (n1 - 0.5) * 3, py + (n2 - 0.5) * 3, 2.2, 2.2);
+              // Drone-only blossom / fruit accents at close zoom synchronized with phenology
+              if (mode === 'drone') {
+                const pheno = computeCropPhenologyMetrics(curCrop, curSim);
+                if (pheno.flowerProgress > 0.15 && n3 > 0.72) {
+                  ctx.fillStyle = '#fde047';
+                  ctx.beginPath();
+                  ctx.arc(px + (n1 - 0.5) * 4, py + (n2 - 0.5) * 4, 1.8, 0, Math.PI * 2);
+                  ctx.fill();
+                } else if (pheno.fruitFormationProgress > 0.15 && !curSim.harvested && n3 > 0.74) {
+                  if (curCrop.id === 'tomato' || curCrop.id === 'chilli') {
+                    ctx.fillStyle =
+                      pheno.ripeningRatio < 0.3
+                        ? '#65a30d'
+                        : pheno.ripeningRatio < 0.65
+                          ? '#f59e0b'
+                          : '#dc2626';
+                  } else {
+                    ctx.fillStyle = '#eab308';
+                  }
+                  ctx.beginPath();
+                  ctx.arc(px + (n1 - 0.5) * 4, py + (n2 - 0.5) * 4, 2.2, 0, Math.PI * 2);
+                  ctx.fill();
+                }
               }
             }
           }
@@ -599,13 +618,15 @@ export default function SatelliteCropTimeLapse({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || viewMode === 'botanical') return;
+    map.invalidateSize();
     const bounds = L.latLngBounds(activePoints.map((p) => [p.lat, p.lon] as [number, number]));
     map.fitBounds(bounds, {
       padding: viewMode === 'drone' ? [12, 12] : [42, 42],
       maxZoom: viewMode === 'drone' ? 19 : 18,
       animate: true,
     });
+    window.setTimeout(drawOverlay, 80);
   }, [activePoints, viewMode]);
 
   useEffect(() => {
@@ -623,15 +644,26 @@ export default function SatelliteCropTimeLapse({
   }, [useOsmFallback]);
 
   useEffect(() => {
-    drawOverlay();
+    if (viewMode !== 'botanical') {
+      drawOverlay();
+    }
   }, [sim, crop, viewMode, activePoints]);
+
+  const handleZoomStep = (delta: number) => {
+    if (viewMode === 'botanical') {
+      setBotanicalZoom((z) => Math.max(0.7, Math.min(2.4, Number((z + delta * 0.2).toFixed(2)))));
+    } else if (mapRef.current) {
+      if (delta > 0) mapRef.current.zoomIn();
+      else mapRef.current.zoomOut();
+    }
+  };
 
   const toggleFullscreen = () => {
     if (!wrapperRef.current) return;
     if (!document.fullscreenElement) {
-      wrapperRef.current.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
+      wrapperRef.current.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => { });
     } else {
-      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
+      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => { });
     }
   };
 
@@ -642,50 +674,97 @@ export default function SatelliteCropTimeLapse({
     >
       {/* Top Bar */}
       <div className="px-4 py-2.5 bg-zinc-900 text-white flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setViewMode('satellite')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold ${
-              viewMode === 'satellite' ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-            }`}
+            onClick={() => setViewMode('botanical')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold ${viewMode === 'botanical' ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+              }`}
           >
-            <Satellite className="w-3.5 h-3.5" /> Satellite View
+            <Sprout className="w-3.5 h-3.5" /> Plant Lifecycle
           </button>
           <button
             type="button"
             onClick={() => setViewMode('drone')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold ${
-              viewMode === 'drone' ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-            }`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold ${viewMode === 'drone' ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+              }`}
           >
             <Camera className="w-3.5 h-3.5" /> Drone View
           </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('satellite')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold ${viewMode === 'satellite' ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+              }`}
+          >
+            <Satellite className="w-3.5 h-3.5" /> Satellite View
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-full bg-white/10 text-emerald-200 text-[11px] font-medium">
-            Satellite Basemap • Simulated Crop Growth
+        <div className="flex items-center gap-1.5">
+          <span className="hidden md:inline-block px-2.5 py-1 rounded-full bg-white/10 text-emerald-200 text-[11px] font-medium">
+            {viewMode === 'botanical'
+              ? 'Soil Cross-Section • Root & Canopy Lifecycle'
+              : viewMode === 'drone'
+                ? 'Close-Range Drone View • Field Canopy & Clusters'
+                : 'Satellite Basemap • Simulated Crop Growth'}
           </span>
+          <button
+            type="button"
+            onClick={() => handleZoomStep(-1)}
+            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+            title="Zoom Out"
+            aria-label="Viewport Zoom Out"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleZoomStep(1)}
+            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+            title="Zoom In"
+            aria-label="Viewport Zoom In"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
           <button
             type="button"
             onClick={toggleFullscreen}
             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+            aria-label="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Map + Geographic Canvas Overlay + HUD */}
-      <div className="relative w-full h-[360px] sm:h-[440px] bg-zinc-900">
-        <div ref={mapContainerRef} className="w-full h-full z-10" />
+      {/* Viewport: Botanical Soil/Plant Simulation + Preserved Satellite/Drone Map */}
+      <div className="relative w-full h-[380px] sm:h-[460px] bg-zinc-900">
+        <div
+          ref={mapContainerRef}
+          className={`w-full h-full z-10 ${viewMode === 'botanical' ? 'opacity-0 pointer-events-none' : ''}`}
+        />
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full pointer-events-none z-[450]"
+          className={`absolute inset-0 w-full h-full pointer-events-none z-[450] ${viewMode === 'botanical' ? 'hidden' : ''
+            }`}
         />
 
-        {tileError && (
+        {viewMode === 'botanical' && (
+          <div className="absolute inset-0 z-[475]">
+            <RealisticCropGrowthCanvas
+              crop={crop}
+              sim={sim}
+              areaAcres={areaAcres}
+              projectedYieldKg={projectedYieldKg}
+              estimatedHarvestDate={estimatedHarvestDate}
+              zoom={botanicalZoom}
+              onZoomChange={setBotanicalZoom}
+            />
+          </div>
+        )}
+
+        {tileError && viewMode !== 'botanical' && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] bg-amber-950/90 text-amber-100 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 shadow">
             <span>Satellite tiles unavailable; fallback active.</span>
             <button
@@ -767,11 +846,10 @@ export default function SatelliteCropTimeLapse({
               type="button"
               onClick={onToggleCinematic}
               disabled={sim.harvested}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border disabled:opacity-40 ${
-                isCinematic
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border disabled:opacity-40 ${isCinematic
                   ? 'bg-amber-600 text-white border-amber-600'
                   : 'bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700'
-              }`}
+                }`}
               title="Compresses the full crop lifecycle into ~30 seconds"
             >
               <Film className="w-3.5 h-3.5" /> 30s Time-Lapse

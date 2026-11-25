@@ -952,3 +952,207 @@ export const DEFAULT_WHAT_IF_SCENARIOS: WhatIfScenarioAdjustments[] = [
     transportFactor: 0.95,
   },
 ];
+
+export interface CropPhenologyMetrics {
+  growthRatio: number; // 0..1 continuous lifecycle progress
+  seedVisibleProgress: number; // 0..1 seed present in furrow / imbibing
+  imbibitionScale: number; // 0..1 seed swelling prior to radicle split
+  radicleLengthRatio: number; // 0..1 taproot downward extension
+  rootBranchingRatio: number; // 0..1 lateral roots & root hair mesh
+  rootDepthCm: number; // estimated root depth in cm
+  hypocotylHookProgress: number; // 0..1 germination arch pushing through crust
+  cotyledonOpenProgress: number; // 0..1 unfolding of seed leaves (cotyledons)
+  shootHeightRatio: number; // 0..1 above-ground vertical shoot extension
+  shootHeightCm: number; // estimated plant height in cm
+  leafDevelopmentRatio: number; // 0..1 compound true leaf / tiller / whorl density
+  flowerProgress: number; // 0..1 blossom truss emergence & openness
+  fruitFormationProgress: number; // 0..1 young green fruit / cob / panicle development
+  ripeningRatio: number; // 0..1 colour transition (e.g. tomato green -> breaker -> crimson)
+  harvestedCrateFill: number; // 0..1 harvested produce visual after harvest
+  healthVigor: number; // 0..1 green chlorophyll health
+  wiltFactor: number; // 0..1 droop from low moisture or heat stress
+  pestSpotFactor: number; // 0..1 visible pest/leaf-spot pressure
+  soilWetness: number; // 0..1 topsoil moisture & wetting front
+  soilDisturbance: number; // 0..1 freshly tilled seedbed ridges
+  sunlightIntensity: number; // 0..1 ambient & solar beam strength
+  rainIntensity: number; // 0..1 active rainfall visuals
+  windStrength: number; // 0..1 foliage & stem sway amplitude
+  thermalTint: 'neutral' | 'warm' | 'cool';
+  speciesArchetype:
+    | 'tomato_vine'
+    | 'tall_cereal'
+    | 'paddy_tuft'
+    | 'root_tuber'
+    | 'bulb_rosette'
+    | 'branching_bush';
+}
+
+function smoothStep(edge0: number, edge1: number, x: number): number {
+  if (edge1 <= edge0) return x >= edge1 ? 1 : 0;
+  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function resolveSpeciesArchetype(crop: CropCatalogItem): CropPhenologyMetrics['speciesArchetype'] {
+  if (crop.id === 'tomato') return 'tomato_vine';
+  if (crop.id === 'onion' || crop.id === 'garlic') return 'bulb_rosette';
+  if (crop.visualType === 'tall_cereal' || crop.visualType === 'cane') return 'tall_cereal';
+  if (crop.visualType === 'paddy') return 'paddy_tuft';
+  if (crop.visualType === 'root') return 'root_tuber';
+  return 'branching_bush';
+}
+
+/**
+ * Computes continuous botanical lifecycle parameters synchronized with SimulationState.
+ * Prioritizes fine-grained Tomato seed-to-harvest phenology while scaling cleanly to all catalog crops.
+ */
+export function computeCropPhenologyMetrics(
+  crop: CropCatalogItem,
+  sim: SimulationState
+): CropPhenologyMetrics {
+  const gPct = clamp(sim.growthPct, 0, 100);
+  const growthRatio = gPct / 100;
+  const archetype = resolveSpeciesArchetype(crop);
+  const intensity = clamp(sim.scenarioIntensity / 100, 0.1, 1);
+
+  const soilDisturbance = sim.soilPrepared || gPct > 0 ? 1 : 0;
+  const isSown = sim.sown || gPct > 0 || sim.currentDay > 0;
+
+  // Seed remains recognizable until cotyledon/early seedling establishment (~28%)
+  const seedVisibleProgress = isSown
+    ? smoothStep(1, 5, gPct) * (1 - smoothStep(24, 38, gPct))
+    : 0;
+  const imbibitionScale = isSown ? smoothStep(2, 10, gPct) : 0;
+
+  // Root system initiates during germination (gPct ~ 6%) and establishes early
+  const radicleLengthRatio = isSown ? smoothStep(6, 58, gPct) : 0;
+  const rootBranchingRatio = isSown ? smoothStep(14, 72, gPct) : 0;
+
+  const maxRootCm =
+    archetype === 'tall_cereal'
+      ? 92
+      : archetype === 'tomato_vine'
+        ? 68
+        : archetype === 'paddy_tuft'
+          ? 36
+          : archetype === 'root_tuber'
+            ? 45
+            : 58;
+  const rootDepthCm = Number((radicleLengthRatio * maxRootCm).toFixed(1));
+
+  // Hypocotyl arch pushes through soil surface between ~8% and ~22%, then straightens
+  const hypocotylHookProgress = isSown
+    ? smoothStep(8, 15, gPct) * (1 - smoothStep(18, 25, gPct))
+    : 0;
+
+  // Cotyledons unfold ~14%..26% and gradually senesce after true leaves dominate (~50%..70%)
+  const cotyledonOpenProgress = isSown
+    ? smoothStep(14, 24, gPct) * (1 - smoothStep(48, 68, gPct))
+    : 0;
+
+  // Shoot height & true foliage expansion
+  const shootHeightRatio = sim.harvested
+    ? archetype === 'tomato_vine' || archetype === 'tall_cereal'
+      ? 0.88
+      : 0.72
+    : isSown
+      ? smoothStep(10, 82, gPct)
+      : 0;
+
+  const maxShootCm =
+    archetype === 'tall_cereal'
+      ? 220
+      : archetype === 'tomato_vine'
+        ? 135
+        : archetype === 'paddy_tuft'
+          ? 105
+          : archetype === 'root_tuber'
+            ? 55
+            : 95;
+  const shootHeightCm = Number((shootHeightRatio * maxShootCm).toFixed(1));
+
+  const leafDevelopmentRatio = isSown ? smoothStep(18, 76, gPct) : 0;
+
+  // Flowers emerge ~52%..65%, peak around 68%, and transition into ovaries/fruit by ~86%
+  const flowerRise = smoothStep(52, 63, gPct);
+  const flowerFade = 1 - smoothStep(76, 90, gPct);
+  const flowerProgress = isSown && !sim.harvested ? clamp(flowerRise * flowerFade, 0, 1) : 0;
+
+  // Fruit/grain formation begins as flowers set (~71%..88%)
+  const fruitFormationProgress = isSown
+    ? sim.harvested
+      ? 0.25 // post-harvest remaining small/unpicked remnants
+      : smoothStep(71, 90, gPct)
+    : 0;
+
+  // Tomato: green (72..78%) -> yellow/orange breaker (78..86%) -> glossy red (86..93%)
+  const ripeningRatio = isSown
+    ? sim.harvested
+      ? 1
+      : smoothStep(78, 93, gPct)
+    : 0;
+
+  const harvestedCrateFill = sim.harvested ? 1 : 0;
+
+  // Stress, health & atmospheric visuals
+  const healthVigor = clamp(sim.cropHealthPct / 100, 0.15, 1);
+  const lowMoistureWilt = smoothStep(42, 14, sim.soilMoisturePct);
+  const heatWilt =
+    sim.scenario === 'heat_stress' || sim.scenario === 'drought' ? 0.35 * intensity : 0;
+  const wiltFactor = clamp(Math.max(lowMoistureWilt * 0.85, heatWilt) + (1 - healthVigor) * 0.35, 0, 0.95);
+  const pestSpotFactor = smoothStep(28, 85, sim.pestPressurePct);
+  const soilWetness = clamp(sim.soilMoisturePct / 100, 0.05, 1);
+
+  const rainIntensity =
+    sim.scenario === 'excessive_rain'
+      ? 0.85 * intensity
+      : sim.scenario === 'unseasonal_rain'
+        ? 0.55 * intensity
+        : 0;
+  const windStrength =
+    sim.scenario === 'strong_winds'
+      ? 0.85 * intensity
+      : rainIntensity > 0
+        ? 0.42
+        : 0.18;
+  const sunlightIntensity =
+    rainIntensity > 0.3
+      ? 0.48
+      : sim.scenario === 'heat_stress' || sim.scenario === 'drought'
+        ? 1.0
+        : 0.82;
+  const thermalTint: CropPhenologyMetrics['thermalTint'] =
+    sim.scenario === 'heat_stress' || sim.scenario === 'drought'
+      ? 'warm'
+      : sim.scenario === 'cold_stress' || rainIntensity > 0.35
+        ? 'cool'
+        : 'neutral';
+
+  return {
+    growthRatio,
+    seedVisibleProgress,
+    imbibitionScale,
+    radicleLengthRatio,
+    rootBranchingRatio,
+    rootDepthCm,
+    hypocotylHookProgress,
+    cotyledonOpenProgress,
+    shootHeightRatio,
+    shootHeightCm,
+    leafDevelopmentRatio,
+    flowerProgress,
+    fruitFormationProgress,
+    ripeningRatio,
+    harvestedCrateFill,
+    healthVigor,
+    wiltFactor,
+    pestSpotFactor,
+    soilWetness,
+    soilDisturbance,
+    sunlightIntensity,
+    rainIntensity,
+    windStrength,
+    thermalTint,
+    speciesArchetype: archetype,
+  };
+}

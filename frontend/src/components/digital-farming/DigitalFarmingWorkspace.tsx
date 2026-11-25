@@ -437,11 +437,25 @@ export function DigitalFarmingWorkspace() {
 
   const handleScrubDay = (targetDay: number) => {
     const clamped = Math.max(0, Math.min(selectedCrop.durationDays, targetDay));
-    const base = createInitialSimulationState(selectedCrop, profile);
+    const base = {
+      ...createInitialSimulationState(selectedCrop, profile),
+      scenario: sim.scenario,
+      scenarioIntensity: sim.scenarioIntensity,
+      speedDaysPerSec: sim.speedDaysPerSec,
+      soilPrepared: clamped > 0 ? true : sim.soilPrepared,
+      sown: clamped > 0 ? true : sim.sown,
+      started: clamped > 0,
+    };
     const reconstructed =
       clamped > 0 ? advanceSimulationDays(base, clamped, selectedCrop, activeAreaAcres, profile) : base;
-    setSimHistory([]);
-    setSim({ ...reconstructed, scenario: sim.scenario, scenarioIntensity: sim.scenarioIntensity, speedDaysPerSec: sim.speedDaysPerSec });
+    setSimHistory((h) => [...h.slice(-60), sim]);
+    setSim({
+      ...reconstructed,
+      isPlaying: false,
+      scenario: sim.scenario,
+      scenarioIntensity: sim.scenarioIntensity,
+      speedDaysPerSec: sim.speedDaysPerSec,
+    });
   };
 
   const handleAdvanceToNextStage = () => {
