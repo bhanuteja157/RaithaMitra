@@ -1,12 +1,27 @@
 // frontend/src/app/surveillance/page.tsx
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFarm } from '@/context/FarmContext';
+import { fetchSurveillanceSummary } from '@/lib/cropDiagnosticsApi';
 import { Activity, ShieldAlert, Wind, MapPin } from 'lucide-react';
 
 export default function SurveillancePage() {
   const { currentFarm } = useFarm();
+  const [reports, setReports] = useState<
+    Array<{
+      crop: string;
+      suspected_disease: string;
+      region: string;
+      verification_status: string;
+      observation_count: number;
+      latest_report_date: string;
+    }>
+  >([]);
+
+  useEffect(() => {
+    fetchSurveillanceSummary().then(setReports);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -47,6 +62,31 @@ export default function SurveillancePage() {
           <div className="text-2xl font-bold text-emerald-600">88% Compliant</div>
           <div className="text-[11px] text-zinc-400">Preventative bio-spray coverage</div>
         </div>
+      </div>
+
+      <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-3 text-xs">
+        <div className="font-bold text-sm text-zinc-900 dark:text-white">
+          Confirmed Farmer-Submitted AI-Suspected Observations (Region-Level)
+        </div>
+        {reports.length === 0 ? (
+          <p className="text-zinc-500">No community disease reports submitted yet. Farmers can optionally report AI-suspected observations from AI Crop Doctor after explicit confirmation.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {reports.map((rep, i) => (
+              <div key={i} className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1">
+                <div className="font-bold text-zinc-900 dark:text-white">
+                  {rep.crop} — {rep.suspected_disease}
+                </div>
+                <div className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                  Region: {rep.region} · Observations: {rep.observation_count} · Status: {rep.verification_status}
+                </div>
+                <div className="text-[10px] text-zinc-500">
+                  Latest: {new Date(rep.latest_report_date).toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
