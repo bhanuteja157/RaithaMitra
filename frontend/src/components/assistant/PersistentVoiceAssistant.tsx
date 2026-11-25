@@ -19,6 +19,7 @@ import {
   speakWithDeviceVoice,
 } from '@/lib/assistantVoice';
 import { calculateSeedInvestment, getCropPreset } from '@/lib/seedInvestment';
+import { sendAssistantMessage } from '@/lib/assistantApi';
 import { Mic, MicOff, Volume2, VolumeX, Send, X, Sprout, MessageSquare } from 'lucide-react';
 
 type AssistantState = 'idle' | 'listening' | 'processing' | 'navigating' | 'speaking';
@@ -468,12 +469,33 @@ export function PersistentVoiceAssistant() {
     // 4. Navigation intents
     const intent = matchNavigationIntent(text);
     if (!intent) {
+      // Delegate general agricultural questions to the unified AD-23 Assistant backend
+      if (token) {
+        try {
+          const res = await sendAssistantMessage(
+            {
+              message: text,
+              farm_id: currentUser.role === 'farmer' ? currentFarm?.id : undefined,
+              language: lang,
+            },
+            token
+          );
+          if (res.client_directive?.directive_type === 'biointel_fill' && typeof window !== 'undefined') {
+            window.localStorage.setItem('rm_voice_biointel_draft_v1', JSON.stringify(res.client_directive.payload));
+            window.dispatchEvent(new CustomEvent('rm-biointel-voice-fill', { detail: res.client_directive.payload }));
+          }
+          speakAndSet(res.reply);
+          return;
+        } catch {
+          // fall through to local prompt
+        }
+      }
       const msg =
         lang === 'kn'
           ? 'ದಯವಿಟ್ಟು "Open BioIntel", "Plan Tomato 2 acres 40000 budget", ಅಥವಾ "Open Digital Farming" ಎಂದು ಹೇಳಿ.'
           : lang === 'hi'
             ? 'कृपया "Open BioIntel", "Plan Tomato 2 acres 40000 budget", या "Open Digital Farming" कहें।'
-            : 'Try saying "Plan Tomato for 2 acres with 40000 budget", "Open BioIntel", "Start simulation", or "Open Smart Bidding".';
+            : 'Try saying "Plan Tomato for 2 acres with 40000 budget", "Should I irrigate tomorrow?", "Open BioIntel", or "How much profit have I earned?".';
       speakAndSet(msg);
       return;
     }
@@ -580,6 +602,16 @@ export function PersistentVoiceAssistant() {
               )}
             </div>
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  router.push('/assistant');
+                }}
+                className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] font-semibold"
+              >
+                Full Chat
+              </button>
               <button
                 type="button"
                 onClick={() => {

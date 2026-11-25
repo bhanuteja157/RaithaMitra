@@ -394,6 +394,37 @@ def init_db():
     ON financial_transactions(user_id, farm_id, tx_date)
     """)
 
+    # 15. Multilingual Agentic Assistant Conversations & Pending Actions (AD-23)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS assistant_conversations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        farm_id TEXT,
+        language TEXT NOT NULL DEFAULT 'en',
+        title TEXT NOT NULL,
+        messages_json TEXT NOT NULL DEFAULT '[]',
+        pending_task_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS assistant_pending_actions (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        session_token_hash TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'confirmed', 'cancelled', 'expired')),
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts
