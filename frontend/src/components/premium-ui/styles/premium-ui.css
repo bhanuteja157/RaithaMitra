@@ -1,0 +1,54 @@
+/* frontend/src/components/premium-ui/styles/premium-ui.css */
+/* Scoped styles for RaithaMitra Premium UI components (does not touch globals.css) */
+
+.rm-premium-root {
+  --rm-forest: #14532d;
+  --rm-green: #166534;
+  --rm-emerald: #059669;
+  --rm-cream: #f8f7f2;
+  --rm-earth: #92714b;
+  --rm-gold: #d4a72c;
+  --rm-charcoal: #17251d;
+}
+
+@keyframes rmFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rm-animate-in {
+  animation: rmFadeSlideUp 0.35s ease-out both;
+}
+
+.rm-card-hover {
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.rm-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -10px rgba(20, 83, 45, 0.16);
+}
+
+.rm-img-zoom {
+  transition: transform 0.45s ease;
+}
+
+.group:hover .rm-img-zoom {
+  transform: scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rm-animate-in,
+  .rm-card-hover,
+  .rm-img-zoom {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
