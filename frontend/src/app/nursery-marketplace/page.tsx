@@ -553,9 +553,17 @@ function NurseryMarketplaceContent() {
               (within {selectedRadius} km of current location)
             </span>
           </div>
-          <span className="text-[11px] text-zinc-400">
-            *Google Places results do not confirm live stock
-          </span>
+          <div className="flex items-center gap-3 text-[11px] text-zinc-400 flex-wrap">
+            <span>*Google Places results do not confirm live stock</span>
+            <a
+              href="https://nhb.gov.in/nnp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-700 dark:text-green-400 font-semibold hover:underline flex items-center gap-1"
+            >
+              Verify on National Nursery Portal (NHB) <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -585,7 +593,7 @@ function NurseryMarketplaceContent() {
               <div className="flex items-center justify-between text-xs text-zinc-500">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-zinc-400" />
-                  {n.distance_km !== undefined ? `${n.distance_km} km away` : 'Regional'}
+                  {n.distance_km !== undefined ? `${n.distance_km} km (straight-line est.)` : 'Regional'}
                 </span>
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">
                   {n.data_source === 'google_places_supplier' ? 'Google Places Discovery' : 'Demo Certified Nursery'}
