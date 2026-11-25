@@ -9,6 +9,7 @@ from backend.app.features.finance import router as finance_router
 from backend.app.features.assistant import router as assistant_router
 from backend.app.features.satellite import router as satellite_router
 from backend.app.features.post_harvest import router as post_harvest_router
+from backend.app.features.equipment import router as equipment_router
 
 api_router = APIRouter()
 
@@ -38,3 +39,4 @@ api_router.include_router(finance_router.router)
 api_router.include_router(assistant_router.router)
 api_router.include_router(satellite_router.router)
 api_router.include_router(post_harvest_router.router)
+api_router.include_router(equipment_router.router)

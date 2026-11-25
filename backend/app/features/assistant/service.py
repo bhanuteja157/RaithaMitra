@@ -152,6 +152,20 @@ def _build_local_reply(
             f"and estimated net profit ₹{d['estimated_profit_inr']:,.0f} (using {d['variety']}).{warn}"
         )
 
+    if intent == "equipment_query":
+        cnt = d.get("available_count", 0)
+        b_cnt = d.get("bookings_count", 0)
+        sav = d.get("financial_summary", {}).get("estimated_shared_savings_inr", 0)
+        top = d.get("top_listings", [])
+        top_txt = f" Top listing: {top[0]['equipment_name']} at ₹{top[0]['rental_rate_inr']}/{top[0]['rate_unit']}." if top else " Register or browse machinery on /resources."
+        if lang == "kn":
+            return f"ಯಂತ್ರೋಪಕರಣ ಸಂಪರ್ಕ: {cnt} ಲಭ್ಯವಿರುವ ಯಂತ್ರಗಳು, {b_cnt} ನಿಮ್ಮ ಬುಕಿಂಗ್‌ಗಳು, ಅಂದಾಜು ಹಂಚಿಕೆ ಉಳಿತಾಯ ₹{sav:,.0f}.{top_txt}"
+        if lang == "hi":
+            return f"उपकरण कनेक्ट: {cnt} उपलब्ध मशीनें, {b_cnt} आपकी बुकिंग, अनुमानित साझा बचत ₹{sav:,.0f}।{top_txt}"
+        if lang == "te":
+            return f"పరికరాల కనెక్ట్: {cnt} అందుబాటులో ఉన్న యంత్రాలు, {b_cnt} మీ బుకింగ్‌లు, అంచనా ఆదా ₹{sav:,.0f}.{top_txt}"
+        return f"Equipment Connect: {cnt} active machinery listings, {b_cnt} bookings on your account, and ₹{sav:,.0f} estimated shared rental savings.{top_txt} Open /resources to schedule or optimize shared bookings."
+
     if intent == "post_harvest_query":
         inv = d.get("inventory_summary", {})
         rec_t = d.get("recommended_temp_c", {})
@@ -421,6 +435,7 @@ async def handle_assistant_chat(
         "finance_what_if": ("get_financial_intelligence", {"price_drop_pct": classified.get("price_drop_pct")}),
         "satellite_intelligence": ("get_satellite_intelligence", {}),
         "post_harvest_query": ("get_post_harvest_intelligence", {"crop": classified.get("crop")}),
+        "equipment_query": ("get_equipment_intelligence", {"crop": classified.get("crop")}),
         "schemes": ("find_government_schemes", {}),
         "crop_health": ("check_crop_health_adapter", {"crop": classified.get("crop")}),
     }

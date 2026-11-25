@@ -199,12 +199,18 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
         return {"intent": "crop_health", "crop": crop}
 
     # 4b. Satellite & Geospatial Intelligence (AD-25)
-    if any(w in q for w in ("satellite", "ndvi", "ndmi", "ndwi", "evi", "savi", "ndre", "sentinel", "canopy", "vegetation index", "ಉಪಗ್ರಹ", "उपग्रह", "सैटेलाइट", "ఉపగ్రహం")):
+    if any(w in q for w in ("satellite", "sentinel", "canopy", "vegetation index", "ಉಪಗ್ರಹ", "उपग्रह", "सैटेलाइट", "ఉపగ్రహం")) or re.search(
+        r"\b(ndvi|ndmi|ndwi|evi|savi|ndre)\b", q
+    ):
         return {"intent": "satellite_intelligence"}
 
     # 4c. Post-Harvest Storage, Shelf-Life, Inventory & Sell-vs-Store (AD-27)
     if any(w in q for w in ("post-harvest", "post harvest", "cold storage", "shelf life", "shelf-life", "store my", "sell now or store", "sell or store", "spoilage", "storage condition", "storage cost", "storage loss", "inventory level", "available for selling", "ಶೀತಲೀಕರಣ", "ಸಂಗ್ರಹಣೆ", "शीतगृह", "भंडारण", "కోల్డ్ స్టోరేజ్", "నిల్వ")):
         return {"intent": "post_harvest_query", "crop": crop}
+
+    # 4d. Equipment Sharing & Resource Optimization (AD-28)
+    if any(w in q for w in ("tractor", "rotavator", "harvester", "thresher", "sprayer", "drone", "seed drill", "transplanter", "machinery", "equipment", "share a tractor", "shared rental", "ಟ್ರ್ಯಾಕ್ಟರ್", "ಯಂತ್ರ", "ट्रैक्टर", "मशीन", "ట్రాక్టర్", "యంత్రం")):
+        return {"intent": "equipment_query", "crop": crop}
 
     # 5. Irrigation & Weather
     if any(w in q for w in ("irrigate", "irrigation", "water today", "water my", "rain", "weather", "forecast", "climate", "ನೀರಾವರಿ", "ಹವಾಮಾನ", "ಮಳೆ", "सिंचाई", "मौसम", "बारिश", "నీటిపారుదల", "వాతావరణం")):

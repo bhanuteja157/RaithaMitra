@@ -181,6 +181,12 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "classification": "read_only",
         "provenance": "AD-27 Post-Harvest Intelligence & Storage KB",
     },
+    "get_equipment_intelligence": {
+        "description": "Search available agricultural machinery, check bookings and shared rental savings, and recommend compatible equipment.",
+        "allowed_roles": ["farmer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-28 Equipment Connect & OR-Tools Scheduler",
+    },
     "find_government_schemes": {
         "description": "Retrieve verified Indian government agricultural schemes and official links.",
         "allowed_roles": ["farmer", "buyer", "labour", "driver", "admin"],
@@ -877,6 +883,54 @@ async def execute_tool(
                 "requires_refrigeration": profile["requires_refrigeration"],
                 "inventory_summary": summary,
                 "shelf_life": shelf,
+            },
+            "cards": cards,
+            "sources": sources,
+            "provenance": meta["provenance"],
+        }
+
+    if tool_name == "get_equipment_intelligence":
+        from backend.app.features.equipment.booking import list_user_bookings
+        from backend.app.features.equipment.service import (
+            discover_equipment,
+            get_equipment_financial_summary,
+        )
+
+        lat = float(farm["latitude"]) if farm else 12.5234
+        lon = float(farm["longitude"]) if farm else 76.8976
+        listings = discover_equipment(latitude=lat, longitude=lon)
+        bookings = list_user_bookings(user["user_id"])
+        fin_sum = get_equipment_financial_summary(user["user_id"])
+
+        metrics: Dict[str, Any] = {
+            "Available Listings": len(listings),
+            "My Bookings": len(bookings),
+            "Committed Rental": f"₹{fin_sum['committed_cost_inr']:,.0f}",
+            "Est. Shared Savings": f"₹{fin_sum['estimated_shared_savings_inr']:,.0f}",
+        }
+        if listings:
+            top = listings[0]
+            metrics["Nearest Machinery"] = f"{top['equipment_name']} (₹{top['rental_rate_inr']}/{top['rate_unit']})"
+        highlights = [
+            "Use /resources to book equipment, view availability calendars, or run Google OR-Tools Shared Tractor Optimization.",
+            "Booking requests require explicit owner approval before reserving equipment.",
+        ]
+        cards.append(
+            StructuredCard(
+                card_type="equipment",
+                title="RaithaMitra Equipment Connect",
+                metrics=metrics,
+                highlights=highlights,
+            )
+        )
+        sources.append(SourceReference(title="AD-28 SQLite Equipment Registry & OR-Tools Scheduler", source="Equipment Connect", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": {
+                "available_count": len(listings),
+                "top_listings": listings[:3],
+                "bookings_count": len(bookings),
+                "financial_summary": fin_sum,
             },
             "cards": cards,
             "sources": sources,

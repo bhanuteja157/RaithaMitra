@@ -569,6 +569,177 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ph_lots_farmer ON post_harvest_lots(farmer_id, farm_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ph_events_lot ON post_harvest_lot_events(lot_id, created_at DESC)")
 
+    # 18. Equipment Sharing & Resource Optimization (AD-28)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS equipment_owner_profiles (
+        user_id TEXT PRIMARY KEY,
+        owner_name TEXT NOT NULL,
+        village TEXT,
+        district TEXT,
+        state TEXT,
+        phone TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS equipment_listings (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        equipment_name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        manufacturer TEXT,
+        model TEXT,
+        manufacturing_year INTEGER,
+        power_or_capacity TEXT,
+        effective_field_capacity_ha_hr REAL NOT NULL DEFAULT 0.4,
+        theoretical_capacity_ha_hr REAL,
+        suitable_operations_json TEXT NOT NULL,
+        suitable_crops_json TEXT NOT NULL,
+        condition_status TEXT NOT NULL DEFAULT 'Good',
+        rental_rate_inr REAL NOT NULL CHECK(rental_rate_inr >= 0),
+        rate_unit TEXT NOT NULL DEFAULT 'hourly' CHECK(rate_unit IN ('hourly', 'daily', 'per_acre', 'per_hectare', 'fixed')),
+        min_booking_duration REAL NOT NULL DEFAULT 1.0,
+        operator_available INTEGER NOT NULL DEFAULT 1,
+        operator_charge_inr REAL NOT NULL DEFAULT 0.0,
+        fuel_included INTEGER NOT NULL DEFAULT 1,
+        fuel_charge_inr REAL NOT NULL DEFAULT 0.0,
+        delivery_charge_inr REAL NOT NULL DEFAULT 0.0,
+        setup_charge_inr REAL NOT NULL DEFAULT 0.0,
+        location_label TEXT NOT NULL,
+        latitude REAL NOT NULL DEFAULT 12.5234,
+        longitude REAL NOT NULL DEFAULT 76.8976,
+        service_radius_km REAL NOT NULL DEFAULT 25.0,
+        maintenance_status TEXT NOT NULL DEFAULT 'operational' CHECK(maintenance_status IN ('operational', 'maintenance_scheduled', 'under_maintenance', 'inactive')),
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_demonstration INTEGER NOT NULL DEFAULT 0,
+        photo_url TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS equipment_availability_blocks (
+        id TEXT PRIMARY KEY,
+        equipment_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        block_type TEXT NOT NULL CHECK(block_type IN ('available_window', 'maintenance', 'owner_unavailable')),
+        start_datetime TEXT NOT NULL,
+        end_datetime TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (equipment_id) REFERENCES equipment_listings(id) ON DELETE CASCADE,
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS equipment_bookings (
+        id TEXT PRIMARY KEY,
+        equipment_id TEXT NOT NULL,
+        renter_user_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        farm_id TEXT,
+        operation_type TEXT NOT NULL,
+        booking_date TEXT NOT NULL,
+        start_datetime TEXT NOT NULL,
+        end_datetime TEXT NOT NULL,
+        duration_hours REAL NOT NULL,
+        farm_area_acres REAL NOT NULL DEFAULT 1.0,
+        base_rental_inr REAL NOT NULL,
+        operator_charge_inr REAL NOT NULL DEFAULT 0.0,
+        fuel_charge_inr REAL NOT NULL DEFAULT 0.0,
+        delivery_charge_inr REAL NOT NULL DEFAULT 0.0,
+        setup_charge_inr REAL NOT NULL DEFAULT 0.0,
+        other_charges_inr REAL NOT NULL DEFAULT 0.0,
+        total_cost_inr REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'requested' CHECK(status IN ('requested', 'accepted', 'rejected', 'scheduled', 'in_progress', 'completed', 'cancelled')),
+        payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK(payment_status IN ('unpaid', 'settled')),
+        financial_tx_id TEXT,
+        idempotency_key TEXT UNIQUE,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (equipment_id) REFERENCES equipment_listings(id) ON DELETE CASCADE,
+        FOREIGN KEY (renter_user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS equipment_booking_events (
+        id TEXT PRIMARY KEY,
+        booking_id TEXT NOT NULL,
+        actor_user_id TEXT NOT NULL,
+        from_status TEXT,
+        to_status TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (booking_id) REFERENCES equipment_bookings(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS shared_equipment_requests (
+        id TEXT PRIMARY KEY,
+        equipment_id TEXT NOT NULL,
+        requester_user_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        operation_type TEXT NOT NULL,
+        target_date TEXT NOT NULL,
+        total_hours REAL NOT NULL,
+        total_individual_cost_inr REAL NOT NULL,
+        total_shared_cost_inr REAL NOT NULL,
+        total_savings_inr REAL NOT NULL,
+        savings_pct REAL NOT NULL,
+        schedule_json TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'proposed' CHECK(status IN ('proposed', 'confirmed', 'rejected', 'cancelled')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (equipment_id) REFERENCES equipment_listings(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS shared_booking_allocations (
+        id TEXT PRIMARY KEY,
+        shared_request_id TEXT NOT NULL,
+        farmer_label TEXT NOT NULL,
+        farm_id TEXT,
+        user_id TEXT,
+        area_acres REAL NOT NULL,
+        duration_hours REAL NOT NULL,
+        allocated_base_inr REAL NOT NULL,
+        allocated_delivery_inr REAL NOT NULL,
+        allocated_total_inr REAL NOT NULL,
+        individual_cost_inr REAL NOT NULL,
+        savings_inr REAL NOT NULL,
+        consent_status TEXT NOT NULL DEFAULT 'consented' CHECK(consent_status IN ('pending', 'consented', 'declined')),
+        financial_tx_id TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (shared_request_id) REFERENCES shared_equipment_requests(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS equipment_maintenance_records (
+        id TEXT PRIMARY KEY,
+        equipment_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        maintenance_type TEXT NOT NULL,
+        maintenance_date TEXT NOT NULL,
+        operating_hours REAL NOT NULL DEFAULT 0.0,
+        next_due_date TEXT,
+        cost_inr REAL NOT NULL DEFAULT 0.0,
+        notes TEXT,
+        block_start_datetime TEXT,
+        block_end_datetime TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (equipment_id) REFERENCES equipment_listings(id) ON DELETE CASCADE,
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_eq_bookings_equip_time ON equipment_bookings(equipment_id, start_datetime, end_datetime)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_eq_listings_cat ON equipment_listings(category, is_active)")
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts
