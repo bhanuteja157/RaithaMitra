@@ -8,6 +8,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { OnboardingModal } from '../modals/OnboardingModal';
 import { LocationSelectorModal } from '../modals/LocationSelectorModal';
+import { PersistentVoiceAssistant } from '../assistant/PersistentVoiceAssistant';
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -53,6 +54,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Shared Farm Onboarding & Location Modals */}
       <OnboardingModal />
       <LocationSelectorModal />
+      <PersistentVoiceAssistant />
     </div>
   );
 }
