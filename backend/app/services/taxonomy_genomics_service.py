@@ -82,6 +82,15 @@ CURATED_TAXONOMY: Dict[str, Dict[str, Any]] = {
         "common": ["Wheat", "ಗೋಧಿ", "गेहूँ"],
         "synonyms": [],
     },
+    "cotton": {
+        "scientific": "Gossypium hirsutum",
+        "taxon_key": 2877842,
+        "genus": "Gossypium",
+        "family": "Malvaceae",
+        "ensembl": None,
+        "common": ["Cotton", "ಹತ್ತಿ", "कपास"],
+        "synonyms": ["Gossypium mexicanum"],
+    },
 }
 
 AMBIGUOUS_CROPS: Dict[str, List[str]] = {
@@ -115,7 +124,7 @@ class TaxonomyGenomicsService:
             cache_ttl_s=86400,
         )
 
-        if data and data.get("usageKey"):
+        if data and data.get("usageKey") and (data.get("rank") == "SPECIES" or data.get("species")):
             return GBIFSpeciesMatch(
                 input_crop_name=crop_name,
                 accepted_scientific_name=data.get("species") or data.get("canonicalName") or query_name,
@@ -165,12 +174,18 @@ class TaxonomyGenomicsService:
         Queries Europe PMC, classifies publication types (field_trial, lab_experiment,
         review_article, preprint), deduplicates by DOI/PMID, and ranks by relevance.
         """
-        problem_q = " OR ".join(problems) if problems else "disease resistance OR biofertilizer OR drought tolerance"
+        problem_q = problems[0].strip() if problems else "disease resistance"
         resp = biotech_service.fetch_research_papers(
-            crop=scientific_name if scientific_name != crop_name else crop_name,
+            crop=crop_name,
             problem=problem_q,
             page_size=10,
         )
+        if not resp.is_live and scientific_name != crop_name:
+            resp = biotech_service.fetch_research_papers(
+                crop=scientific_name,
+                problem=problem_q,
+                page_size=10,
+            )
 
         seen_ids = set()
         ranked: List[Dict[str, Any]] = []
