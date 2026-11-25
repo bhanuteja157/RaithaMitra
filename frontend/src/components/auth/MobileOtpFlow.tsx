@@ -17,102 +17,157 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-type OtpLang = Language | 'te';
+type OtpLang = Language;
 
-const OTP_LABELS: Record<
-  OtpLang,
-  {
-    enterMobile: string;
-    sendOtp: string;
-    verifyOtp: string;
-    resendOtp: string;
-    changeNumber: string;
-    enterName: string;
-    selectRole: string;
-    createAccount: string;
-    otpSentTo: string;
-  }
-> = {
+interface OtpTextBundle {
+  enterMobile: string;
+  sendOtp: string;
+  sending: string;
+  verifyOtp: string;
+  verifying: string;
+  resendOtp: string;
+  changeNumber: string;
+  enterName: string;
+  exampleName: string;
+  selectRole: string;
+  createAccount: string;
+  creatingAccount: string;
+  otpSentTo: string;
+  oneMobileNote: string;
+  smsPendingNote: string;
+  unableSendOtp: string;
+  invalidOtp: string;
+  enterFullNameErr: string;
+  regFailedErr: string;
+  countryCodeAria: string;
+}
+
+const OTP_LABELS: Record<OtpLang, OtpTextBundle> = {
   en: {
     enterMobile: 'Enter mobile number',
     sendOtp: 'Continue with OTP',
+    sending: 'Sending...',
     verifyOtp: 'Verify OTP',
+    verifying: 'Verifying...',
     resendOtp: 'Resend OTP',
     changeNumber: 'Change number',
     enterName: 'Enter your name',
+    exampleName: 'e.g., Ramesh Gowda',
     selectRole: 'Select your role',
     createAccount: 'Complete Registration',
+    creatingAccount: 'Creating Account...',
     otpSentTo: 'Enter the 6-digit verification code sent to',
+    oneMobileNote: 'One verified mobile number maps to one RaithaMitra account and role.',
+    smsPendingNote: 'Demo / local OTP verification workflow is active. Enter your 6-digit code below.',
+    unableSendOtp: 'Unable to send OTP.',
+    invalidOtp: 'Invalid verification code.',
+    enterFullNameErr: 'Please enter your full name.',
+    regFailedErr: 'Registration failed.',
+    countryCodeAria: 'Country code',
   },
   kn: {
     enterMobile: 'ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ',
     sendOtp: 'OTP ಯೊಂದಿಗೆ ಮುಂದುವರಿಯಿರಿ',
+    sending: 'ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ...',
     verifyOtp: 'OTP ಪರಿಶೀಲಿಸಿ',
+    verifying: 'ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...',
     resendOtp: 'OTP ಮರುಕಳುಹಿಸಿ',
     changeNumber: 'ಸಂಖ್ಯೆ ಬದಲಾಯಿಸಿ',
     enterName: 'ನಿಮ್ಮ ಹೆಸರನ್ನು ನಮೂದಿಸಿ',
+    exampleName: 'ಉದಾ., ರಮೇಶ್ ಗೌಡ',
     selectRole: 'ನಿಮ್ಮ ಪಾತ್ರವನ್ನು ಆಯ್ಕೆಮಾಡಿ',
     createAccount: 'ಖಾತೆ ರಚಿಸಿ',
+    creatingAccount: 'ಖಾತೆ ರಚಿಸಲಾಗುತ್ತಿದೆ...',
     otpSentTo: 'ಕಳುಹಿಸಿದ 6-ಅಂಕಿಯ OTP ಕೋಡ್ ನಮೂದಿಸಿ:',
+    oneMobileNote: 'ಒಂದು ದೃಢೀಕೃತ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಒಂದು ರೈತ ಮಿತ್ರ ಖಾತೆಗೆ ಸಂಪರ್ಕಗೊಳ್ಳುತ್ತದೆ.',
+    smsPendingNote: 'ಸ್ಥಳೀಯ OTP ಪರಿಶೀಲನಾ ವ್ಯವಸ್ಥೆ ಸಕ್ರಿಯವಾಗಿದೆ. ಕೆಳಗೆ 6-ಅಂಕಿಯ ಕೋಡ್ ನಮೂದಿಸಿ.',
+    unableSendOtp: 'OTP ಕಳುಹಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+    invalidOtp: 'ತಪ್ಪಾದ OTP ಕೋಡ್. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+    enterFullNameErr: 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪೂರ್ಣ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.',
+    regFailedErr: 'ಖಾತೆ ನೋಂದಣಿ ವಿಫಲವಾಗಿದೆ.',
+    countryCodeAria: 'ದೇಶದ ಕೋಡ್',
   },
   hi: {
     enterMobile: 'मोबाइल नंबर दर्ज करें',
     sendOtp: 'OTP के साथ जारी रखें',
+    sending: 'भेजा जा रहा है...',
     verifyOtp: 'OTP सत्यापित करें',
+    verifying: 'सत्यापन हो रहा है...',
     resendOtp: 'OTP पुनः भेजें',
     changeNumber: 'नंबर बदलें',
     enterName: 'अपना नाम दर्ज करें',
+    exampleName: 'उदा., रमेश गौड़ा',
     selectRole: 'अपनी भूमिका चुनें',
     createAccount: 'खाता पूरा करें',
+    creatingAccount: 'खाता बनाया जा रहा है...',
     otpSentTo: 'भेजा गया 6-अंकीय सत्यापन कोड दर्ज करें:',
+    oneMobileNote: 'एक सत्यापित मोबाइल नंबर एक रैत मित्र खाते और भूमिका से जुड़ता है।',
+    smsPendingNote: 'स्थानीय OTP सत्यापन सक्रिय है। नीचे अपना 6-अंकीय कोड दर्ज करें।',
+    unableSendOtp: 'OTP भेजने में असमर्थ।',
+    invalidOtp: 'अमान्य सत्यापन कोड। कृपया पुनः प्रयास करें।',
+    enterFullNameErr: 'कृपया अपना पूरा नाम दर्ज करें।',
+    regFailedErr: 'पंजीकरण विफल रहा।',
+    countryCodeAria: 'देश कोड',
   },
   te: {
     enterMobile: 'మొబైల్ నంబర్ నమోదు చేయండి',
     sendOtp: 'OTP తో కొనసాగండి',
+    sending: 'పంపిస్తోంది...',
     verifyOtp: 'OTP ధృవీకరించండి',
+    verifying: 'ధృవీకరిస్తోంది...',
     resendOtp: 'OTP మళ్ళీ పంపండి',
     changeNumber: 'నంబర్ మార్చండి',
     enterName: 'మీ పేరు నమోదు చేయండి',
+    exampleName: 'ఉదా., రమేష్ గౌడ',
     selectRole: 'మీ పాత్రను ఎంచుకోండి',
     createAccount: 'నమోదు పూర్తి చేయండి',
+    creatingAccount: 'ఖాతా సృష్టించబడుతోంది...',
     otpSentTo: 'పంపిన 6-అంకెల OTP కోడ్‌ను నమోదు చేయండి:',
+    oneMobileNote: 'ఒక ధృవీకరించబడిన మొಬೈల్ నంబర్ ఒక రైతు మిత్ర ఖాతాకు అనుసంధానించబడుతుంది.',
+    smsPendingNote: 'స్థానిక OTP ధృవీకరణ సక్రియంగా ఉంది. క్రింద 6-అంకెల కోడ్ నమోదు చేయండి.',
+    unableSendOtp: 'OTP పంపడం సాధ్యం కాలేదు.',
+    invalidOtp: 'చెల్లని ధృవీకరణ కోడ్. మళ్ళీ ప్రయత్నించండి.',
+    enterFullNameErr: 'దయచేసి మీ పూర్తి పేరు నమోదు చేయండి.',
+    regFailedErr: 'నమోదు విఫలమైంది.',
+    countryCodeAria: 'దేశపు కోడ్',
   },
 };
 
-const ROLE_CARDS: { role: UserRole; title: string; desc: string; image: string; icon: any }[] = [
+import { AGRI_IMAGE_ASSETS } from '@/components/premium-ui/shared/AgriImage';
+const ROLE_CARDS: { role: UserRole; titleKey: string; descKey: string; image: string; icon: any }[] = [
   {
     role: 'farmer',
-    title: 'Farmer',
-    desc: 'Manage farm, simulate crops & sell produce.',
-    image: 'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?w=400&auto=format&fit=crop&q=80',
+    titleKey: 'roleFarmer',
+    descKey: 'planBeforePlantDesc',
+    image: AGRI_IMAGE_ASSETS.roleFarmer,
     icon: Sprout,
   },
   {
     role: 'buyer',
-    title: 'Buyer',
-    desc: 'Source produce directly & place bids.',
-    image: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=400&auto=format&fit=crop&q=80',
+    titleKey: 'roleBuyer',
+    descKey: 'smartBiddingDesc',
+    image: AGRI_IMAGE_ASSETS.roleBuyer,
     icon: Building2,
   },
   {
     role: 'labour',
-    title: 'Labour',
-    desc: 'Find agricultural work & daily wages.',
-    image: 'https://images.unsplash.com/photo-1595278069441-2cf29f8005a4?w=400&auto=format&fit=crop&q=80',
+    titleKey: 'roleLabour',
+    descKey: 'labourConnectDesc',
+    image: AGRI_IMAGE_ASSETS.roleLabour,
     icon: Users,
   },
   {
     role: 'driver',
-    title: 'Driver',
-    desc: 'Accept farm freight loads & deliveries.',
-    image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=400&auto=format&fit=crop&q=80',
+    titleKey: 'roleDriver',
+    descKey: 'transportConnectDesc',
+    image: AGRI_IMAGE_ASSETS.roleDriver,
     icon: Truck,
   },
 ];
 
 export function MobileOtpFlow() {
   const router = useRouter();
-  const { sendOtp, verifyOtp, registerWithOtp, language, setIsOnboardingOpen } = useFarm();
+  const { sendOtp, verifyOtp, registerWithOtp, language, t: translateGlobal, setIsOnboardingOpen } = useFarm();
   const t = OTP_LABELS[(language as OtpLang) || 'en'] || OTP_LABELS.en;
 
   const [step, setStep] = useState<'phone' | 'otp' | 'profile'>('phone');
@@ -158,7 +213,7 @@ export function MobileOtpFlow() {
     const res = await sendOtp(phone, countryCode);
     setBusy(false);
     if (!res.success) {
-      setError(res.error || 'Unable to send OTP.');
+      setError(res.error || t.unableSendOtp);
       return;
     }
     setMaskedPhone(res.masked_phone || phone);
@@ -178,7 +233,7 @@ export function MobileOtpFlow() {
     verifyingRef.current = false;
 
     if (!res.success) {
-      setError(res.error || 'Invalid verification code.');
+      setError(res.error || t.invalidOtp);
       return;
     }
 
@@ -194,7 +249,7 @@ export function MobileOtpFlow() {
   const handleCompleteRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim().length < 2) {
-      setError('Please enter your full name.');
+      setError(t.enterFullNameErr);
       return;
     }
     setError(null);
@@ -207,7 +262,7 @@ export function MobileOtpFlow() {
     });
     setBusy(false);
     if (!res.success) {
-      setError(res.error || 'Registration failed.');
+      setError(res.error || t.regFailedErr);
       return;
     }
     if (role === 'farmer') {
@@ -238,7 +293,7 @@ export function MobileOtpFlow() {
               <select
                 value={countryCode}
                 onChange={(e) => setCountryCode(e.target.value)}
-                aria-label="Country code"
+                aria-label={t.countryCodeAria}
                 className="w-24 px-2.5 py-2.5 rounded-xl border border-[#DCD8CA] dark:border-zinc-700 bg-[#F7F5ED] dark:bg-zinc-900 text-xs font-semibold"
               >
                 <option value="+91">🇮🇳 +91</option>
@@ -259,7 +314,7 @@ export function MobileOtpFlow() {
               </div>
             </div>
             <p className="text-[11px] text-[#8D7357] mt-1.5">
-              One verified mobile number maps to one RaithaMitra account and role.
+              {t.oneMobileNote}
             </p>
           </div>
 
@@ -268,7 +323,7 @@ export function MobileOtpFlow() {
             disabled={busy || phone.trim().length < 10}
             className="w-full py-3 rounded-xl bg-[#173C2B] hover:bg-[#102D20] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 transition disabled:opacity-50"
           >
-            {busy ? 'Sending...' : t.sendOtp} <ArrowRight className="w-4 h-4" />
+            {busy ? t.sending : t.sendOtp} <ArrowRight className="w-4 h-4" />
           </button>
         </form>
       )}
@@ -281,7 +336,7 @@ export function MobileOtpFlow() {
 
           {!smsConfigured && (
             <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
-              Live SMS delivery is pending Twilio Verify credentials in <code>.env</code>. Backend OTP hashing &amp; verification workflow is active.
+              {t.smsPendingNote}
             </div>
           )}
 
@@ -310,7 +365,7 @@ export function MobileOtpFlow() {
             onClick={() => handleVerifyOtp()}
             className="w-full py-3 rounded-xl bg-[#173C2B] hover:bg-[#102D20] text-white text-sm font-semibold transition disabled:opacity-50"
           >
-            {busy ? 'Verifying...' : t.verifyOtp}
+            {busy ? t.verifying : t.verifyOtp}
           </button>
 
           <div className="flex items-center justify-between text-xs">
@@ -348,7 +403,7 @@ export function MobileOtpFlow() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Ramesh Gowda"
+              placeholder={t.exampleName}
               className="w-full px-3.5 py-2.5 rounded-xl border border-[#DCD8CA] dark:border-zinc-700 bg-[#F7F5ED] dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#36784D]"
             />
           </div>
@@ -361,6 +416,8 @@ export function MobileOtpFlow() {
               {ROLE_CARDS.map((card) => {
                 const Icon = card.icon;
                 const selected = role === card.role;
+                const roleTitle = translateGlobal(card.titleKey);
+                const roleDesc = translateGlobal(card.descKey);
                 return (
                   <button
                     key={card.role}
@@ -371,7 +428,7 @@ export function MobileOtpFlow() {
                     }`}
                   >
                     <div className="h-16 relative overflow-hidden">
-                      <img src={card.image} alt={card.title} className="w-full h-full object-cover" />
+                      <img src={card.image} alt={roleTitle} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-[#102D20]/45" />
                       {selected && (
                         <CheckCircle2 className="w-4 h-4 text-white absolute top-1.5 right-1.5" />
@@ -380,9 +437,9 @@ export function MobileOtpFlow() {
                     <div className="p-2.5 bg-white dark:bg-zinc-950">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-[#20372A] dark:text-white">
                         <Icon className="w-3.5 h-3.5 text-[#36784D]" />
-                        {card.title}
+                        {roleTitle}
                       </div>
-                      <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-2">{card.desc}</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-2">{roleDesc}</p>
                     </div>
                   </button>
                 );
@@ -395,7 +452,7 @@ export function MobileOtpFlow() {
             disabled={busy || name.trim().length < 2}
             className="w-full py-3 rounded-xl bg-[#173C2B] hover:bg-[#102D20] text-white text-sm font-semibold transition disabled:opacity-50"
           >
-            {busy ? 'Creating Account...' : t.createAccount}
+            {busy ? t.creatingAccount : t.createAccount}
           </button>
         </form>
       )}

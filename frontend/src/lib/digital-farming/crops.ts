@@ -1,5 +1,9 @@
 // frontend/src/lib/digital-farming/crops.ts
 // 20-crop catalog + deterministic suitability scoring engine for Digital Farming.
+import type { Language } from '@/types';
+
+const _cropLoc = (lang: Language = 'en') =>
+  lang === 'kn' ? 'kn-IN' : lang === 'hi' ? 'hi-IN' : lang === 'te' ? 'te-IN' : 'en-IN';
 
 export type CropCategory =
   | 'Vegetables'
@@ -531,9 +535,11 @@ export type CropSortOption =
 export function recommendCrops(
   areaAcres: number,
   profile: DigitalFarmProfile,
-  avgForecastTempC: number | null = null
+  avgForecastTempC: number | null = null,
+  lang: Language = 'en'
 ): CropRecommendation[] {
   const safeArea = Math.max(0.05, areaAcres);
+  const loc = _cropLoc(lang);
 
   // Compute data completeness
   let knownFields = 0;
@@ -566,70 +572,191 @@ export function recommendCrops(
 
     // 1. Soil compatibility
     if (profile.soilType === 'Unknown soil') {
-      reasons.push('Soil type not specified — using neutral prototype assumption.');
+      reasons.push(
+        lang === 'kn'
+          ? 'ಮಣ್ಣಿನ ಪ್ರಕಾರ ನಿರ್ದಿಷ್ಟಪಡಿಸಲಾಗಿಲ್ಲ — ಸಾಮಾನ್ಯ ಮಾದರಿ ಊಹೆ ಬಳಸಲಾಗಿದೆ.'
+          : lang === 'hi'
+            ? 'मिट्टी का प्रकार निर्दिष्ट नहीं है — सामान्य प्रोटोटाइप अनुमान लागू।'
+            : lang === 'te'
+              ? 'నేల రకం పేర్కొనబడలేదు — సాధారణ ప్రోటోటైప్ అంచనా ఉపయోగించబడింది.'
+              : 'Soil type not specified — using neutral prototype assumption.'
+      );
     } else if (crop.compatibleSoils.includes(profile.soilType)) {
       score += 15;
-      reasons.push(`Compatible with ${profile.soilType}.`);
+      reasons.push(
+        lang === 'kn'
+          ? `${profile.soilType} ಜೊತೆ ಉತ್ತಮವಾಗಿ ಹೊಂದಿಕೆಯಾಗುತ್ತದೆ.`
+          : lang === 'hi'
+            ? `${profile.soilType} के लिए उपयुक्त है।`
+            : lang === 'te'
+              ? `${profile.soilType} కు అనుకూలంగా ఉంటుంది.`
+              : `Compatible with ${profile.soilType}.`
+      );
     } else {
       score -= 18;
-      reasons.push(`${profile.soilType} is suboptimal for ${crop.name}; additional soil amendment may be needed.`);
+      reasons.push(
+        lang === 'kn'
+          ? `${profile.soilType} ಈ ಬೆಳೆಗೆ ಸಂಪೂರ್ಣ ಸೂಕ್ತವಲ್ಲ; ಮಣ್ಣು ಸುಧಾರಣೆ ಬೇಕಾಗಬಹುದು.`
+          : lang === 'hi'
+            ? `${profile.soilType} इस फसल के लिए उपयुक्त नहीं है; मिट्टी सुधार आवश्यक हो सकता है।`
+            : lang === 'te'
+              ? `${profile.soilType} ఈ పంటకు అంతగా అనుకూలం కాదు; నేల సవరణ అవసరం కావచ్చు.`
+              : `${profile.soilType} is suboptimal for ${crop.name}; additional soil amendment may be needed.`
+      );
     }
 
     // 2. Water & irrigation constraint
     if (!profile.irrigationAvailable && crop.waterDemandLevel === 'High') {
       excluded = true;
-      exclusionReason = `Excluded: ${crop.name} requires high assured water (${crop.waterRequirementMm} mm), but irrigation is marked unavailable.`;
+      exclusionReason =
+        lang === 'kn'
+          ? `ಹೊರಗಿಡಲಾಗಿದೆ: ${crop.name} ಗೆ ಹೆಚ್ಚಿನ ನೀರು (${crop.waterRequirementMm} mm) ಬೇಕು, ಆದರೆ ನೀರಾವರಿ ಲಭ್ಯವಿಲ್ಲ.`
+          : lang === 'hi'
+            ? `अलग किया गया: ${crop.name} को अधिक पानी (${crop.waterRequirementMm} mm) चाहिए, पर सिंचाई उपलब्ध नहीं है।`
+            : lang === 'te'
+              ? `తొలగించబడింది: ${crop.name} కు ఎక్కువ నీరు (${crop.waterRequirementMm} mm) అవసరం, కానీ నీటిపారుదల లేదు.`
+              : `Excluded: ${crop.name} requires high assured water (${crop.waterRequirementMm} mm), but irrigation is marked unavailable.`;
       score -= 40;
     } else if (profile.availableWaterLevel === 'Low' && crop.waterDemandLevel === 'High') {
       excluded = true;
-      exclusionReason = `Excluded: High water demand (${crop.waterRequirementMm} mm) exceeds Low available water.`;
+      exclusionReason =
+        lang === 'kn'
+          ? `ಹೊರಗಿಡಲಾಗಿದೆ: ಹೆಚ್ಚಿನ ನೀರಿನ ಬೇಡಿಕೆ (${crop.waterRequirementMm} mm) ಕಡಿಮೆ ನೀರಿನ ಲಭ್ಯತೆಯನ್ನು ಮೀರಿದೆ.`
+          : lang === 'hi'
+            ? `अलग किया गया: अधिक जल आवश्यकता (${crop.waterRequirementMm} mm) कम उपलब्ध पानी से अधिक है।`
+            : lang === 'te'
+              ? `తొలగించబడింది: ఎక్కువ నీటి అవసరం (${crop.waterRequirementMm} mm) తక్కువ నీటి లభ్యతను మించింది.`
+              : `Excluded: High water demand (${crop.waterRequirementMm} mm) exceeds Low available water.`;
       score -= 35;
     } else if (profile.availableWaterLevel === 'Low' && crop.waterDemandLevel === 'Low') {
       score += 15;
-      reasons.push(`Low water demand (${crop.waterRequirementMm} mm) fits limited water supply.`);
+      reasons.push(
+        lang === 'kn'
+          ? `ಕಡಿಮೆ ನೀರಿನ ಬೇಡಿಕೆ (${crop.waterRequirementMm} mm) ಸೀಮಿತ ನೀರಿಗೆ ಸೂಕ್ತವಾಗಿದೆ.`
+          : lang === 'hi'
+            ? `कम जल मांग (${crop.waterRequirementMm} mm) सीमित पानी के अनुकूल है।`
+            : lang === 'te'
+              ? `తక్కువ నీటి అవసరం (${crop.waterRequirementMm} mm) పరిమిత నీటికి సరిపోతుంది.`
+              : `Low water demand (${crop.waterRequirementMm} mm) fits limited water supply.`
+      );
     } else if (profile.irrigationAvailable) {
       score += 8;
-      reasons.push(`Irrigation (${profile.irrigationType}) supports ${crop.waterDemandLevel.toLowerCase()} water needs.`);
+      reasons.push(
+        lang === 'kn'
+          ? `ನೀರಾವರಿ ವ್ಯವಸ್ಥೆ (${profile.irrigationType}) ಬೆಳೆಯ ನೀರಿನ ಅಗತ್ಯವನ್ನು ಪೂರೈಸುತ್ತದೆ.`
+          : lang === 'hi'
+            ? `सिंचाई (${profile.irrigationType}) फसल की जल आवश्यकता को पूरा करती है।`
+            : lang === 'te'
+              ? `నీటిపారుదల (${profile.irrigationType}) పంట నీటి అవసరాన్ని తీరుస్తుంది.`
+              : `Irrigation (${profile.irrigationType}) supports ${crop.waterDemandLevel.toLowerCase()} water needs.`
+      );
     }
 
     // 3. Budget check
     if (profile.budgetInr > 0) {
+      const estStr = estimatedInvestmentInr.toLocaleString(loc);
+      const budStr = profile.budgetInr.toLocaleString(loc);
       if (estimatedInvestmentInr <= profile.budgetInr) {
         score += 12;
-        reasons.push(`Estimated investment (₹${estimatedInvestmentInr.toLocaleString('en-IN')}) fits within your ₹${profile.budgetInr.toLocaleString('en-IN')} budget.`);
+        reasons.push(
+          lang === 'kn'
+            ? `ಅಂದಾಜು ಹೂಡಿಕೆ (₹${estStr}) ನಿಮ್ಮ ₹${budStr} ಬಜೆಟ್ ಒಳಗೆ ಸರಿಹೊಂದುತ್ತದೆ.`
+            : lang === 'hi'
+              ? `अनुमानित निवेश (₹${estStr}) आपके ₹${budStr} बजट के भीतर है।`
+              : lang === 'te'
+                ? `అంచనా పెట్టుబడి (₹${estStr}) మీ ₹${budStr} బడ్జెట్‌లో సరిపోతుంది.`
+                : `Estimated investment (₹${estStr}) fits within your ₹${budStr} budget.`
+        );
       } else if (estimatedInvestmentInr > profile.budgetInr * 1.6) {
         score -= 20;
-        reasons.push(`Estimated investment (₹${estimatedInvestmentInr.toLocaleString('en-IN')}) significantly exceeds budget.`);
+        reasons.push(
+          lang === 'kn'
+            ? `ಅಂದಾಜು ಹೂಡಿಕೆ (₹${estStr}) ಬಜೆಟ್‌ಗಿಂತ ಬಹಳಷ್ಟು ಹೆಚ್ಚಾಗಿದೆ.`
+            : lang === 'hi'
+              ? `अनुमानित निवेश (₹${estStr}) बजट से काफी अधिक है।`
+              : lang === 'te'
+                ? `అంచనా పెట్టుబడి (₹${estStr}) బడ్జెట్ కంటే చాలా ఎక్కువగా ఉంది.`
+                : `Estimated investment (₹${estStr}) significantly exceeds budget.`
+        );
       } else {
         score -= 8;
-        reasons.push(`Slightly above budget (₹${estimatedInvestmentInr.toLocaleString('en-IN')} vs ₹${profile.budgetInr.toLocaleString('en-IN')}).`);
+        reasons.push(
+          lang === 'kn'
+            ? `ಬಜೆಟ್‌ಗಿಂತ ಸ್ವಲ್ಪ ಹೆಚ್ಚು (₹${estStr} vs ₹${budStr}).`
+            : lang === 'hi'
+              ? `बजट से थोड़ा अधिक (₹${estStr} बनाम ₹${budStr})।`
+              : lang === 'te'
+                ? `బడ్జెట్ కంటే కొంచెం ఎక్కువ (₹${estStr} vs ₹${budStr}).`
+                : `Slightly above budget (₹${estStr} vs ₹${budStr}).`
+        );
       }
     }
 
     // 4. Labour check
     if (profile.availableLabour === 'Low' && crop.labourNeed === 'High') {
       score -= 10;
-      reasons.push('Requires high labour; consider hiring seasonal labour or choosing lower-labour crops.');
+      reasons.push(
+        lang === 'kn'
+          ? 'ಹೆಚ್ಚು ಕಾರ್ಮಿಕರ ಅಗತ್ಯವಿದೆ; ಸಕಾಲಿಕ ಕೂಲಿ ನಿಯೋಜನೆ ಅಥವಾ ಕಡಿಮೆ ಕಾರ್ಮಿಕ ಬೇಡಿಕೆಯ ಬೆಳೆ ಪರಿಗಣಿಸಿ.'
+          : lang === 'hi'
+            ? 'अधिक श्रमिकों की आवश्यकता है; मौसमी श्रमिक बुकिंग या कम-श्रम फसल पर विचार करें।'
+            : lang === 'te'
+              ? 'ఎక్కువ కూలీలు అవసరం; సీజనల్ కూలీలను బుక్ చేయండి లేదా తక్కువ కూలీల పంటను పరిశీలించండి.'
+              : 'Requires high labour; consider hiring seasonal labour or choosing lower-labour crops.'
+      );
     } else if (crop.labourNeed === 'Low') {
       score += 5;
-      reasons.push('Manageable labour requirement.');
+      reasons.push(
+        lang === 'kn'
+          ? 'ಸುಲಭವಾಗಿ ನಿರ್ವಹಿಸಬಹುದಾದ ಕಾರ್ಮಿಕ ಅಗತ್ಯ.'
+          : lang === 'hi'
+            ? 'आसानी से प्रबंधनीय श्रमिक आवश्यकता।'
+            : lang === 'te'
+              ? 'సులభంగా నిర్వహించగల కూలీల అవసరం.'
+              : 'Manageable labour requirement.'
+      );
     }
 
     // 5. Temperature check if live forecast available
     if (avgForecastTempC !== null) {
+      const tCur = avgForecastTempC.toFixed(1);
       if (avgForecastTempC >= crop.optimalTempMinC && avgForecastTempC <= crop.optimalTempMaxC) {
         score += 6;
-        reasons.push(`Current forecast avg (${avgForecastTempC.toFixed(1)}°C) is within optimal range (${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C).`);
+        reasons.push(
+          lang === 'kn'
+            ? `ಪ್ರಸ್ತುತ ಹವಾಮಾನ ಸರಾಸರಿ (${tCur}°C) ಸೂಕ್ತ ವ್ಯಾಪ್ತಿಯಲ್ಲಿದೆ (${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C).`
+            : lang === 'hi'
+              ? `वर्तमान मौसम औसत (${tCur}°C) उपयुक्त सीमा (${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C) में है।`
+              : lang === 'te'
+                ? `ప్రస్తుత వాతావరణ సగటు (${tCur}°C) అనుకూల పరిధిలో (${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C) ఉంది.`
+                : `Current forecast avg (${tCur}°C) is within optimal range (${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C).`
+        );
       } else {
         score -= 10;
-        reasons.push(`Current forecast avg (${avgForecastTempC.toFixed(1)}°C) is outside optimal ${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C.`);
+        reasons.push(
+          lang === 'kn'
+            ? `ಪ್ರಸ್ತುತ ಹವಾಮಾನ ಸರಾಸರಿ (${tCur}°C) ಸೂಕ್ತ ವ್ಯಾಪ್ತಿಗಿಂತ (${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C) ಹೊರಗಿದೆ.`
+            : lang === 'hi'
+              ? `वर्तमान मौसम औसत (${tCur}°C) उपयुक्त ${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C से बाहर है।`
+              : lang === 'te'
+                ? `ప్రస్తుత వాతావరణ సగటు (${tCur}°C) అనుకూల ${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C పరిధికి వెలుపల ఉంది.`
+                : `Current forecast avg (${tCur}°C) is outside optimal ${crop.optimalTempMinC}–${crop.optimalTempMaxC}°C.`
+        );
       }
     }
 
     // 6. Rotation hint
     if (profile.previousCrop && profile.previousCrop.toLowerCase().includes(crop.name.toLowerCase())) {
       score -= 8;
-      reasons.push(`Same as previous crop (${profile.previousCrop}); crop rotation is generally advisable.`);
+      reasons.push(
+        lang === 'kn'
+          ? `ಹಿಂದಿನ ಬೆಳೆಯಂತೆಯೇ ಇದೆ (${profile.previousCrop}); ಬೆಳೆ ಪರ್ಯಾಯ ಉತ್ತಮ.`
+          : lang === 'hi'
+            ? `पिछली फसल (${profile.previousCrop}) जैसी ही है; फसल चक्र अपनाना बेहतर होगा।`
+            : lang === 'te'
+              ? `మునుపటి పంట లాగే ఉంది (${profile.previousCrop}); పంట మార్పిడి చేయడం మంచిది.`
+              : `Same as previous crop (${profile.previousCrop}); crop rotation is generally advisable.`
+      );
     }
 
     const clampedScore = Math.max(5, Math.min(98, Math.round(score)));

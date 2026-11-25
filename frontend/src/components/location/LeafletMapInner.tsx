@@ -4,6 +4,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useFarm } from '@/context/FarmContext';
 
 interface LeafletMapInnerProps {
   latitude: number;
@@ -18,6 +19,15 @@ export default function LeafletMapInner({
   onSelectCoordinates,
   heightClass = 'h-64 sm:h-72',
 }: LeafletMapInnerProps) {
+  const { language } = useFarm();
+  const mapAria =
+    language === 'kn'
+      ? 'ಸಂವಾದಾತ್ಮಕ OpenStreetMap ಸ್ಥಳ ಆಯ್ಕೆದಾರ'
+      : language === 'hi'
+        ? 'इंटरैक्टिव OpenStreetMap स्थान चयनकर्ता'
+        : language === 'te'
+          ? 'ఇంటరాక్టివ్ OpenStreetMap స్థాన ఎంపిక'
+          : 'Interactive OpenStreetMap Location Selector';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -95,7 +105,7 @@ export default function LeafletMapInner({
     <div
       ref={containerRef}
       className={`w-full ${heightClass} rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 z-10`}
-      aria-label="Interactive OpenStreetMap Location Selector"
+      aria-label={mapAria}
     />
   );
 }

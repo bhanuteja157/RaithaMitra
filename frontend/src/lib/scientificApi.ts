@@ -49,6 +49,15 @@ export const MODULE_TRANSLATIONS = {
     formulaLabel: 'सूत्र',
     loading: 'गणना हो रही है...',
   },
+  te: {
+    calculate: 'లెక్కించండి',
+    runSimulation: 'సిమ్యులేషన్ నడపండి',
+    analyze: 'విశ్లేషించండి',
+    sourceLabel: 'డేటా మూలం',
+    assumptionsLabel: 'శాస్త్రీయ అంచనాలు',
+    formulaLabel: 'సూత్రం',
+    loading: 'లెక్కిస్తోంది...',
+  },
 };
 
 export async function calculateScientificIrrigation(payload: {

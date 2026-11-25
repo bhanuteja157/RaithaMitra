@@ -7,6 +7,9 @@ import 'leaflet/dist/leaflet.css';
 import { LatLonPoint } from '@/lib/digital-farming/geo';
 import { CropCatalogItem } from '@/lib/digital-farming/crops';
 import { GROWTH_STAGES, SimulationState } from '@/lib/digital-farming/simulator';
+import { useFarm } from '@/context/FarmContext';
+import { Language } from '@/types';
+import { getIntlLocale, localizeCropName, localizeGrowthStage } from '@/lib/translations';
 import {
   Play,
   Pause,
@@ -22,6 +25,171 @@ import {
   RefreshCw,
   Wheat,
 } from 'lucide-react';
+
+const TIMELAPSE_I18N: Record<
+  Language,
+  {
+    satelliteView: string;
+    droneView: string;
+    basemapTag: string;
+    tilesUnavailable: string;
+    retrySatellite: string;
+    useStreetMap: string;
+    retry: string;
+    acresShort: string;
+    dayLabel: string;
+    health: string;
+    moisture: string;
+    stress: string;
+    estYield: string;
+    kg: string;
+    projProfit: string;
+    estHarvest: string;
+    daysShort: string;
+    sliderAria: string;
+    pause: string;
+    play: string;
+    start: string;
+    timelapseTitle: string;
+    timelapseBtn: string;
+    prevDay: string;
+    nextDay: string;
+    plus7Days: string;
+    nextStage: string;
+    speedPrefix: string;
+    completeHarvest: string;
+    restart: string;
+  }
+> = {
+  en: {
+    satelliteView: 'Satellite View',
+    droneView: 'Drone View',
+    basemapTag: 'Satellite Basemap • Simulated Crop Growth',
+    tilesUnavailable: 'Satellite tiles unavailable; fallback active.',
+    retrySatellite: 'Retry Satellite',
+    useStreetMap: 'Use Street Map',
+    retry: 'Retry',
+    acresShort: 'ac',
+    dayLabel: 'Day',
+    health: 'Health',
+    moisture: 'Moisture',
+    stress: 'Stress',
+    estYield: 'Est. Yield',
+    kg: 'kg',
+    projProfit: 'Proj. Profit',
+    estHarvest: 'Est. Harvest',
+    daysShort: 'd',
+    sliderAria: 'Cultivation Timeline Slider',
+    pause: 'Pause',
+    play: 'Play',
+    start: 'Start',
+    timelapseTitle: 'Compresses the full crop lifecycle into ~30 seconds',
+    timelapseBtn: '30s Time-Lapse',
+    prevDay: 'Prev Day',
+    nextDay: 'Next Day',
+    plus7Days: '+7 Days',
+    nextStage: 'Next Stage',
+    speedPrefix: 'Speed',
+    completeHarvest: 'Complete Harvest',
+    restart: 'Restart',
+  },
+  kn: {
+    satelliteView: 'ಉಪಗ್ರಹ ನೋಟ',
+    droneView: 'ಡ್ರೋನ್ ನೋಟ',
+    basemapTag: 'ಉಪಗ್ರಹ ನಕ್ಷೆ • ಸಿಮ್ಯುಲೇಟೆಡ್ ಬೆಳೆ ಬೆಳವಣಿಗೆ',
+    tilesUnavailable: 'ಉಪಗ್ರಹ ನಕ್ಷೆ ಲಭ್ಯವಿಲ್ಲ; ಪರ್ಯಾಯ ನಕ್ಷೆ ಸಕ್ರಿಯವಾಗಿದೆ.',
+    retrySatellite: 'ಉಪಗ್ರಹ ಮರುಪ್ರಯತ್ನಿಸಿ',
+    useStreetMap: 'ರಸ್ತೆ ನಕ್ಷೆ ಬಳಸಿ',
+    retry: 'ಮರುಪ್ರಯತ್ನ',
+    acresShort: 'ಎಕರೆ',
+    dayLabel: 'ದಿನ',
+    health: 'ಆರೋಗ್ಯ',
+    moisture: 'ತೇವಾಂಶ',
+    stress: 'ಒತ್ತಡ',
+    estYield: 'ಅಂದಾಜು ಇಳುವರಿ',
+    kg: 'ಕೆಜಿ',
+    projProfit: 'ಅಂದಾಜು ಲಾಭ',
+    estHarvest: 'ಅಂದಾಜು ಕೊಯ್ಲು',
+    daysShort: 'ದಿನ',
+    sliderAria: 'ಬೆಳೆ ಬೆಳವಣಿಗೆ ಸಮಯ ಸ್ಲೈಡರ್',
+    pause: 'ವಿರಾಮ',
+    play: 'ಚಾಲನೆ',
+    start: 'ಪ್ರಾರಂಭಿಸಿ',
+    timelapseTitle: 'ಸಂಪೂರ್ಣ ಬೆಳೆ ಜೀವನಚಕ್ರವನ್ನು ಸುಮಾರು 30 ಸೆಕೆಂಡುಗಳಲ್ಲಿ ತೋರಿಸುತ್ತದೆ',
+    timelapseBtn: '30 ಸೆ. ಟೈಮ್-ಲ್ಯಾಪ್ಸ್',
+    prevDay: 'ಹಿಂದಿನ ದಿನ',
+    nextDay: 'ಮುಂದಿನ ದಿನ',
+    plus7Days: '+7 ದಿನಗಳು',
+    nextStage: 'ಮುಂದಿನ ಹಂತ',
+    speedPrefix: 'ವೇಗ',
+    completeHarvest: 'ಕೊಯ್ಲು ಪೂರ್ಣಗೊಳಿಸಿ',
+    restart: 'ಮರುಪ್ರಾರಂಭ',
+  },
+  hi: {
+    satelliteView: 'उपग्रह दृश्य',
+    droneView: 'ड्रोन दृश्य',
+    basemapTag: 'उपग्रह नक्शा • सिम्युलेटेड फसल विकास',
+    tilesUnavailable: 'उपग्रह टाइलें उपलब्ध नहीं हैं; वैकल्पिक नक्शा सक्रिय है।',
+    retrySatellite: 'उपग्रह पुनः प्रयास करें',
+    useStreetMap: 'सड़क नक्शा उपयोग करें',
+    retry: 'पुनः प्रयास',
+    acresShort: 'एकड़',
+    dayLabel: 'दिन',
+    health: 'स्वास्थ्य',
+    moisture: 'नमी',
+    stress: 'तनाव',
+    estYield: 'अनुमानित उपज',
+    kg: 'किलो',
+    projProfit: 'अनुमानित लाभ',
+    estHarvest: 'अनुमानित कटाई',
+    daysShort: 'दिन',
+    sliderAria: 'फसल समयरेखा स्लाइडर',
+    pause: 'रोकें',
+    play: 'चलाएं',
+    start: 'शुरू करें',
+    timelapseTitle: 'पूरी फसल अवधि को लगभग 30 सेकंड में संक्षिप्त करता है',
+    timelapseBtn: '30 सेकंड टाइम-लैप्स',
+    prevDay: 'पिछला दिन',
+    nextDay: 'अगला दिन',
+    plus7Days: '+7 दिन',
+    nextStage: 'अगला चरण',
+    speedPrefix: 'गति',
+    completeHarvest: 'कटाई पूरी करें',
+    restart: 'पुनः आरंभ',
+  },
+  te: {
+    satelliteView: 'ఉపగ్రహ వీక్షణం',
+    droneView: 'డ్రోన్ వీక్షణం',
+    basemapTag: 'ఉపగ్రహ మ్యాప్ • అనుకరించిన పంట పెరుగుదల',
+    tilesUnavailable: 'ఉపగ్రహ మ్యాప్ అందుబాటులో లేదు; ప్రత్యామ్నాయ మ్యాప్ సక్రియమైంది.',
+    retrySatellite: 'ఉపగ్రహం మళ్ళీ ప్రయత్నించు',
+    useStreetMap: 'వీధి మ్యాప్ ఉపయోగించు',
+    retry: 'మళ్ళీ ప్రయత్నించు',
+    acresShort: 'ఎకరాలు',
+    dayLabel: 'రోజు',
+    health: 'ఆరోగ్యం',
+    moisture: 'తేమ',
+    stress: 'ఒత్తిడి',
+    estYield: 'అంచనా దిగుబడి',
+    kg: 'కిలోలు',
+    projProfit: 'అంచనా లాభం',
+    estHarvest: 'అంచనా కోత',
+    daysShort: 'రో.',
+    sliderAria: 'పంట కాలక్రమం స్లైడర్',
+    pause: 'ఆపండి',
+    play: 'ప్లే చేయండి',
+    start: 'ప్రారంభించు',
+    timelapseTitle: 'పూర్తి పంట జీవితచక్రాన్ని సుమారు 30 సెకన్లలో చూపిస్తుంది',
+    timelapseBtn: '30 సె. టైమ్-లాప్స్',
+    prevDay: 'ముందటి రోజు',
+    nextDay: 'తదుపరి రోజు',
+    plus7Days: '+7 రోజులు',
+    nextStage: 'తదుపరి దశ',
+    speedPrefix: 'వేగం',
+    completeHarvest: 'కోత పూర్తి చేయండి',
+    restart: 'మళ్ళీ ప్రారంభించు',
+  },
+};
 
 interface SatelliteCropTimeLapseProps {
   points: LatLonPoint[];
@@ -174,6 +342,9 @@ export default function SatelliteCropTimeLapse({
   onRestart,
   onHarvest,
 }: SatelliteCropTimeLapseProps) {
+  const { language } = useFarm();
+  const t = TIMELAPSE_I18N[language];
+  const numLocale = getIntlLocale(language);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -650,7 +821,7 @@ export default function SatelliteCropTimeLapse({
               viewMode === 'satellite' ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
             }`}
           >
-            <Satellite className="w-3.5 h-3.5" /> Satellite View
+            <Satellite className="w-3.5 h-3.5" /> {t.satelliteView}
           </button>
           <button
             type="button"
@@ -659,13 +830,13 @@ export default function SatelliteCropTimeLapse({
               viewMode === 'drone' ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
             }`}
           >
-            <Camera className="w-3.5 h-3.5" /> Drone View
+            <Camera className="w-3.5 h-3.5" /> {t.droneView}
           </button>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-1 rounded-full bg-white/10 text-emerald-200 text-[11px] font-medium">
-            Satellite Basemap • Simulated Crop Growth
+            {t.basemapTag}
           </span>
           <button
             type="button"
@@ -687,20 +858,20 @@ export default function SatelliteCropTimeLapse({
 
         {tileError && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] bg-amber-950/90 text-amber-100 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 shadow">
-            <span>Satellite tiles unavailable; fallback active.</span>
+            <span>{t.tilesUnavailable}</span>
             <button
               type="button"
               onClick={() => setUseOsmFallback((v) => !v)}
               className="underline font-semibold"
             >
-              {useOsmFallback ? 'Retry Satellite' : 'Use Street Map'}
+              {useOsmFallback ? t.retrySatellite : t.useStreetMap}
             </button>
             <button
               type="button"
               onClick={() => satLayerRef.current?.redraw()}
               className="inline-flex items-center gap-1 bg-amber-700 px-2 py-0.5 rounded"
             >
-              <RefreshCw className="w-3 h-3" /> Retry
+              <RefreshCw className="w-3 h-3" /> {t.retry}
             </button>
           </div>
         )}
@@ -708,25 +879,25 @@ export default function SatelliteCropTimeLapse({
         {/* Synchronized Live Simulation HUD */}
         <div className="absolute top-3 right-3 z-[500] bg-zinc-950/80 backdrop-blur-sm text-white rounded-xl p-3 text-[11px] space-y-1 border border-white/15 max-w-[235px] pointer-events-none">
           <div className="font-bold text-emerald-300 text-xs flex items-center justify-between gap-2">
-            <span>{crop.name}</span>
-            <span>{areaAcres.toFixed(2)} ac</span>
+            <span>{localizeCropName(crop.name, language)}</span>
+            <span>{areaAcres.toFixed(2)} {t.acresShort}</span>
           </div>
           <div>
-            Day <strong>{sim.currentDay}</strong> / {sim.totalDays} · <strong>{Math.round(sim.growthPct)}%</strong>
+            {t.dayLabel} <strong>{sim.currentDay}</strong> / {sim.totalDays} · <strong>{Math.round(sim.growthPct)}%</strong>
           </div>
-          <div className="text-emerald-200 font-medium">{stageMeta.label}</div>
+          <div className="text-emerald-200 font-medium">{localizeGrowthStage(stageMeta.label, language)}</div>
           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 border-t border-white/15 text-[10px]">
-            <span>Health: <strong>{sim.cropHealthPct}%</strong></span>
-            <span>Moisture: <strong>{Math.round(sim.soilMoisturePct)}%</strong></span>
-            <span>Stress: <strong>{sim.weatherStressPct}%</strong></span>
-            <span>Est. Yield: <strong>{projectedYieldKg.toLocaleString('en-IN')} kg</strong></span>
+            <span>{t.health}: <strong>{sim.cropHealthPct}%</strong></span>
+            <span>{t.moisture}: <strong>{Math.round(sim.soilMoisturePct)}%</strong></span>
+            <span>{t.stress}: <strong>{sim.weatherStressPct}%</strong></span>
+            <span>{t.estYield}: <strong>{projectedYieldKg.toLocaleString(numLocale)} {t.kg}</strong></span>
             <span className="col-span-2">
-              Proj. Profit:{' '}
+              {t.projProfit}:{' '}
               <strong className={projectedProfitInr >= 0 ? 'text-emerald-300' : 'text-red-300'}>
-                ₹{projectedProfitInr.toLocaleString('en-IN')}
+                ₹{projectedProfitInr.toLocaleString(numLocale)}
               </strong>
             </span>
-            <span className="col-span-2 text-zinc-300">Est. Harvest: {estimatedHarvestDate}</span>
+            <span className="col-span-2 text-zinc-300">{t.estHarvest}: {estimatedHarvestDate}</span>
           </div>
         </div>
       </div>
@@ -735,7 +906,7 @@ export default function SatelliteCropTimeLapse({
       <div className="p-3.5 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
         <div className="flex items-center gap-3">
           <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 shrink-0">
-            Day {sim.currentDay}
+            {t.dayLabel} {sim.currentDay}
           </span>
           <input
             type="range"
@@ -744,10 +915,10 @@ export default function SatelliteCropTimeLapse({
             value={sim.currentDay}
             onChange={(e) => onScrubDay(Number(e.target.value))}
             className="flex-1 accent-emerald-700 cursor-pointer"
-            aria-label="Cultivation Timeline Slider"
+            aria-label={t.sliderAria}
           />
           <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 shrink-0">
-            {sim.totalDays}d
+            {sim.totalDays}{t.daysShort}
           </span>
         </div>
 
@@ -760,7 +931,7 @@ export default function SatelliteCropTimeLapse({
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold disabled:opacity-40"
             >
               {sim.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              {sim.isPlaying ? 'Pause' : sim.started ? 'Play' : 'Start'}
+              {sim.isPlaying ? t.pause : sim.started ? t.play : t.start}
             </button>
 
             <button
@@ -772,9 +943,9 @@ export default function SatelliteCropTimeLapse({
                   ? 'bg-amber-600 text-white border-amber-600'
                   : 'bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700'
               }`}
-              title="Compresses the full crop lifecycle into ~30 seconds"
+              title={t.timelapseTitle}
             >
-              <Film className="w-3.5 h-3.5" /> 30s Time-Lapse
+              <Film className="w-3.5 h-3.5" /> {t.timelapseBtn}
             </button>
 
             <button
@@ -783,7 +954,7 @@ export default function SatelliteCropTimeLapse({
               disabled={!canStepBack || sim.currentDay === 0}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs disabled:opacity-40"
             >
-              <SkipBack className="w-3.5 h-3.5" /> Prev Day
+              <SkipBack className="w-3.5 h-3.5" /> {t.prevDay}
             </button>
 
             <button
@@ -792,7 +963,7 @@ export default function SatelliteCropTimeLapse({
               disabled={sim.harvested}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs disabled:opacity-40"
             >
-              <SkipForward className="w-3.5 h-3.5" /> Next Day
+              <SkipForward className="w-3.5 h-3.5" /> {t.nextDay}
             </button>
 
             <button
@@ -801,7 +972,7 @@ export default function SatelliteCropTimeLapse({
               disabled={sim.harvested}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs disabled:opacity-40"
             >
-              <FastForward className="w-3.5 h-3.5" /> +7 Days
+              <FastForward className="w-3.5 h-3.5" /> {t.plus7Days}
             </button>
 
             <button
@@ -810,7 +981,7 @@ export default function SatelliteCropTimeLapse({
               disabled={sim.harvested}
               className="px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs disabled:opacity-40"
             >
-              Next Stage
+              {t.nextStage}
             </button>
 
             <select
@@ -818,10 +989,10 @@ export default function SatelliteCropTimeLapse({
               onChange={(e) => onSpeedChange(Number(e.target.value))}
               className="px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs bg-white dark:bg-zinc-800"
             >
-              <option value={1}>Speed: 1x</option>
-              <option value={2}>Speed: 2x</option>
-              <option value={5}>Speed: 5x</option>
-              <option value={10}>Speed: 10x</option>
+              <option value={1}>{t.speedPrefix}: 1x</option>
+              <option value={2}>{t.speedPrefix}: 2x</option>
+              <option value={5}>{t.speedPrefix}: 5x</option>
+              <option value={10}>{t.speedPrefix}: 10x</option>
             </select>
           </div>
 
@@ -832,14 +1003,14 @@ export default function SatelliteCropTimeLapse({
               disabled={sim.harvested || sim.growthPct < 85}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold disabled:opacity-40"
             >
-              <Wheat className="w-3.5 h-3.5" /> Complete Harvest
+              <Wheat className="w-3.5 h-3.5" /> {t.completeHarvest}
             </button>
             <button
               type="button"
               onClick={onRestart}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs"
             >
-              <RotateCcw className="w-3.5 h-3.5" /> Restart
+              <RotateCcw className="w-3.5 h-3.5" /> {t.restart}
             </button>
           </div>
         </div>

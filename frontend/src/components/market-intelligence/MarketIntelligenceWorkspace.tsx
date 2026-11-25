@@ -15,6 +15,9 @@ import {
   Legend,
 } from 'recharts';
 import { loadHarvestTransferPayload, HarvestToMarketPayload } from '@/lib/digital-farming/geo';
+import { useFarm } from '@/context/FarmContext';
+import { Language } from '@/types';
+import { getIntlLocale, localizeCropName } from '@/lib/translations';
 import {
   DEMO_MARKET_PRICES,
   MarketPriceRecord,
@@ -44,7 +47,620 @@ import {
 
 type MarketTab = 'prices' | 'compare' | 'trends' | 'sell_timing' | 'offers' | 'transport';
 
+const MKT_INTEL_I18N: Record<
+  Language,
+  {
+    headerBadge: string;
+    title: string;
+    subtitle: string;
+    printStrategy: string;
+    importedFromHarvest: string;
+    acUnit: string;
+    cropColon: string;
+    harvestColon: string;
+    kg: string;
+    perKg: string;
+    cultCostColon: string;
+    cropLabel: string;
+    availQtyLabel: string;
+    totalCultExpLabel: string;
+    tabPrices: string;
+    tabCompare: string;
+    tabTrends: string;
+    tabSellTiming: string;
+    tabOffers: string;
+    tabTransport: string;
+    dataTransparency: string;
+    dataTransparencyMsg: string;
+    filterCropPh: string;
+    filterLocPh: string;
+    manualMktPh: string;
+    addPriceBtn: string;
+    colCrop: string;
+    colMktDistrict: string;
+    colMinMaxQtl: string;
+    colModalQtl: string;
+    colNormKg: string;
+    colDate: string;
+    colSource: string;
+    compareTitle: string;
+    keyInsight: string;
+    offersHighestPrice: string;
+    butPrefix: string;
+    yieldsHigherNet: string;
+    dueToLowerLoss: string;
+    priceKgInput: string;
+    transportInput: string;
+    commissionInput: string;
+    spoilageInput: string;
+    colRankMkt: string;
+    colPriceKg: string;
+    colGrossRev: string;
+    colSpoilageLoss: string;
+    colSellTransport: string;
+    colNetSaleRev: string;
+    colNetProfitAfterCult: string;
+    barGrossSale: string;
+    barNetProfit: string;
+    trendsTitle: string;
+    usingCsvPrices: string;
+    usingDemoSeries: string;
+    demoSuffix: string;
+    avgPrice: string;
+    minimum: string;
+    maximum: string;
+    volatility: string;
+    direction: string;
+    linePrice: string;
+    lineMovingAvg: string;
+    csvLabel: string;
+    analyzeCsvBtn: string;
+    sellTitle: string;
+    sellFields: Record<keyof SellStrategyInputs, string>;
+    availProducePrefix: string;
+    exceedsCapMiddle: string;
+    excessWarnSuffix: string;
+    stratImmediateTitle: string;
+    stratImmediateDesc: string;
+    stratLaterTitle: string;
+    storageLabel: string;
+    spoilageLabel: string;
+    breakEvenFuture: string;
+    stratSplitTitle: string;
+    nowSuffix: string;
+    stratSplitDesc: string;
+    offersTitle: string;
+    addOfferBtn: string;
+    buyerPrefix: string;
+    offeredPriceLabel: string;
+    transportRespLabel: string;
+    buyerPickup: string;
+    farmerDelivery: string;
+    paymentDelayLabel: string;
+    colBuyer: string;
+    colOfferedPrice: string;
+    colGrossOffer: string;
+    colFarmerTransport: string;
+    colPaymentDelay: string;
+    daysUnit: string;
+    colEstProfit: string;
+    transportTitle: string;
+    modeIndividual: string;
+    modeShared: string;
+    modeBuyerPickup: string;
+    modeFarmerDelivery: string;
+    loadSuffix: string;
+    capacityExceeded: string;
+    vehicleCapLabel: string;
+    quotedCostLabel: string;
+    myWeightLabel: string;
+    coFarmerWeightLabel: string;
+    totalCombinedLoad: string;
+    yourShareLabel: string;
+    dirUp: string;
+    dirDown: string;
+    dirStable: string;
+  }
+> = {
+  en: {
+    headerBadge: 'RaithaMitra · Independent Agricultural Market Intelligence',
+    title: 'Market Profit, Price Trends & Transport Optimizer',
+    subtitle: 'Compare mandis, analyze sell timing, evaluate buyer offers, and optimize shared transport costs.',
+    printStrategy: 'Print Strategy',
+    importedFromHarvest: 'Imported from Digital Harvest:',
+    acUnit: 'ac',
+    cropColon: 'Crop:',
+    harvestColon: 'Harvest:',
+    kg: 'kg',
+    perKg: '/kg',
+    cultCostColon: 'Cultivation Cost:',
+    cropLabel: 'Crop',
+    availQtyLabel: 'Available Produce Quantity (kg)',
+    totalCultExpLabel: 'Total Cultivation Expenses (₹)',
+    tabPrices: 'Mandi Prices',
+    tabCompare: 'Market Profit',
+    tabTrends: 'Price Trends',
+    tabSellTiming: 'Sell Now vs Later',
+    tabOffers: 'Buyer Offers',
+    tabTransport: 'Transport Cost',
+    dataTransparency: 'Data Transparency:',
+    dataTransparencyMsg:
+      'Live AGMARKNET / Data.gov.in API keys are not configured in this client environment. Sample records below are clearly labelled Fictional Demonstration Datasets; you can add real local mandi prices manually below.',
+    filterCropPh: 'Filter by crop (e.g., Tomato)',
+    filterLocPh: 'Filter by state, district, or market',
+    manualMktPh: 'Manual market name',
+    addPriceBtn: 'Add Price',
+    colCrop: 'Crop',
+    colMktDistrict: 'Market & District',
+    colMinMaxQtl: 'Min / Max (₹/qtl)',
+    colModalQtl: 'Modal (₹/qtl)',
+    colNormKg: 'Normalized (₹/kg)',
+    colDate: 'Date',
+    colSource: 'Source',
+    compareTitle: 'Market Profit Optimization (Net Return After Transport, Commission & Spoilage)',
+    keyInsight: 'Key Insight:',
+    offersHighestPrice: 'offers the highest selling price',
+    butPrefix: ', but',
+    yieldsHigherNet: 'yields higher net profit',
+    dueToLowerLoss: 'due to lower transport, commission, and spoilage losses.',
+    priceKgInput: 'Price (₹/kg)',
+    transportInput: 'Transport (₹)',
+    commissionInput: 'Commission (%)',
+    spoilageInput: 'Spoilage (%)',
+    colRankMkt: 'Rank & Market',
+    colPriceKg: 'Price/kg',
+    colGrossRev: 'Gross Revenue',
+    colSpoilageLoss: 'Spoilage Loss',
+    colSellTransport: 'Selling + Transport',
+    colNetSaleRev: 'Net Sale Revenue',
+    colNetProfitAfterCult: 'Net Profit After Cultivation',
+    barGrossSale: 'Gross Sale (₹)',
+    barNetProfit: 'Net Profit (₹)',
+    trendsTitle: 'Price Trend Intelligence & Moving Average',
+    usingCsvPrices: 'Using imported CSV historical prices',
+    usingDemoSeries: 'Using clearly labelled illustrative demonstration series (paste CSV below to analyze real prices)',
+    demoSuffix: 'Demo',
+    avgPrice: 'Average Price',
+    minimum: 'Minimum',
+    maximum: 'Maximum',
+    volatility: 'Volatility',
+    direction: 'Direction',
+    linePrice: 'Price (₹/kg)',
+    lineMovingAvg: '3-Period Moving Avg',
+    csvLabel: 'Import Observed Price History CSV (format: date,pricePerKg per line):',
+    analyzeCsvBtn: 'Analyze CSV History',
+    sellTitle: 'Sell Now vs Sell Later Strategy Simulator',
+    sellFields: {
+      currentPricePerKg: 'Current Price (₹/kg)',
+      expectedFuturePricePerKg: 'Expected Future Price (₹/kg)',
+      quantityKg: 'Quantity (kg)',
+      storageDays: 'Storage Duration (days)',
+      dailyStorageCostPerKg: 'Daily Storage Cost (₹/kg/day)',
+      spoilagePct: 'Est. Spoilage (%)',
+      storageCapacityKg: 'Storage Capacity (kg)',
+      splitImmediatePct: 'Split: Sell Immediately (%)',
+      transportExpenseInr: 'Transport Cost (₹)',
+    },
+    availProducePrefix: 'Available produce',
+    exceedsCapMiddle: 'exceeds storage capacity',
+    excessWarnSuffix:
+      '. Excess produce is modeled as sold immediately; never store perishable produce without proper cold/dry ventilation.',
+    stratImmediateTitle: '1. Sell Immediately',
+    stratImmediateDesc: 'Zero storage cost and zero post-harvest spoilage risk.',
+    stratLaterTitle: '2. Store & Sell Later',
+    storageLabel: 'Storage:',
+    spoilageLabel: 'Spoilage loss:',
+    breakEvenFuture: 'Break-even future price:',
+    stratSplitTitle: '3. Split Strategy',
+    nowSuffix: '% Now',
+    stratSplitDesc: 'Balances immediate cash flow with upside if prices rise.',
+    offersTitle: 'Buyer Offer Intelligence (Independent Calculator — No Real Orders Created)',
+    addOfferBtn: '+ Add Offer',
+    buyerPrefix: 'Buyer',
+    offeredPriceLabel: 'Offered Price (₹/kg)',
+    transportRespLabel: 'Transport Responsibility',
+    buyerPickup: 'Buyer Pickup',
+    farmerDelivery: 'Farmer Delivery',
+    paymentDelayLabel: 'Payment Delay (days)',
+    colBuyer: 'Buyer',
+    colOfferedPrice: 'Offered Price',
+    colGrossOffer: 'Gross Offer',
+    colFarmerTransport: 'Farmer Transport',
+    colPaymentDelay: 'Payment Delay',
+    daysUnit: 'days',
+    colEstProfit: 'Est. Profit',
+    transportTitle: 'Transportation Cost Optimization (Independent Calculator — No Fake Driver Availability)',
+    modeIndividual: 'Individual Vehicle',
+    modeShared: 'Shared Vehicle',
+    modeBuyerPickup: 'Buyer-Arranged Pickup',
+    modeFarmerDelivery: 'Farmer-Arranged Delivery',
+    loadSuffix: '% load',
+    capacityExceeded: 'Capacity Exceeded',
+    vehicleCapLabel: 'Vehicle Capacity (kg)',
+    quotedCostLabel: 'Quoted Vehicle Cost (₹)',
+    myWeightLabel: 'My Produce Weight (kg)',
+    coFarmerWeightLabel: 'Co-Farmers Weight (kg)',
+    totalCombinedLoad: 'Total Combined Load:',
+    yourShareLabel: 'Your Weight-Proportional Share:',
+    dirUp: 'Upward',
+    dirDown: 'Downward',
+    dirStable: 'Stable',
+  },
+  kn: {
+    headerBadge: 'ರೈತ ಮಿತ್ರ · ಸ್ವತಂತ್ರ ಕೃಷಿ ಮಾರುಕಟ್ಟೆ ಬುದ್ಧಿಮತ್ತೆ',
+    title: 'ಮಾರುಕಟ್ಟೆ ಲಾಭ, ಬೆಲೆ ಪ್ರವೃತ್ತಿ ಮತ್ತು ಸಾರಿಗೆ ಅತ್ಯುತ್ತಮೀಕರಣ',
+    subtitle: 'ಮಂಡಿಗಳನ್ನು ಹೋಲಿಸಿ, ಮಾರಾಟದ ಸಮಯ ವಿಶ್ಲೇಷಿಸಿ, ಖರೀದಿದಾರರ ಆಫರ್ ಮೌಲ್ಯಮಾಪನ ಮಾಡಿ ಮತ್ತು ಸಾರಿಗೆ ವೆಚ್ಚ ಕಡಿಮೆ ಮಾಡಿ.',
+    printStrategy: 'ತಂತ್ರ ಮುದ್ರಿಸಿ',
+    importedFromHarvest: 'ಡಿಜಿಟಲ್ ಕೊಯ್ಲಿನಿಂದ ತರಲಾಗಿದೆ:',
+    acUnit: 'ಎಕರೆ',
+    cropColon: 'ಬೆಳೆ:',
+    harvestColon: 'ಕೊಯ್ಲು:',
+    kg: 'ಕೆಜಿ',
+    perKg: '/ಕೆಜಿ',
+    cultCostColon: 'ಸಾಗುವಳಿ ವೆಚ್ಚ:',
+    cropLabel: 'ಬೆಳೆ',
+    availQtyLabel: 'ಲಭ್ಯವಿರುವ ಉತ್ಪನ್ನ ಪ್ರಮಾಣ (ಕೆಜಿ)',
+    totalCultExpLabel: 'ಒಟ್ಟು ಸಾಗುವಳಿ ವೆಚ್ಚ (₹)',
+    tabPrices: 'ಮಂಡಿ ಬೆಲೆಗಳು',
+    tabCompare: 'ಮಾರುಕಟ್ಟೆ ಲಾಭ',
+    tabTrends: 'ಬೆಲೆ ಪ್ರವೃತ್ತಿ',
+    tabSellTiming: 'ಈಗಲೇ ಮಾರಾಟ vs ನಂತರ',
+    tabOffers: 'ಖರೀದಿದಾರರ ಆಫರ್‌ಗಳು',
+    tabTransport: 'ಸಾರಿಗೆ ವೆಚ್ಚ',
+    dataTransparency: 'ದತ್ತಾಂಶ ಪಾರದರ್ಶಕತೆ:',
+    dataTransparencyMsg:
+      'ಈ ಪರಿಸರದಲ್ಲಿ ನೇರ AGMARKNET API ಕೀಗಳಿಲ್ಲ. ಕೆಳಗಿನ ಮಾದರಿ ದಾಖಲೆಗಳು ಕಾಲ್ಪನಿಕ ಪ್ರದರ್ಶನ ದತ್ತಾಂಶಗಳಾಗಿವೆ; ನೀವು ನೈಜ ಸ್ಥಳೀಯ ಮಂಡಿ ಬೆಲೆಗಳನ್ನು ಕೆಳಗೆ ಸೇರಿಸಬಹುದು.',
+    filterCropPh: 'ಬೆಳೆಯ ಪ್ರಕಾರ ಫಿಲ್ಟರ್ ಮಾಡಿ (ಉದಾ. ಟೊಮೆಟೊ)',
+    filterLocPh: 'ರಾಜ್ಯ, ಜಿಲ್ಲೆ ಅಥವಾ ಮಂಡಿ ಮೂಲಕ ಫಿಲ್ಟರ್ ಮಾಡಿ',
+    manualMktPh: 'ಸ್ಥಳೀಯ ಮಾರುಕಟ್ಟೆ ಹೆಸರು',
+    addPriceBtn: 'ಬೆಲೆ ಸೇರಿಸಿ',
+    colCrop: 'ಬೆಳೆ',
+    colMktDistrict: 'ಮಂಡಿ ಮತ್ತು ಜಿಲ್ಲೆ',
+    colMinMaxQtl: 'ಕನಿಷ್ಠ / ಗರಿಷ್ಠ (₹/ಕ್ವಿಂಟಾಲ್)',
+    colModalQtl: 'ಮಾದರಿ (₹/ಕ್ವಿಂಟಾಲ್)',
+    colNormKg: 'ಪ್ರತಿ ಕೆಜಿ (₹/ಕೆಜಿ)',
+    colDate: 'ದಿನಾಂಕ',
+    colSource: 'ಮೂಲ',
+    compareTitle: 'ಮಾರುಕಟ್ಟೆ ಲಾಭ ವಿಶ್ಲೇಷಣೆ (ಸಾರಿಗೆ, ಕಮಿಷನ್ ಮತ್ತು ಹಾಳಾಗುವಿಕೆ ಕಳೆದು ನಿವ್ವಳ ಲಾಭ)',
+    keyInsight: 'ಮುಖ್ಯ ಒಳನೋಟ:',
+    offersHighestPrice: 'ಅತಿ ಹೆಚ್ಚು ಮಾರಾಟ ಬೆಲೆ ನೀಡುತ್ತದೆ',
+    butPrefix: ', ಆದರೆ ಕಡಿಮೆ ಸಾರಿಗೆ, ಕಮಿಷನ್ ಮತ್ತು ಹಾಳಾಗುವಿಕೆ ನಷ್ಟದಿಂದಾಗಿ',
+    yieldsHigherNet: 'ಹೆಚ್ಚಿನ ನಿವ್ವಳ ಲಾಭ ನೀಡುತ್ತದೆ',
+    dueToLowerLoss: '.',
+    priceKgInput: 'ಬೆಲೆ (₹/ಕೆಜಿ)',
+    transportInput: 'ಸಾರಿಗೆ (₹)',
+    commissionInput: 'ಕಮಿಷನ್ (%)',
+    spoilageInput: 'ಹಾಳಾಗುವಿಕೆ (%)',
+    colRankMkt: 'ಶ್ರೇಣಿ ಮತ್ತು ಮಾರುಕಟ್ಟೆ',
+    colPriceKg: 'ಬೆಲೆ/ಕೆಜಿ',
+    colGrossRev: 'ಒಟ್ಟು ಆದಾಯ',
+    colSpoilageLoss: 'ಹಾಳಾಗುವಿಕೆ ನಷ್ಟ',
+    colSellTransport: 'ಮಾರಾಟ + ಸಾರಿಗೆ',
+    colNetSaleRev: 'ನಿವ್ವಳ ಮಾರಾಟ ಆದಾಯ',
+    colNetProfitAfterCult: 'ಸಾಗುವಳಿ ನಂತರದ ನಿವ್ವಳ ಲಾಭ',
+    barGrossSale: 'ಒಟ್ಟು ಮಾರಾಟ (₹)',
+    barNetProfit: 'ನಿವ್ವಳ ಲಾಭ (₹)',
+    trendsTitle: 'ಬೆಲೆ ಪ್ರವೃತ್ತಿ ಮತ್ತು ಚಲಿಸುವ ಸರಾಸರಿ',
+    usingCsvPrices: 'ಆಮದು ಮಾಡಿದ CSV ಐತಿಹಾಸಿಕ ಬೆಲೆಗಳನ್ನು ಬಳಸಲಾಗುತ್ತಿದೆ',
+    usingDemoSeries: 'ಪ್ರದರ್ಶನ ಮಾದರಿ ಸರಣಿ ಬಳಸಲಾಗುತ್ತಿದೆ (ನಿಜ ಬೆಲೆಗಳಿಗೆ ಕೆಳಗೆ CSV ಅಂಟಿಸಿ)',
+    demoSuffix: 'ಮಾದರಿ',
+    avgPrice: 'ಸರಾಸರಿ ಬೆಲೆ',
+    minimum: 'ಕನಿಷ್ಠ',
+    maximum: 'ಗರಿಷ್ಠ',
+    volatility: 'ಏರಿಳಿತ',
+    direction: 'ದಿಕ್ಕು',
+    linePrice: 'ಬೆಲೆ (₹/ಕೆಜಿ)',
+    lineMovingAvg: '3-ಅವಧಿ ಚಲಿಸುವ ಸರಾಸರಿ',
+    csvLabel: 'ಗಮನಿಸಿದ ಬೆಲೆ ಇತಿಹಾಸ CSV ಆಮದು ಮಾಡಿ (ಪ್ರತಿ ಸಾಲಿನಲ್ಲಿ: date,pricePerKg):',
+    analyzeCsvBtn: 'CSV ಇತಿಹಾಸ ವಿಶ್ಲೇಷಿಸಿ',
+    sellTitle: 'ಈಗಲೇ ಮಾರಾಟ vs ನಂತರ ಮಾರಾಟ ತಂತ್ರ ಸಿಮ್ಯುಲೇಟರ್',
+    sellFields: {
+      currentPricePerKg: 'ಪ್ರಸ್ತುತ ಬೆಲೆ (₹/ಕೆಜಿ)',
+      expectedFuturePricePerKg: 'ನಿರೀಕ್ಷಿತ ಭವಿಷ್ಯದ ಬೆಲೆ (₹/ಕೆಜಿ)',
+      quantityKg: 'ಪ್ರಮಾಣ (ಕೆಜಿ)',
+      storageDays: 'ಶೇಖರಣಾ ಅವಧಿ (ದಿನಗಳು)',
+      dailyStorageCostPerKg: 'ದೈನಂದಿನ ಶೇಖರಣಾ ವೆಚ್ಚ (₹/ಕೆಜಿ/ದಿನ)',
+      spoilagePct: 'ಅಂದಾಜು ಹಾಳಾಗುವಿಕೆ (%)',
+      storageCapacityKg: 'ಶೇಖರಣಾ ಸಾಮರ್ಥ್ಯ (ಕೆಜಿ)',
+      splitImmediatePct: 'ವಿಭಾಗ: ತಕ್ಷಣ ಮಾರಾಟ (%)',
+      transportExpenseInr: 'ಸಾರಿಗೆ ವೆಚ್ಚ (₹)',
+    },
+    availProducePrefix: 'ಲಭ್ಯವಿರುವ ಬೆಳೆ',
+    exceedsCapMiddle: 'ಶೇಖರಣಾ ಸಾಮರ್ಥ್ಯವನ್ನು ಮೀರಿದೆ',
+    excessWarnSuffix: '. ಹೆಚ್ಚುವರಿ ಬೆಳೆಯನ್ನು ತಕ್ಷಣ ಮಾರಾಟ ಮಾಡಲಾಗುತ್ತದೆ ಎಂದು ಮಾದರಿ ಮಾಡಲಾಗಿದೆ; ಸೂಕ್ತ ಶೀತಲ ಗಾಳಿಯಿಲ್ಲದೆ ಸಂಗ್ರಹಿಸಬೇಡಿ.',
+    stratImmediateTitle: '1. ತಕ್ಷಣ ಮಾರಾಟ ಮಾಡಿ',
+    stratImmediateDesc: 'ಶೇಖರಣಾ ವೆಚ್ಚವಿಲ್ಲ ಮತ್ತು ಕೊಯ್ಲು ನಂತರ ಹಾಳಾಗುವ ಅಪಾಯವಿಲ್ಲ.',
+    stratLaterTitle: '2. ಶೇಖರಿಸಿ ನಂತರ ಮಾರಾಟ ಮಾಡಿ',
+    storageLabel: 'ಶೇಖರಣೆ:',
+    spoilageLabel: 'ಹಾಳಾಗುವಿಕೆ ನಷ್ಟ:',
+    breakEvenFuture: 'ಸಮತೋಲನ ಭವಿಷ್ಯದ ಬೆಲೆ:',
+    stratSplitTitle: '3. ವಿಭಜಿತ ತಂತ್ರ',
+    nowSuffix: '% ಈಗ',
+    stratSplitDesc: 'ತಕ್ಷಣದ ಹಣದ ಹರಿವು ಮತ್ತು ಬೆಲೆ ಏರಿಕೆಯ ಲಾಭವನ್ನು ಸಮತೋಲನಗೊಳಿಸುತ್ತದೆ.',
+    offersTitle: 'ಖರೀದಿದಾರರ ಆಫರ್ ವಿಶ್ಲೇಷಣೆ (ಸ್ವತಂತ್ರ ಕ್ಯಾಲ್ಕುಲೇಟರ್ — ನೈಜ ಆದೇಶವಿಲ್ಲ)',
+    addOfferBtn: '+ ಆಫರ್ ಸೇರಿಸಿ',
+    buyerPrefix: 'ಖರೀದಿದಾರ',
+    offeredPriceLabel: 'ನೀಡಿದ ಬೆಲೆ (₹/ಕೆಜಿ)',
+    transportRespLabel: 'ಸಾರಿಗೆ ಜವಾಬ್ದಾರಿ',
+    buyerPickup: 'ಖರೀದಿದಾರರ ಪಿಕಪ್',
+    farmerDelivery: 'ರೈತರ ವಿತರಣೆ',
+    paymentDelayLabel: 'ಪಾವತಿ ವಿಳಂಬ (ದಿನಗಳು)',
+    colBuyer: 'ಖರೀದಿದಾರ',
+    colOfferedPrice: 'ನೀಡಿದ ಬೆಲೆ',
+    colGrossOffer: 'ಒಟ್ಟು ಆಫರ್',
+    colFarmerTransport: 'ರೈತರ ಸಾರಿಗೆ ವೆಚ್ಚ',
+    colPaymentDelay: 'ಪಾವತಿ ವಿಳಂಬ',
+    daysUnit: 'ದಿನಗಳು',
+    colEstProfit: 'ಅಂದಾಜು ಲಾಭ',
+    transportTitle: 'ಸಾರಿಗೆ ವೆಚ್ಚ ಅತ್ಯುತ್ತಮೀಕರಣ (ಸ್ವತಂತ್ರ ಕ್ಯಾಲ್ಕುಲೇಟರ್)',
+    modeIndividual: 'ವೈಯಕ್ತಿಕ ವಾಹನ',
+    modeShared: 'ಹಂಚಿದ ವಾಹನ',
+    modeBuyerPickup: 'ಖರೀದಿದಾರರ ಪಿಕಪ್',
+    modeFarmerDelivery: 'ರೈತರ ವಿತರಣೆ',
+    loadSuffix: '% ಲೋಡ್',
+    capacityExceeded: 'ಸಾಮರ್ಥ್ಯ ಮೀರಿದೆ',
+    vehicleCapLabel: 'ವಾಹನ ಸಾಮರ್ಥ್ಯ (ಕೆಜಿ)',
+    quotedCostLabel: 'ವಾಹನ ಬಾಡಿಗೆ ದರ (₹)',
+    myWeightLabel: 'ನನ್ನ ಬೆಳೆ ತೂಕ (ಕೆಜಿ)',
+    coFarmerWeightLabel: 'ಸಹ-ರೈತರ ತೂಕ (ಕೆಜಿ)',
+    totalCombinedLoad: 'ಒಟ್ಟು ಸಂಯೋಜಿತ ಲೋಡ್:',
+    yourShareLabel: 'ನಿಮ್ಮ ತೂಕಕ್ಕೆ ಅನುಗುಣವಾದ ಪಾಲು:',
+    dirUp: 'ಏರಿಕೆ',
+    dirDown: 'ಇಳಿಕೆ',
+    dirStable: 'ಸ್ಥಿರ',
+  },
+  hi: {
+    headerBadge: 'रैतामित्र · स्वतंत्र कृषि बाज़ार बुद्धिमत्ता',
+    title: 'बाज़ार लाभ, भाव रुझान और परिवहन अनुकूलक',
+    subtitle: 'मंडियों की तुलना करें, बिक्री समय जांचें, खरीदार ऑफ़र का मूल्यांकन करें और साझा परिवहन लागत घटाएं।',
+    printStrategy: 'रणनीति प्रिंट करें',
+    importedFromHarvest: 'डिजिटल कटाई से आयातित:',
+    acUnit: 'एकड़',
+    cropColon: 'फसल:',
+    harvestColon: 'कटाई:',
+    kg: 'किलो',
+    perKg: '/किलो',
+    cultCostColon: 'खेती लागत:',
+    cropLabel: 'फसल',
+    availQtyLabel: 'उपलब्ध उपज मात्रा (किलो)',
+    totalCultExpLabel: 'कुल खेती खर्च (₹)',
+    tabPrices: 'मंडी भाव',
+    tabCompare: 'बाज़ार लाभ',
+    tabTrends: 'भाव रुझान',
+    tabSellTiming: 'अभी बेचें या बाद में',
+    tabOffers: 'खरीदार ऑफ़र',
+    tabTransport: 'परिवहन खर्च',
+    dataTransparency: 'डेटा पारदर्शिता:',
+    dataTransparencyMsg:
+      'इस क्लाइंट वातावरण में लाइव AGMARKNET कुंजी कॉन्फ़िगर नहीं हैं। नीचे दिए गए नमूना रिकॉर्ड काल्पनिक डेमो डेटा हैं; आप नीचे वास्तविक स्थानीय मंडी भाव जोड़ सकते हैं।',
+    filterCropPh: 'फसल से छांटें (जैसे टमाटर)',
+    filterLocPh: 'राज्य, जिला या मंडी से छांटें',
+    manualMktPh: 'मंडी का नाम',
+    addPriceBtn: 'भाव जोड़ें',
+    colCrop: 'फसल',
+    colMktDistrict: 'मंडी व जिला',
+    colMinMaxQtl: 'न्यूनतम / अधिकतम (₹/क्विंटल)',
+    colModalQtl: 'मॉडल (₹/क्विंटल)',
+    colNormKg: 'प्रति किलो (₹/किलो)',
+    colDate: 'दिनांक',
+    colSource: 'स्रोत',
+    compareTitle: 'बाज़ार लाभ अनुकूलन (परिवहन, कमीशन व नुकसान के बाद शुद्ध आय)',
+    keyInsight: 'मुख्य निष्कर्ष:',
+    offersHighestPrice: 'सबसे अधिक बिक्री मूल्य देता है',
+    butPrefix: ', लेकिन कम परिवहन, कमीशन व खराबी हानि के कारण',
+    yieldsHigherNet: 'अधिक शुद्ध लाभ देता है',
+    dueToLowerLoss: '।',
+    priceKgInput: 'भाव (₹/किलो)',
+    transportInput: 'परिवहन (₹)',
+    commissionInput: 'कमीशन (%)',
+    spoilageInput: 'खराबी (%)',
+    colRankMkt: 'रैंक व मंडी',
+    colPriceKg: 'भाव/किलो',
+    colGrossRev: 'सकल आय',
+    colSpoilageLoss: 'खराबी नुकसान',
+    colSellTransport: 'बिक्री + परिवहन',
+    colNetSaleRev: 'शुद्ध बिक्री आय',
+    colNetProfitAfterCult: 'खेती खर्च के बाद शुद्ध लाभ',
+    barGrossSale: 'सकल बिक्री (₹)',
+    barNetProfit: 'शुद्ध लाभ (₹)',
+    trendsTitle: 'भाव रुझान विश्लेषण व मूविंग औसत',
+    usingCsvPrices: 'आयातित CSV ऐतिहासिक भाव उपयोग हो रहे हैं',
+    usingDemoSeries: 'स्पष्ट रूप से चिह्नित डेमो श्रृंखला उपयोग हो रही है (असली भाव के लिए नीचे CSV पेस्ट करें)',
+    demoSuffix: 'डेमो',
+    avgPrice: 'औसत भाव',
+    minimum: 'न्यूनतम',
+    maximum: 'अधिकतम',
+    volatility: 'उतार-चढ़ाव',
+    direction: 'दिशा',
+    linePrice: 'भाव (₹/किलो)',
+    lineMovingAvg: '3-अवधि मूविंग औसत',
+    csvLabel: 'देखे गए भाव इतिहास CSV आयात करें (प्रत्येक पंक्ति: date,pricePerKg):',
+    analyzeCsvBtn: 'CSV इतिहास विश्लेषित करें',
+    sellTitle: 'अभी बेचें या बाद में बेचें रणनीति सिम्युलेटर',
+    sellFields: {
+      currentPricePerKg: 'वर्तमान भाव (₹/किलो)',
+      expectedFuturePricePerKg: 'अपेक्षित भविष्य भाव (₹/किलो)',
+      quantityKg: 'मात्रा (किलो)',
+      storageDays: 'भंडारण अवधि (दिन)',
+      dailyStorageCostPerKg: 'दैनिक भंडारण लागत (₹/किलो/दिन)',
+      spoilagePct: 'अनुमानित खराबी (%)',
+      storageCapacityKg: 'भंडारण क्षमता (किलो)',
+      splitImmediatePct: 'विभाजन: तुरंत बिक्री (%)',
+      transportExpenseInr: 'परिवहन लागत (₹)',
+    },
+    availProducePrefix: 'उपलब्ध उपज',
+    exceedsCapMiddle: 'भंडारण क्षमता से अधिक है',
+    excessWarnSuffix: '। अतिरिक्त उपज तुरंत बेची गई मानी गई है; बिना शीत/हवादार व्यवस्था के नष्ट होने वाली फसल न रखें।',
+    stratImmediateTitle: '1. तुरंत बेचें',
+    stratImmediateDesc: 'शून्य भंडारण लागत और कटाई के बाद खराबी का कोई जोखिम नहीं।',
+    stratLaterTitle: '2. भंडारण कर बाद में बेचें',
+    storageLabel: 'भंडारण:',
+    spoilageLabel: 'खराबी नुकसान:',
+    breakEvenFuture: 'ब्रेक-ईवन भविष्य भाव:',
+    stratSplitTitle: '3. विभाजित रणनीति',
+    nowSuffix: '% अभी',
+    stratSplitDesc: 'भाव बढ़ने पर लाभ के साथ तत्काल नकदी प्रवाह को संतुलित करता है।',
+    offersTitle: 'खरीदार ऑफ़र विश्लेषण (स्वतंत्र कैलकुलेटर — कोई ऑर्डर नहीं)',
+    addOfferBtn: '+ ऑफ़र जोड़ें',
+    buyerPrefix: 'खरीदार',
+    offeredPriceLabel: 'प्रस्तावित भाव (₹/किलो)',
+    transportRespLabel: 'परिवहन जिम्मेदारी',
+    buyerPickup: 'खरीदार पिकअप',
+    farmerDelivery: 'किसान डिलीवरी',
+    paymentDelayLabel: 'भुगतान विलंब (दिन)',
+    colBuyer: 'खरीदार',
+    colOfferedPrice: 'प्रस्तावित भाव',
+    colGrossOffer: 'सकल प्रस्ताव',
+    colFarmerTransport: 'किसान परिवहन',
+    colPaymentDelay: 'भुगतान विलंब',
+    daysUnit: 'दिन',
+    colEstProfit: 'अनुमानित लाभ',
+    transportTitle: 'परिवहन लागत अनुकूलक (स्वतंत्र कैलकुलेटर)',
+    modeIndividual: 'व्यक्तिगत वाहन',
+    modeShared: 'साझा वाहन',
+    modeBuyerPickup: 'खरीदार पिकअप',
+    modeFarmerDelivery: 'किसान डिलीवरी',
+    loadSuffix: '% भार',
+    capacityExceeded: 'क्षमता से अधिक',
+    vehicleCapLabel: 'वाहन क्षमता (किलो)',
+    quotedCostLabel: 'वाहन भाड़ा दर (₹)',
+    myWeightLabel: 'मेरी उपज का वजन (किलो)',
+    coFarmerWeightLabel: 'सह-किसानों का वजन (किलो)',
+    totalCombinedLoad: 'कुल संयुक्त भार:',
+    yourShareLabel: 'वजन के अनुसार आपका हिस्सा:',
+    dirUp: 'बढ़त',
+    dirDown: 'गिरावट',
+    dirStable: 'स्थिर',
+  },
+  te: {
+    headerBadge: 'రైతమిత్ర · స్వతంత్ర వ్యవసాయ మార్కెట్ మేధస్సు',
+    title: 'మార్కెట్ లాభం, ధరల సరళి & రవాణా ఆప్టిమైజర్',
+    subtitle: 'మండీలను పోల్చండి, అమ్మకపు సమయాన్ని విశ్లేషించండి, కొనుగోలుదారుల ఆఫర్లను పరిశీలించండి మరియు రవాణా ఖర్చు తగ్గించండి.',
+    printStrategy: 'వ్యూహాన్ని ప్రింట్ చేయండి',
+    importedFromHarvest: 'డిజిటల్ కోత నుండి తెచ్చిన వివరాలు:',
+    acUnit: 'ఎకరాలు',
+    cropColon: 'పంట:',
+    harvestColon: 'కోత:',
+    kg: 'కిలోలు',
+    perKg: '/కిలో',
+    cultCostColon: 'సాగు ఖర్చు:',
+    cropLabel: 'పంట',
+    availQtyLabel: 'అందుబాటులో ఉన్న పంట పరిమాణం (కిలోలు)',
+    totalCultExpLabel: 'మొత్తం సాగు ఖర్చులు (₹)',
+    tabPrices: 'మండి ధరలు',
+    tabCompare: 'మార్కెట్ లాభం',
+    tabTrends: 'ధరల సరళి',
+    tabSellTiming: 'ఇప్పుడే అమ్మడం vs తర్వాత',
+    tabOffers: 'కొనుగోలుదారు ఆఫర్లు',
+    tabTransport: 'రవాణా ఖర్చు',
+    dataTransparency: 'డేటా పారదర్శకత:',
+    dataTransparencyMsg:
+      'ఈ వాతావరణంలో లైవ్ AGMARKNET API కీలు కాన్ఫిగర్ చేయబడలేదు. దిగువ ఉన్న నమూనా రికార్డులు ఊహాజనిత డెమో డేటా; మీరు నిజమైన స్థానిక మండి ధరలను క్రింద మాన్యువల్‌గా జోడించవచ్చు.',
+    filterCropPh: 'పంట ద్వారా వడపోత (ఉదా. టొమాటో)',
+    filterLocPh: 'రాష్ట్రం, జిల్లా లేదా మండి ద్వారా వడపోత',
+    manualMktPh: 'మార్కెట్ పేరు నమోదు చేయండి',
+    addPriceBtn: 'ధర జోడించు',
+    colCrop: 'పంట',
+    colMktDistrict: 'మండి & జిల్లా',
+    colMinMaxQtl: 'కనిష్ట / గరిష్ట (₹/క్వింటాల్)',
+    colModalQtl: 'మోడల్ (₹/క్వింటాల్)',
+    colNormKg: 'కిలోకు ధర (₹/కిలో)',
+    colDate: 'తేదీ',
+    colSource: 'మూలం',
+    compareTitle: 'మార్కెట్ లాభ విశ్లేషణ (రవాణా, కమీషన్ & నష్టం తర్వాత నికర ఆదాయం)',
+    keyInsight: 'ముఖ్య విశ్లేషణ:',
+    offersHighestPrice: 'అత్యధిక అమ్మకపు ధర ఇస్తుంది',
+    butPrefix: ', కానీ తక్కువ రవాణా, కమీషన్ మరియు పంట నష్టం కారణంగా',
+    yieldsHigherNet: 'ఎక్కువ నికర లాభాన్ని అందిస్తుంది',
+    dueToLowerLoss: '.',
+    priceKgInput: 'ధర (₹/కిలో)',
+    transportInput: 'రవాణా (₹)',
+    commissionInput: 'కమీషన్ (%)',
+    spoilageInput: 'నష్టం / చెడిపోవడం (%)',
+    colRankMkt: 'ర్యాంక్ & మార్కెట్',
+    colPriceKg: 'ధర/కిలో',
+    colGrossRev: 'మొత్తం ఆదాయం',
+    colSpoilageLoss: 'పంట నష్టం',
+    colSellTransport: 'అమ్మకం + రవాణా',
+    colNetSaleRev: 'నికర అమ్మకపు ఆదాయం',
+    colNetProfitAfterCult: 'సాగు ఖర్చు తర్వాత నికర లాభం',
+    barGrossSale: 'మొత్తం అమ్మకం (₹)',
+    barNetProfit: 'నికర లాభం (₹)',
+    trendsTitle: 'ధరల సరళి & చలన సగటు',
+    usingCsvPrices: 'దిగుమతి చేసిన CSV చారిత్రక ధరలు ఉపయోగించబడుతున్నాయి',
+    usingDemoSeries: 'స్పష్టంగా గుర్తించిన నమూనా ధరల శ్రేణి (నిజ ధరలకు క్రింద CSV అతికించండి)',
+    demoSuffix: 'డెమో',
+    avgPrice: 'సగటు ధర',
+    minimum: 'కనిష్టం',
+    maximum: 'గరిష్టం',
+    volatility: 'హెచ్చుతగ్గులు',
+    direction: 'దిశ',
+    linePrice: 'ధర (₹/కిలో)',
+    lineMovingAvg: '3-రోజుల చలన సగటు',
+    csvLabel: 'ధరల చరిత్ర CSV దిగుమతి (ఫార్మాట్: ప్రతి వరుసలో date,pricePerKg):',
+    analyzeCsvBtn: 'CSV చరిత్రను విశ్లేషించు',
+    sellTitle: 'ఇప్పుడే అమ్మడం vs తర్వాత అమ్మడం వ్యూహ సిమ్యులేటర్',
+    sellFields: {
+      currentPricePerKg: 'ప్రస్తుత ధర (₹/కిలో)',
+      expectedFuturePricePerKg: 'అంచనా భవిష్యత్ ధర (₹/కిలో)',
+      quantityKg: 'పరిమాణం (కిలోలు)',
+      storageDays: 'నిల్వ రోజులు',
+      dailyStorageCostPerKg: 'రోజువారీ నిల్వ ఖర్చు (₹/కిలో/రోజు)',
+      spoilagePct: 'అంచనా నష్టం (%)',
+      storageCapacityKg: 'నిల్వ సామర్థ్యం (కిలోలు)',
+      splitImmediatePct: 'విభజన: వెంటనే అమ్మకం (%)',
+      transportExpenseInr: 'రవాణా ఖర్చు (₹)',
+    },
+    availProducePrefix: 'అందుబాటులో ఉన్న పంట',
+    exceedsCapMiddle: 'నిల్వ సామర్థ్యాన్ని మించి ఉంది',
+    excessWarnSuffix: '. మిగిలిన పంట వెంటనే అమ్మబడినట్లు మోడల్ చేయబడింది; సరైన వెంటిలేషన్ లేకుండా నిల్వ చేయవద్దు.',
+    stratImmediateTitle: '1. వెంటనే అమ్మండి',
+    stratImmediateDesc: 'నిల్వ ఖర్చు సున్నా మరియు పంట చెడిపోయే ప్రమాదం ఉండదు.',
+    stratLaterTitle: '2. నిల్వ చేసి తర్వాత అమ్మండి',
+    storageLabel: 'నిల్వ ఖర్చు:',
+    spoilageLabel: 'నష్టం:',
+    breakEvenFuture: 'బ్రేక్-ఈవెన్ భవిష్యత్ ధర:',
+    stratSplitTitle: '3. విభజన వ్యూహం',
+    nowSuffix: '% ఇప్పుడు',
+    stratSplitDesc: 'వెంటనే నగదు లభ్యత మరియు ధర పెరుగుదల లాభాన్ని సమతుల్యం చేస్తుంది.',
+    offersTitle: 'కొనుగోలుదారుల ఆఫర్ల విశ్లేషణ (స్వతంత్ర కాలిక్యులేటర్)',
+    addOfferBtn: '+ ఆఫర్ జోడించు',
+    buyerPrefix: 'కొనుగోలుదారు',
+    offeredPriceLabel: 'ఆఫర్ చేసిన ధర (₹/కిలో)',
+    transportRespLabel: 'రవాణా బాధ్యత',
+    buyerPickup: 'కొనుగోలుదారు పికప్',
+    farmerDelivery: 'రైతు డెలివరీ',
+    paymentDelayLabel: 'చెల్లింపు ఆలస్యం (రోజులు)',
+    colBuyer: 'కొనుగోలుదారు',
+    colOfferedPrice: 'ఆఫర్ ధర',
+    colGrossOffer: 'మొత్తం ఆఫర్',
+    colFarmerTransport: 'రైతు రవాణా ఖర్చు',
+    colPaymentDelay: 'చెల్లింపు ఆలస్యం',
+    daysUnit: 'రోజులు',
+    colEstProfit: 'అంచనా లాభం',
+    transportTitle: 'రవాణా ఖర్చు ఆప్టిమైజర్ (స్వతంత్ర కాలిక్యులేటర్)',
+    modeIndividual: 'వ్యక్తిగత వాహనం',
+    modeShared: 'భాగస్వామ్య వాహనం',
+    modeBuyerPickup: 'కొనుగోలుదారు పికప్',
+    modeFarmerDelivery: 'రైతు డెలివరీ',
+    loadSuffix: '% లోడ్',
+    capacityExceeded: 'సామర్థ్యం మించిపోయింది',
+    vehicleCapLabel: 'వాహన సామర్థ్యం (కిలోలు)',
+    quotedCostLabel: 'వాహన బాడుగ (₹)',
+    myWeightLabel: 'నా పంట బరువు (కిలోలు)',
+    coFarmerWeightLabel: 'తోటి రైతుల బరువు (కిలోలు)',
+    totalCombinedLoad: 'మొత్తం ఉమ్మడి లోడ్:',
+    yourShareLabel: 'మీ బరువు ప్రకారం వాటా:',
+    dirUp: 'పెరుగుతోంది',
+    dirDown: 'తగ్గుతోంది',
+    dirStable: 'స్థిరంగా ఉంది',
+  },
+};
+
 export function MarketIntelligenceWorkspace() {
+  const { language } = useFarm();
+  const t = MKT_INTEL_I18N[language];
+  const numLocale = getIntlLocale(language);
   const [activeTab, setActiveTab] = useState<MarketTab>('prices');
   const [harvestPayload, setHarvestPayload] = useState<HarvestToMarketPayload | null>(null);
 
@@ -235,8 +851,8 @@ export function MarketIntelligenceWorkspace() {
     [offers, cultivationExpensesInr]
   );
   const transportEvaluations = useMemo(
-    () => transportOptions.map((t) => ({ input: t, eval: evaluateTransportOption(t) })),
-    [transportOptions]
+    () => transportOptions.map((item) => ({ input: item, eval: evaluateTransportOption(item, language) })),
+    [transportOptions, language]
   );
 
   const handleAddManualPrice = () => {
@@ -270,11 +886,11 @@ export function MarketIntelligenceWorkspace() {
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-semibold bg-white/15 px-2.5 py-1 rounded-full mb-2">
               <Store className="w-3.5 h-3.5" />
-              RaithaMitra · Independent Agricultural Market Intelligence
+              RaithaMitra · {t.headerBadge.replace(/^RaithaMitra · /, '')}
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold">Market Profit, Price Trends & Transport Optimizer</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">{t.title}</h1>
             <p className="text-xs sm:text-sm text-emerald-100 mt-1">
-              Compare mandis, analyze sell timing, evaluate buyer offers, and optimize shared transport costs.
+              {t.subtitle}
             </p>
           </div>
           <button
@@ -282,19 +898,19 @@ export function MarketIntelligenceWorkspace() {
             onClick={() => window.print()}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-emerald-900 text-xs font-semibold print:hidden"
           >
-            <Printer className="w-3.5 h-3.5" /> Print Strategy
+            <Printer className="w-3.5 h-3.5" /> {t.printStrategy}
           </button>
         </div>
 
         {harvestPayload && (
           <div className="mt-4 pt-3 border-t border-white/20 flex flex-wrap items-center gap-3 text-xs text-emerald-50">
             <span className="inline-flex items-center gap-1 font-semibold">
-              <Sprout className="w-3.5 h-3.5" /> Imported from Digital Harvest:
+              <Sprout className="w-3.5 h-3.5" /> {t.importedFromHarvest}
             </span>
-            <span>{harvestPayload.farmName} ({harvestPayload.areaAcres} ac)</span>
-            <span>Crop: <strong>{harvestPayload.cropName}</strong></span>
-            <span>Harvest: <strong>{harvestPayload.harvestQuantityKg.toLocaleString('en-IN')} kg</strong></span>
-            <span>Cultivation Cost: <strong>₹{harvestPayload.cultivationExpensesInr.toLocaleString('en-IN')}</strong></span>
+            <span>{harvestPayload.farmName} ({harvestPayload.areaAcres} {t.acUnit})</span>
+            <span>{t.cropColon} <strong>{localizeCropName(harvestPayload.cropName, language)}</strong></span>
+            <span>{t.harvestColon} <strong>{harvestPayload.harvestQuantityKg.toLocaleString(numLocale)} {t.kg}</strong></span>
+            <span>{t.cultCostColon} <strong>₹{harvestPayload.cultivationExpensesInr.toLocaleString(numLocale)}</strong></span>
           </div>
         )}
       </div>
@@ -302,7 +918,7 @@ export function MarketIntelligenceWorkspace() {
       {/* Shared Produce Bar */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
         <div>
-          <label className="block text-zinc-500 mb-1 font-semibold">Crop</label>
+          <label className="block text-zinc-500 mb-1 font-semibold">{t.cropLabel}</label>
           <input
             type="text"
             value={cropName}
@@ -311,7 +927,7 @@ export function MarketIntelligenceWorkspace() {
           />
         </div>
         <div>
-          <label className="block text-zinc-500 mb-1 font-semibold">Available Produce Quantity (kg)</label>
+          <label className="block text-zinc-500 mb-1 font-semibold">{t.availQtyLabel}</label>
           <input
             type="number"
             min="0"
@@ -326,7 +942,7 @@ export function MarketIntelligenceWorkspace() {
           />
         </div>
         <div>
-          <label className="block text-zinc-500 mb-1 font-semibold">Total Cultivation Expenses (₹)</label>
+          <label className="block text-zinc-500 mb-1 font-semibold">{t.totalCultExpLabel}</label>
           <input
             type="number"
             min="0"
@@ -341,12 +957,12 @@ export function MarketIntelligenceWorkspace() {
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 print:hidden">
         {(
           [
-            { id: 'prices', label: 'Mandi Prices', icon: Store },
-            { id: 'compare', label: 'Market Profit', icon: TrendingUp },
-            { id: 'trends', label: 'Price Trends', icon: TrendingUp },
-            { id: 'sell_timing', label: 'Sell Now vs Later', icon: Clock },
-            { id: 'offers', label: 'Buyer Offers', icon: Users },
-            { id: 'transport', label: 'Transport Cost', icon: Truck },
+            { id: 'prices', label: t.tabPrices, icon: Store },
+            { id: 'compare', label: t.tabCompare, icon: TrendingUp },
+            { id: 'trends', label: t.tabTrends, icon: TrendingUp },
+            { id: 'sell_timing', label: t.tabSellTiming, icon: Clock },
+            { id: 'offers', label: t.tabOffers, icon: Users },
+            { id: 'transport', label: t.tabTransport, icon: Truck },
           ] as { id: MarketTab; label: string; icon: any }[]
         ).map((tab) => {
           const Icon = tab.icon;
@@ -372,7 +988,7 @@ export function MarketIntelligenceWorkspace() {
       {activeTab === 'prices' && (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950">
-            <strong>Data Transparency:</strong> Live AGMARKNET / Data.gov.in API keys are not configured in this client environment. Sample records below are clearly labelled <em>Fictional Demonstration Datasets</em>; you can add real local mandi prices manually below.
+            <strong>{t.dataTransparency}</strong> {t.dataTransparencyMsg}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
@@ -380,21 +996,21 @@ export function MarketIntelligenceWorkspace() {
               type="text"
               value={cropFilter}
               onChange={(e) => setCropFilter(e.target.value)}
-              placeholder="Filter by crop (e.g., Tomato)"
+              placeholder={t.filterCropPh}
               className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
             />
             <input
               type="text"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              placeholder="Filter by state, district, or market"
+              placeholder={t.filterLocPh}
               className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
             />
             <input
               type="text"
               value={manualMarketName}
               onChange={(e) => setManualMarketName(e.target.value)}
-              placeholder="Manual market name"
+              placeholder={t.manualMktPh}
               className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
             />
             <div className="flex gap-2">
@@ -403,7 +1019,7 @@ export function MarketIntelligenceWorkspace() {
                 step="0.5"
                 value={manualPricePerKg}
                 onChange={(e) => setManualPricePerKg(Number(e.target.value) || 0)}
-                placeholder="₹/kg"
+                placeholder={`₹${t.perKg}`}
                 className="w-24 px-2.5 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
               />
               <button
@@ -411,7 +1027,7 @@ export function MarketIntelligenceWorkspace() {
                 onClick={handleAddManualPrice}
                 className="flex-1 px-3 py-2 rounded-xl bg-emerald-700 text-white font-semibold"
               >
-                Add Price
+                {t.addPriceBtn}
               </button>
             </div>
           </div>
@@ -420,23 +1036,23 @@ export function MarketIntelligenceWorkspace() {
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500">
-                  <th className="py-2 pr-3">Crop</th>
-                  <th className="py-2 pr-3">Market & District</th>
-                  <th className="py-2 pr-3">Min / Max (₹/qtl)</th>
-                  <th className="py-2 pr-3">Modal (₹/qtl)</th>
-                  <th className="py-2 pr-3">Normalized (₹/kg)</th>
-                  <th className="py-2 pr-3">Date</th>
-                  <th className="py-2">Source</th>
+                  <th className="py-2 pr-3">{t.colCrop}</th>
+                  <th className="py-2 pr-3">{t.colMktDistrict}</th>
+                  <th className="py-2 pr-3">{t.colMinMaxQtl}</th>
+                  <th className="py-2 pr-3">{t.colModalQtl}</th>
+                  <th className="py-2 pr-3">{t.colNormKg}</th>
+                  <th className="py-2 pr-3">{t.colDate}</th>
+                  <th className="py-2">{t.colSource}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPrices.map((p) => (
                   <tr key={p.id} className="border-b border-zinc-100 dark:border-zinc-800">
-                    <td className="py-2 pr-3 font-semibold">{p.crop} ({p.variety})</td>
+                    <td className="py-2 pr-3 font-semibold">{localizeCropName(p.crop, language)} ({p.variety})</td>
                     <td className="py-2 pr-3">{p.market}, {p.district}</td>
                     <td className="py-2 pr-3">₹{p.minPricePerQuintal} – ₹{p.maxPricePerQuintal}</td>
                     <td className="py-2 pr-3 font-semibold">₹{p.modalPricePerQuintal}</td>
-                    <td className="py-2 pr-3 text-emerald-700 font-bold">₹{p.pricePerKg}/kg</td>
+                    <td className="py-2 pr-3 text-emerald-700 font-bold">₹{p.pricePerKg}{t.perKg}</td>
                     <td className="py-2 pr-3">{p.priceDate}</td>
                     <td className="py-2 text-[11px] text-zinc-500">{p.source}</td>
                   </tr>
@@ -450,10 +1066,10 @@ export function MarketIntelligenceWorkspace() {
       {/* TAB 2: MARKET PROFIT OPTIMIZATION */}
       {activeTab === 'compare' && (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <h2 className="text-base font-bold">Market Profit Optimization (Net Return After Transport, Commission & Spoilage)</h2>
+          <h2 className="text-base font-bold">{t.compareTitle}</h2>
           {marketResults.length > 0 && highestGrossMarket && marketResults[0].id !== highestGrossMarket.id && (
             <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950">
-              <strong>Key Insight:</strong> <strong>{highestGrossMarket.marketName}</strong> offers the highest selling price (₹{highestGrossMarket.sellingPricePerKg}/kg), but <strong>{marketResults[0].marketName}</strong> yields higher net profit (₹{marketResults[0].netProfitAfterCultivationInr.toLocaleString('en-IN')}) due to lower transport, commission, and spoilage losses.
+              <strong>{t.keyInsight}</strong> <strong>{highestGrossMarket.marketName}</strong> {t.offersHighestPrice} (₹{highestGrossMarket.sellingPricePerKg}{t.perKg}){t.butPrefix} <strong>{marketResults[0].marketName}</strong> {t.yieldsHigherNet} (₹{marketResults[0].netProfitAfterCultivationInr.toLocaleString(numLocale)}) {t.dueToLowerLoss}
             </div>
           )}
 
@@ -472,7 +1088,7 @@ export function MarketIntelligenceWorkspace() {
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <label>
-                    Price (₹/kg)
+                    {t.priceKgInput}
                     <input
                       type="number"
                       step="0.5"
@@ -486,7 +1102,7 @@ export function MarketIntelligenceWorkspace() {
                     />
                   </label>
                   <label>
-                    Transport (₹)
+                    {t.transportInput}
                     <input
                       type="number"
                       value={m.transportExpenseInr}
@@ -499,7 +1115,7 @@ export function MarketIntelligenceWorkspace() {
                     />
                   </label>
                   <label>
-                    Commission (%)
+                    {t.commissionInput}
                     <input
                       type="number"
                       step="0.5"
@@ -513,7 +1129,7 @@ export function MarketIntelligenceWorkspace() {
                     />
                   </label>
                   <label>
-                    Spoilage (%)
+                    {t.spoilageInput}
                     <input
                       type="number"
                       step="0.5"
@@ -535,26 +1151,26 @@ export function MarketIntelligenceWorkspace() {
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500">
-                  <th className="py-2 pr-3">Rank & Market</th>
-                  <th className="py-2 pr-3">Price/kg</th>
-                  <th className="py-2 pr-3">Gross Revenue</th>
-                  <th className="py-2 pr-3">Spoilage Loss</th>
-                  <th className="py-2 pr-3">Selling + Transport</th>
-                  <th className="py-2 pr-3">Net Sale Revenue</th>
-                  <th className="py-2">Net Profit After Cultivation</th>
+                  <th className="py-2 pr-3">{t.colRankMkt}</th>
+                  <th className="py-2 pr-3">{t.colPriceKg}</th>
+                  <th className="py-2 pr-3">{t.colGrossRev}</th>
+                  <th className="py-2 pr-3">{t.colSpoilageLoss}</th>
+                  <th className="py-2 pr-3">{t.colSellTransport}</th>
+                  <th className="py-2 pr-3">{t.colNetSaleRev}</th>
+                  <th className="py-2">{t.colNetProfitAfterCult}</th>
                 </tr>
               </thead>
               <tbody>
                 {marketResults.map((r, i) => (
                   <tr key={r.id} className={`border-b border-zinc-100 dark:border-zinc-800 ${i === 0 ? 'bg-emerald-50/60 font-semibold' : ''}`}>
                     <td className="py-2 pr-3">#{i + 1} {r.marketName}</td>
-                    <td className="py-2 pr-3">₹{r.sellingPricePerKg}/kg</td>
-                    <td className="py-2 pr-3">₹{r.grossSaleRevenueInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3 text-amber-700">₹{r.spoilageLossInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">₹{r.totalSellingExpensesInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">₹{r.netSaleRevenueInr.toLocaleString('en-IN')}</td>
+                    <td className="py-2 pr-3">₹{r.sellingPricePerKg}{t.perKg}</td>
+                    <td className="py-2 pr-3">₹{r.grossSaleRevenueInr.toLocaleString(numLocale)}</td>
+                    <td className="py-2 pr-3 text-amber-700">₹{r.spoilageLossInr.toLocaleString(numLocale)}</td>
+                    <td className="py-2 pr-3">₹{r.totalSellingExpensesInr.toLocaleString(numLocale)}</td>
+                    <td className="py-2 pr-3">₹{r.netSaleRevenueInr.toLocaleString(numLocale)}</td>
                     <td className={`py-2 font-bold ${r.netProfitAfterCultivationInr >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                      ₹{r.netProfitAfterCultivationInr.toLocaleString('en-IN')}
+                      ₹{r.netProfitAfterCultivationInr.toLocaleString(numLocale)}
                     </td>
                   </tr>
                 ))}
@@ -570,8 +1186,8 @@ export function MarketIntelligenceWorkspace() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="grossSaleRevenueInr" name="Gross Sale (₹)" fill="#94a3b8" />
-                <Bar dataKey="netProfitAfterCultivationInr" name="Net Profit (₹)" fill="#15803d" />
+                <Bar dataKey="grossSaleRevenueInr" name={t.barGrossSale} fill="#94a3b8" />
+                <Bar dataKey="netProfitAfterCultivationInr" name={t.barNetProfit} fill="#15803d" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -583,9 +1199,9 @@ export function MarketIntelligenceWorkspace() {
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold">Price Trend Intelligence & Moving Average ({cropName})</h2>
+              <h2 className="text-base font-bold">{t.trendsTitle} ({localizeCropName(cropName, language)})</h2>
               <p className="text-xs text-zinc-500">
-                {customTrend ? 'Using imported CSV historical prices' : 'Using clearly labelled illustrative demonstration series (paste CSV below to analyze real prices)'}
+                {customTrend ? t.usingCsvPrices : t.usingDemoSeries}
               </p>
             </div>
             <div className="flex gap-1.5 text-xs">
@@ -601,7 +1217,7 @@ export function MarketIntelligenceWorkspace() {
                     trendRange === r && !customTrend ? 'bg-emerald-700 text-white' : 'bg-zinc-100 dark:bg-zinc-800'
                   }`}
                 >
-                  {r.toUpperCase()} Demo
+                  {r.toUpperCase()} {t.demoSuffix}
                 </button>
               ))}
             </div>
@@ -609,24 +1225,31 @@ export function MarketIntelligenceWorkspace() {
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
             <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Average Price</span>
-              <strong>₹{trendStats.avgPrice}/kg</strong>
+              <span className="text-zinc-500 block">{t.avgPrice}</span>
+              <strong>₹{trendStats.avgPrice}{t.perKg}</strong>
             </div>
             <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Minimum</span>
-              <strong>₹{trendStats.minPrice}/kg</strong>
+              <span className="text-zinc-500 block">{t.minimum}</span>
+              <strong>₹{trendStats.minPrice}{t.perKg}</strong>
             </div>
             <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Maximum</span>
-              <strong>₹{trendStats.maxPrice}/kg</strong>
+              <span className="text-zinc-500 block">{t.maximum}</span>
+              <strong>₹{trendStats.maxPrice}{t.perKg}</strong>
             </div>
             <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Volatility</span>
+              <span className="text-zinc-500 block">{t.volatility}</span>
               <strong>{trendStats.volatilityPct}%</strong>
             </div>
             <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Direction</span>
-              <strong>{trendStats.direction} ({trendStats.changePct}%)</strong>
+              <span className="text-zinc-500 block">{t.direction}</span>
+              <strong>
+                {trendStats.direction.toLowerCase().includes('up')
+                  ? t.dirUp
+                  : trendStats.direction.toLowerCase().includes('down')
+                    ? t.dirDown
+                    : t.dirStable}{' '}
+                ({trendStats.changePct}%)
+              </strong>
             </div>
           </div>
 
@@ -638,14 +1261,14 @@ export function MarketIntelligenceWorkspace() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="pricePerKg" name="Price (₹/kg)" stroke="#15803d" strokeWidth={2} />
-                <Line type="monotone" dataKey="movingAvg" name="3-Period Moving Avg" stroke="#f59e0b" strokeDasharray="5 5" />
+                <Line type="monotone" dataKey="pricePerKg" name={t.linePrice} stroke="#15803d" strokeWidth={2} />
+                <Line type="monotone" dataKey="movingAvg" name={t.lineMovingAvg} stroke="#f59e0b" strokeDasharray="5 5" />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div className="text-xs space-y-2">
-            <label className="font-semibold block">Import Observed Price History CSV (format: date,pricePerKg per line):</label>
+            <label className="font-semibold block">{t.csvLabel}</label>
             <textarea
               rows={3}
               value={csvInput}
@@ -661,7 +1284,7 @@ export function MarketIntelligenceWorkspace() {
               }}
               className="px-4 py-1.5 rounded-lg bg-emerald-700 text-white font-semibold"
             >
-              Analyze CSV History
+              {t.analyzeCsvBtn}
             </button>
           </div>
         </div>
@@ -670,22 +1293,22 @@ export function MarketIntelligenceWorkspace() {
       {/* TAB 4: SELL NOW VS SELL LATER */}
       {activeTab === 'sell_timing' && (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <h2 className="text-base font-bold">Sell Now vs Sell Later Strategy Simulator</h2>
+          <h2 className="text-base font-bold">{t.sellTitle}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             {(
               [
-                ['currentPricePerKg', 'Current Price (₹/kg)'],
-                ['expectedFuturePricePerKg', 'Expected Future Price (₹/kg)'],
-                ['storageDays', 'Storage Duration (days)'],
-                ['dailyStorageCostPerKg', 'Daily Storage Cost (₹/kg/day)'],
-                ['spoilagePct', 'Est. Spoilage (%)'],
-                ['storageCapacityKg', 'Storage Capacity (kg)'],
-                ['splitImmediatePct', 'Split: Sell Immediately (%)'],
-                ['transportExpenseInr', 'Transport Cost (₹)'],
-              ] as [keyof SellStrategyInputs, string][]
-            ).map(([k, label]) => (
+                'currentPricePerKg',
+                'expectedFuturePricePerKg',
+                'storageDays',
+                'dailyStorageCostPerKg',
+                'spoilagePct',
+                'storageCapacityKg',
+                'splitImmediatePct',
+                'transportExpenseInr',
+              ] as (keyof SellStrategyInputs)[]
+            ).map((k) => (
               <label key={k}>
-                <span className="text-zinc-500 block mb-1">{label}</span>
+                <span className="text-zinc-500 block mb-1">{t.sellFields[k]}</span>
                 <input
                   type="number"
                   step="any"
@@ -700,33 +1323,33 @@ export function MarketIntelligenceWorkspace() {
           {sellSim.capacityExceeded && (
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
-              Available produce ({sellInputs.quantityKg} kg) exceeds storage capacity ({sellInputs.storageCapacityKg} kg). Excess produce is modeled as sold immediately; never store perishable produce without proper cold/dry ventilation.
+              {t.availProducePrefix} ({sellInputs.quantityKg} {t.kg}) {t.exceedsCapMiddle} ({sellInputs.storageCapacityKg} {t.kg}){t.excessWarnSuffix}
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <div className="font-bold text-sm">1. Sell Immediately</div>
+              <div className="font-bold text-sm">{t.stratImmediateTitle}</div>
               <div className="text-lg font-bold text-emerald-700 mt-1">
-                ₹{sellSim.immediateRevenue.toLocaleString('en-IN')}
+                ₹{sellSim.immediateRevenue.toLocaleString(numLocale)}
               </div>
-              <p className="text-zinc-500 mt-1">Zero storage cost and zero post-harvest spoilage risk.</p>
+              <p className="text-zinc-500 mt-1">{t.stratImmediateDesc}</p>
             </div>
             <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <div className="font-bold text-sm">2. Store & Sell Later</div>
+              <div className="font-bold text-sm">{t.stratLaterTitle}</div>
               <div className="text-lg font-bold text-emerald-700 mt-1">
-                ₹{sellSim.laterRevenue.toLocaleString('en-IN')}
+                ₹{sellSim.laterRevenue.toLocaleString(numLocale)}
               </div>
               <p className="text-zinc-500 mt-1">
-                Storage: ₹{sellSim.storageCost.toLocaleString('en-IN')} · Spoilage loss: ₹{sellSim.spoilageLossInr.toLocaleString('en-IN')} · Break-even future price: ₹{sellSim.breakEvenFuturePrice}/kg
+                {t.storageLabel} ₹{sellSim.storageCost.toLocaleString(numLocale)} · {t.spoilageLabel} ₹{sellSim.spoilageLossInr.toLocaleString(numLocale)} · {t.breakEvenFuture} ₹{sellSim.breakEvenFuturePrice}{t.perKg}
               </p>
             </div>
             <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <div className="font-bold text-sm">3. Split Strategy ({sellInputs.splitImmediatePct}% Now)</div>
+              <div className="font-bold text-sm">{t.stratSplitTitle} ({sellInputs.splitImmediatePct}{t.nowSuffix})</div>
               <div className="text-lg font-bold text-emerald-700 mt-1">
-                ₹{sellSim.splitNetRevenue.toLocaleString('en-IN')}
+                ₹{sellSim.splitNetRevenue.toLocaleString(numLocale)}
               </div>
-              <p className="text-zinc-500 mt-1">Balances immediate cash flow with upside if prices rise.</p>
+              <p className="text-zinc-500 mt-1">{t.stratSplitDesc}</p>
             </div>
           </div>
         </div>
@@ -736,7 +1359,7 @@ export function MarketIntelligenceWorkspace() {
       {activeTab === 'offers' && (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">Buyer Offer Intelligence (Independent Calculator — No Real Orders Created)</h2>
+            <h2 className="text-base font-bold">{t.offersTitle}</h2>
             <button
               type="button"
               onClick={() =>
@@ -744,7 +1367,7 @@ export function MarketIntelligenceWorkspace() {
                   ...p,
                   {
                     id: `b_${Date.now()}`,
-                    buyerName: `Buyer ${p.length + 1}`,
+                    buyerName: `${t.buyerPrefix} ${p.length + 1}`,
                     offeredPricePerKg: 18,
                     requiredQuantityKg: quantityKg,
                     transportResponsibility: 'Farmer Delivery',
@@ -756,7 +1379,7 @@ export function MarketIntelligenceWorkspace() {
               }
               className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold"
             >
-              + Add Offer
+              {t.addOfferBtn}
             </button>
           </div>
 
@@ -774,7 +1397,7 @@ export function MarketIntelligenceWorkspace() {
                   className="col-span-2 font-bold px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
                 />
                 <label>
-                  Offered Price (₹/kg)
+                  {t.offeredPriceLabel}
                   <input
                     type="number"
                     step="0.5"
@@ -788,7 +1411,7 @@ export function MarketIntelligenceWorkspace() {
                   />
                 </label>
                 <label>
-                  Transport Responsibility
+                  {t.transportRespLabel}
                   <select
                     value={o.transportResponsibility}
                     onChange={(e) => {
@@ -798,12 +1421,12 @@ export function MarketIntelligenceWorkspace() {
                     }}
                     className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
                   >
-                    <option value="Buyer Pickup">Buyer Pickup</option>
-                    <option value="Farmer Delivery">Farmer Delivery</option>
+                    <option value="Buyer Pickup">{t.buyerPickup}</option>
+                    <option value="Farmer Delivery">{t.farmerDelivery}</option>
                   </select>
                 </label>
                 <label>
-                  Transport Cost (₹)
+                  {t.transportInput}
                   <input
                     type="number"
                     value={o.transportExpenseInr}
@@ -816,7 +1439,7 @@ export function MarketIntelligenceWorkspace() {
                   />
                 </label>
                 <label>
-                  Payment Delay (days)
+                  {t.paymentDelayLabel}
                   <input
                     type="number"
                     value={o.paymentDelayDays}
@@ -836,25 +1459,25 @@ export function MarketIntelligenceWorkspace() {
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500">
-                  <th className="py-2 pr-3">Buyer</th>
-                  <th className="py-2 pr-3">Offered Price</th>
-                  <th className="py-2 pr-3">Gross Offer</th>
-                  <th className="py-2 pr-3">Farmer Transport</th>
-                  <th className="py-2 pr-3">Payment Delay</th>
-                  <th className="py-2 pr-3">Net Sale Revenue</th>
-                  <th className="py-2">Est. Profit</th>
+                  <th className="py-2 pr-3">{t.colBuyer}</th>
+                  <th className="py-2 pr-3">{t.colOfferedPrice}</th>
+                  <th className="py-2 pr-3">{t.colGrossOffer}</th>
+                  <th className="py-2 pr-3">{t.colFarmerTransport}</th>
+                  <th className="py-2 pr-3">{t.colPaymentDelay}</th>
+                  <th className="py-2 pr-3">{t.colNetSaleRev}</th>
+                  <th className="py-2">{t.colEstProfit}</th>
                 </tr>
               </thead>
               <tbody>
                 {evaluatedOffers.map((ev, i) => (
                   <tr key={ev.id} className={`border-b border-zinc-100 dark:border-zinc-800 ${i === 0 ? 'bg-emerald-50/60 font-semibold' : ''}`}>
                     <td className="py-2 pr-3">{ev.buyerName}</td>
-                    <td className="py-2 pr-3">₹{ev.offeredPricePerKg}/kg</td>
-                    <td className="py-2 pr-3">₹{ev.grossValue.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">₹{ev.effectiveTransportInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">{ev.paymentDelayDays} days</td>
-                    <td className="py-2 pr-3 text-emerald-700">₹{ev.netRevenue.toLocaleString('en-IN')}</td>
-                    <td className="py-2">₹{ev.estimatedProfit.toLocaleString('en-IN')}</td>
+                    <td className="py-2 pr-3">₹{ev.offeredPricePerKg}{t.perKg}</td>
+                    <td className="py-2 pr-3">₹{ev.grossValue.toLocaleString(numLocale)}</td>
+                    <td className="py-2 pr-3">₹{ev.effectiveTransportInr.toLocaleString(numLocale)}</td>
+                    <td className="py-2 pr-3">{ev.paymentDelayDays} {t.daysUnit}</td>
+                    <td className="py-2 pr-3 text-emerald-700">₹{ev.netRevenue.toLocaleString(numLocale)}</td>
+                    <td className="py-2">₹{ev.estimatedProfit.toLocaleString(numLocale)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -866,7 +1489,7 @@ export function MarketIntelligenceWorkspace() {
       {/* TAB 6: TRANSPORTATION COST OPTIMIZER */}
       {activeTab === 'transport' && (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <h2 className="text-base font-bold">Transportation Cost Optimization (Independent Calculator — No Fake Driver Availability)</h2>
+          <h2 className="text-base font-bold">{t.transportTitle}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             {transportOptions.map((opt, idx) => {
               const ev = transportEvaluations[idx].eval;
@@ -882,23 +1505,23 @@ export function MarketIntelligenceWorkspace() {
                       }}
                       className="font-bold px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
                     >
-                      <option value="Individual Vehicle">Individual Vehicle</option>
-                      <option value="Shared Vehicle">Shared Vehicle</option>
-                      <option value="Buyer Pickup">Buyer-Arranged Pickup</option>
-                      <option value="Farmer Delivery">Farmer-Arranged Delivery</option>
+                      <option value="Individual Vehicle">{t.modeIndividual}</option>
+                      <option value="Shared Vehicle">{t.modeShared}</option>
+                      <option value="Buyer Pickup">{t.modeBuyerPickup}</option>
+                      <option value="Farmer Delivery">{t.modeFarmerDelivery}</option>
                     </select>
                     {ev.valid ? (
                       <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> {ev.utilizationPct}% load
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {ev.utilizationPct}{t.loadSuffix}
                       </span>
                     ) : (
-                      <span className="text-red-600 font-semibold">Capacity Exceeded</span>
+                      <span className="text-red-600 font-semibold">{t.capacityExceeded}</span>
                     )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <label>
-                      Vehicle Capacity (kg)
+                      {t.vehicleCapLabel}
                       <input
                         type="number"
                         value={opt.vehicleCapacityKg}
@@ -911,7 +1534,7 @@ export function MarketIntelligenceWorkspace() {
                       />
                     </label>
                     <label>
-                      Quoted Vehicle Cost (₹)
+                      {t.quotedCostLabel}
                       <input
                         type="number"
                         value={opt.quotedCostInr}
@@ -924,7 +1547,7 @@ export function MarketIntelligenceWorkspace() {
                       />
                     </label>
                     <label>
-                      My Produce Weight (kg)
+                      {t.myWeightLabel}
                       <input
                         type="number"
                         value={opt.myProduceWeightKg}
@@ -938,7 +1561,7 @@ export function MarketIntelligenceWorkspace() {
                     </label>
                     {opt.mode === 'Shared Vehicle' && (
                       <label>
-                        Co-Farmers Weight (kg)
+                        {t.coFarmerWeightLabel}
                         <input
                           type="number"
                           value={opt.otherFarmersWeightKg}
@@ -957,8 +1580,8 @@ export function MarketIntelligenceWorkspace() {
                     <p className="text-red-600 bg-red-50 p-2 rounded-lg">{ev.error}</p>
                   ) : (
                     <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 space-y-1">
-                      <div>Total Combined Load: <strong>{ev.totalWeightKg.toLocaleString('en-IN')} kg</strong></div>
-                      <div>Your Weight-Proportional Share: <strong className="text-emerald-700">₹{ev.farmerShareInr.toLocaleString('en-IN')}</strong> (₹{ev.costPerKg}/kg)</div>
+                      <div>{t.totalCombinedLoad} <strong>{ev.totalWeightKg.toLocaleString(numLocale)} {t.kg}</strong></div>
+                      <div>{t.yourShareLabel} <strong className="text-emerald-700">₹{ev.farmerShareInr.toLocaleString(numLocale)}</strong> (₹{ev.costPerKg}{t.perKg})</div>
                     </div>
                   )}
                 </div>

@@ -7,6 +7,74 @@ import {
   runUnifiedBioIntelWorkflow,
   UnifiedBioIntelResponse,
 } from '@/lib/biointelAdvancedApi';
+import { localizeCropName, localizeCondition, formatLocalizedCurrency } from '@/lib/translations';
+import { Language } from '@/types';
+
+const ADV_BIO_I18N: Record<Language, {
+  title: string; badge: string; pipelineDesc: string;
+  demoBtn: string; runBtn: string; areaLbl: string; seedlingsLbl: string; budgetLbl: string; waterLbl: string;
+  evQuality: string; climateTitle: string; soilTitle: string; qualityLbl: string; totalLbl: string; fulfilledLbl: string;
+  withinBudget: string; exceedsBudget: string; allocTitle: string; demoData: string; qtyLbl: string;
+  icarTitle: string; portalLink: string; genomicsToggle: string; ensemblLbl: string; ncbiLbl: string; noNcbi: string;
+  valToggle: string; ruleLbl: string; missingData: string; providersToggle: string; missingCfg: string;
+}> = {
+  en: {
+    title: 'Unified Scientific & Procurement Optimization', badge: '12-Provider Pipeline',
+    pipelineDesc: 'Species Validation → Scientific Literature → Climate & Soil → Indian ICAR Trials → Cost-Optimal Allocation',
+    demoBtn: 'Run Demo (2 Acres Tomato)', runBtn: 'Run Unified Analysis',
+    areaLbl: 'Cultivation Area (Acres)', seedlingsLbl: 'Required Seedlings', budgetLbl: 'Procurement Budget (₹)', waterLbl: 'Water Availability',
+    evQuality: 'Evidence Quality:', climateTitle: 'Climate & Irrigation', soilTitle: 'Soil Compatibility', qualityLbl: 'Quality:',
+    totalLbl: 'Total:', fulfilledLbl: 'Fulfilled:', withinBudget: 'Within Budget', exceedsBudget: 'Exceeds Budget',
+    allocTitle: 'Optimized Supplier Allocations', demoData: 'Demo Data', qtyLbl: 'Qty:',
+    icarTitle: 'Indian Official Cultivar Releases (ICAR / IIHR)', portalLink: 'National Nursery Portal',
+    genomicsToggle: 'Crop Genetic & Plant Genomic Intelligence (NCBI & Ensembl)',
+    ensemblLbl: 'Ensembl Plants Assembly:', ncbiLbl: 'NCBI Gene Records', noNcbi: 'No live NCBI gene hits returned.',
+    valToggle: 'Scientific Evidence Validation & Missing Data Warnings', ruleLbl: 'Rule:', missingData: 'Missing Data:',
+    providersToggle: 'Data Sources & 12-Provider Integration Status', missingCfg: 'Missing:',
+  },
+  kn: {
+    title: 'ಸಮಗ್ರ ವೈಜ್ಞಾನಿಕ ಮತ್ತು ಬೀಜ ಖರೀದಿ ವಿಶ್ಲೇಷಣೆ', badge: '12-ಮೂಲಗಳ ವ್ಯವಸ್ಥೆ',
+    pipelineDesc: 'ತಳಿ ದೃಢೀಕರಣ → ಸಂಶೋಧನಾ ಪ್ರಬಂಧಗಳು → ಹವಾಮಾನ ಮತ್ತು ಮಣ್ಣು → ಭಾರತೀಯ ICAR ಪರೀಕ್ಷೆ → ಕಡಿಮೆ ವೆಚ್ಚದ ಖರೀದಿ ಯೋಜನೆ',
+    demoBtn: 'ಡೆಮೊ ಚಲಾಯಿಸಿ (2 ಎಕರೆ ಟೊಮೆಟೊ)', runBtn: 'ಸಮಗ್ರ ವಿಶ್ಲೇಷಣೆ ಚಲಾಯಿಸಿ',
+    areaLbl: 'ಬೇಸಾಯ ವಿಸ್ತೀರ್ಣ (ಎಕರೆ)', seedlingsLbl: 'ಬೇಕಾಗುವ ಸಸಿಗಳು', budgetLbl: 'ಖರೀದಿ ಬಜೆಟ್ (₹)', waterLbl: 'ನೀರಿನ ಲಭ್ಯತೆ',
+    evQuality: 'ಆಧಾರ ಗುಣಮಟ್ಟ:', climateTitle: 'ಹವಾಮಾನ ಮತ್ತು ನೀರಾವರಿ', soilTitle: 'ಮಣ್ಣಿನ ಯೋಗ್ಯತೆ', qualityLbl: 'ಗುಣಮಟ್ಟ:',
+    totalLbl: 'ಒಟ್ಟು:', fulfilledLbl: 'ಪೂರೈಕೆ:', withinBudget: 'ಬಜೆಟ್ ಒಳಗಿದೆ', exceedsBudget: 'ಬಜೆಟ್ ಮೀರಿದೆ',
+    allocTitle: 'ಉತ್ತಮ ನರ್ಸರಿ ಪೂರೈಕೆ ಹಂಚಿಕೆ', demoData: 'ಡೆಮೊ ಮಾಹಿತಿ', qtyLbl: 'ಪ್ರಮಾಣ:',
+    icarTitle: 'ಭಾರತೀಯ ಅಧಿಕೃತ ತಳಿ ಬಿಡುಗಡೆಗಳು (ICAR / IIHR)', portalLink: 'ರಾಷ್ಟ್ರೀಯ ನರ್ಸರಿ ಪೋರ್ಟಲ್',
+    genomicsToggle: 'ಬೆಳೆ ತಳಿಶಾಸ್ತ್ರ ಮತ್ತು ಜೀನೋಮ್ ಮಾಹಿತಿ (NCBI & Ensembl)',
+    ensemblLbl: 'Ensembl ಸಸ್ಯ ಜೀನೋಮ್:', ncbiLbl: 'NCBI ಜೀನ್ ದಾಖಲೆಗಳು', noNcbi: 'ಯಾವುದೇ NCBI ಜೀನ್ ಮಾಹಿತಿ ಲಭ್ಯವಾಗಿಲ್ಲ.',
+    valToggle: 'ವೈಜ್ಞಾನಿಕ ಸಾಕ್ಷ್ಯ ಪರಿಶೀಲನೆ ಮತ್ತು ಕೊರತೆ ಎಚ್ಚರಿಕೆಗಳು', ruleLbl: 'ನಿಯಮ:', missingData: 'ಲಭ್ಯವಿಲ್ಲದ ಮಾಹಿತಿ:',
+    providersToggle: 'ಮಾಹಿತಿ ಮೂಲಗಳು ಮತ್ತು 12-ಪೂರೈಕೆದಾರರ ಸ್ಥಿತಿ', missingCfg: 'ಲಭ್ಯವಿಲ್ಲ:',
+  },
+  hi: {
+    title: 'एकीकृत वैज्ञानिक व बीज खरीद अनुकूलन', badge: '12-स्रोत प्रणाली',
+    pipelineDesc: 'प्रजाति सत्यापन → शोध साहित्य → जलवायु व मिट्टी → भारतीय ICAR परीक्षण → लागत-अनुकूल आवंटन',
+    demoBtn: 'डेमो चलाएं (2 एकड़ टमाटर)', runBtn: 'एकीकृत विश्लेषण चलाएं',
+    areaLbl: 'खेती क्षेत्र (एकड़)', seedlingsLbl: 'आवश्यक पौधे', budgetLbl: 'खरीद बजट (₹)', waterLbl: 'पानी की उपलब्धता',
+    evQuality: 'प्रमाण गुणवत्ता:', climateTitle: 'जलवायु व सिंचाई', soilTitle: 'मिट्टी अनुकूलता', qualityLbl: 'गुणवत्ता:',
+    totalLbl: 'कुल:', fulfilledLbl: 'पूर्ति:', withinBudget: 'बजट के भीतर', exceedsBudget: 'बजट से अधिक',
+    allocTitle: 'अनुकूलित नर्सरी आवंटन', demoData: 'डेमो डेटा', qtyLbl: 'मात्रा:',
+    icarTitle: 'भारतीय आधिकारिक किस्म रिलीज़ (ICAR / IIHR)', portalLink: 'राष्ट्रीय नर्सरी पोर्टल',
+    genomicsToggle: 'फसल आनुवंशिकी व जीनोम जानकारी (NCBI व Ensembl)',
+    ensemblLbl: 'Ensembl पादप असेंबली:', ncbiLbl: 'NCBI जीन रिकॉर्ड', noNcbi: 'कोई लाइव NCBI जीन परिणाम नहीं मिला।',
+    valToggle: 'वैज्ञानिक साक्ष्य जांच व डेटा चेतावनी', ruleLbl: 'नियम:', missingData: 'अनुपलब्ध डेटा:',
+    providersToggle: 'डेटा स्रोत व 12-प्रदाता स्थिति', missingCfg: 'अनुपलब्ध:',
+  },
+  te: {
+    title: 'సమగ్ర శాస్త్రీయ & విత్తన కొనుగోలు విశ్లేషణ', badge: '12-వనరుల పైప్‌లైన్',
+    pipelineDesc: 'జాతి నిర్ధారణ → పరిశోధన పత్రాలు → వాతావరణం & నేల → భారతీయ ICAR పరీక్షలు → తక్కువ ఖర్చు ప్రణాళిక',
+    demoBtn: 'డెమో నడపండి (2 ఎకరాలు టొమాటో)', runBtn: 'సమగ్ర విశ్లేషణ నడపండి',
+    areaLbl: 'సాగు విస్తీర్ణం (ఎకరాలు)', seedlingsLbl: 'అవసరమైన మొక్కలు', budgetLbl: 'కొనుగోలు బడ్జెట్ (₹)', waterLbl: 'నీటి లభ్యత',
+    evQuality: 'ఆధార నాణ్యత:', climateTitle: 'వాతావరణం & నీటిపారుదల', soilTitle: 'నేల సరిపోతుందా', qualityLbl: 'నాణ్యత:',
+    totalLbl: 'మొత్తం:', fulfilledLbl: 'సరఫరా:', withinBudget: 'బడ్జెట్ లోపల', exceedsBudget: 'బడ్జెట్ మించింది',
+    allocTitle: 'ఉత్తమ నర్సరీ కేటాయింపులు', demoData: 'డెమో డేటా', qtyLbl: 'పరిమాణం:',
+    icarTitle: 'భారతీయ అధికారిక రకాలు (ICAR / IIHR)', portalLink: 'జాతీయ నర్సరీ పోర్టల్',
+    genomicsToggle: 'పంట జన్యు & జీనోమ్ సమాచారం (NCBI & Ensembl)',
+    ensemblLbl: 'Ensembl మొక్కల అసెంబ్లీ:', ncbiLbl: 'NCBI జీన్ రికార్డులు', noNcbi: 'లైవ్ NCBI జీన్ ఫలితాలు రాలేదు.',
+    valToggle: 'శాస్త్రీయ ఆధార తనిఖీ & లేని డేటా హెచ్చరికలు', ruleLbl: 'నియమం:', missingData: 'అందుబాటులో లేని డేటా:',
+    providersToggle: 'డేటా వనరులు & 12-ప్రొవైడర్ల స్థితి', missingCfg: 'లోపం:',
+  },
+};
 import {
   Dna,
   Sparkles,
@@ -25,6 +93,7 @@ import {
 
 export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }) {
   const { currentFarm, language } = useFarm();
+  const L = ADV_BIO_I18N[language] || ADV_BIO_I18N.en;
 
   const [seedlingsQty, setSeedlingsQty] = useState<number>(5000);
   const [budgetInr, setBudgetInr] = useState<number>(15000);
@@ -81,14 +150,14 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
           <div className="flex items-center gap-2 flex-wrap">
             <Sparkles className="w-5 h-5 text-emerald-600" />
             <h2 className="text-base font-bold text-zinc-900 dark:text-white">
-              Unified Scientific & OR-Tools Procurement Intelligence
+              {L.title}
             </h2>
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-              12-Provider Pipeline
+              {L.badge}
             </span>
           </div>
           <p className="text-xs text-zinc-500">
-            GBIF Species Validation → Europe PMC / NCBI / Ensembl → Climate & Soil → Indian ICAR Evidence → OR-Tools CP-SAT Optimization
+            {L.pipelineDesc}
           </p>
         </div>
 
@@ -98,7 +167,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
             disabled={isLoading}
             className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs transition shadow-sm"
           >
-            Run Judges&apos; Demo (2 Acres Tomato, 5k Seedlings)
+            {L.demoBtn}
           </button>
           <button
             onClick={() => handleRunUnified(false)}
@@ -106,7 +175,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
             className="px-4 py-2 rounded-xl bg-green-800 hover:bg-green-700 text-white font-semibold text-xs flex items-center gap-1.5 transition"
           >
             {isLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Dna className="w-4 h-4" />}
-            Run Unified Analysis
+            {L.runBtn}
           </button>
         </div>
       </div>
@@ -114,7 +183,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
       {/* Quick Parameter Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div>
-          <label className="block text-zinc-500 mb-1">Cultivation Area (Acres)</label>
+          <label className="block text-zinc-500 mb-1">{L.areaLbl}</label>
           <input
             type="number"
             step="0.5"
@@ -125,7 +194,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
           />
         </div>
         <div>
-          <label className="block text-zinc-500 mb-1">Required Seedlings</label>
+          <label className="block text-zinc-500 mb-1">{L.seedlingsLbl}</label>
           <input
             type="number"
             step="500"
@@ -136,7 +205,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
           />
         </div>
         <div>
-          <label className="block text-zinc-500 mb-1">Procurement Budget (₹)</label>
+          <label className="block text-zinc-500 mb-1">{L.budgetLbl}</label>
           <input
             type="number"
             step="1000"
@@ -147,15 +216,15 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
           />
         </div>
         <div>
-          <label className="block text-zinc-500 mb-1">Water Availability</label>
+          <label className="block text-zinc-500 mb-1">{L.waterLbl}</label>
           <select
             value={waterAvail}
             onChange={(e) => setWaterAvail(e.target.value as any)}
             className="w-full p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
           >
-            <option value="Limited / Low">Limited / Low</option>
-            <option value="Moderate / Adequate">Moderate / Adequate</option>
-            <option value="Abundant / Canal">Abundant / Canal</option>
+            <option value="Limited / Low">{localizeCondition('Scarce', language)}</option>
+            <option value="Moderate / Adequate">{localizeCondition('Moderate', language)}</option>
+            <option value="Abundant / Canal">{localizeCondition('Abundant', language)}</option>
           </select>
         </div>
       </div>
@@ -167,7 +236,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                {data.species_validation.input_crop_name} — <em>{data.species_validation.accepted_scientific_name}</em>
+                {localizeCropName(data.species_validation.input_crop_name, language)} — <em>{data.species_validation.accepted_scientific_name}</em>
                 {data.species_validation.taxon_key && (
                   <span className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-emerald-200">
                     GBIF #{data.species_validation.taxon_key}
@@ -175,7 +244,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
                 )}
               </div>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-emerald-600 text-white">
-                Evidence Quality: {data.evidence_quality}
+                {L.evQuality} {data.evidence_quality}
               </span>
             </div>
             <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">{data.grounded_explanation}</p>
@@ -184,28 +253,28 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
           {/* Climate, Soil & OR-Tools Procurement Plan */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 space-y-1.5">
-              <div className="font-bold text-zinc-900 dark:text-white">Climate & Irrigation</div>
-              <div>Temp: {data.climate_suitability.current_temperature_c}°C • ET0: {data.climate_suitability.et0_mm_day} mm/day</div>
+              <div className="font-bold text-zinc-900 dark:text-white">{L.climateTitle}</div>
+              <div>{data.climate_suitability.current_temperature_c}°C • ET0: {data.climate_suitability.et0_mm_day} mm</div>
               <div className="text-zinc-500">{data.climate_suitability.planting_suitability}</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 space-y-1.5">
-              <div className="font-bold text-zinc-900 dark:text-white">Soil Compatibility</div>
-              <div>{data.soil_suitability.soil_texture} (pH {data.soil_suitability.soil_ph ?? 'N/A'})</div>
-              <div className="text-zinc-500">Quality: {data.soil_suitability.data_quality}</div>
+              <div className="font-bold text-zinc-900 dark:text-white">{L.soilTitle}</div>
+              <div>{localizeCondition(data.soil_suitability.soil_texture, language)} (pH {data.soil_suitability.soil_ph ?? 'N/A'})</div>
+              <div className="text-zinc-500">{L.qualityLbl} {data.soil_suitability.data_quality}</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 space-y-1.5">
               <div className="font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
                 <Truck className="w-3.5 h-3.5 text-green-700" />
-                OR-Tools CP-SAT Plan ({data.procurement_plan.optimization_status})
+                OR-Tools ({data.procurement_plan.optimization_status})
               </div>
               <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-400">
-                Total: ₹{data.procurement_plan.total_procurement_cost_inr.toLocaleString('en-IN')}
+                {L.totalLbl} {formatLocalizedCurrency(data.procurement_plan.total_procurement_cost_inr, language)}
               </div>
               <div className="text-zinc-500">
-                Fulfilled: {data.procurement_plan.fulfilled_quantity.toLocaleString('en-IN')} / {data.procurement_plan.required_quantity.toLocaleString('en-IN')} •{' '}
-                {data.budget_feasibility ? 'Within Budget' : 'Exceeds Budget'}
+                {L.fulfilledLbl} {data.procurement_plan.fulfilled_quantity.toLocaleString('en-IN')} / {data.procurement_plan.required_quantity.toLocaleString('en-IN')} •{' '}
+                {data.budget_feasibility ? L.withinBudget : L.exceedsBudget}
               </div>
             </div>
           </div>
@@ -213,22 +282,22 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
           {/* OR-Tools Supplier Allocations Table */}
           {data.procurement_plan.allocations.length > 0 && (
             <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-2 text-xs">
-              <div className="font-bold text-zinc-900 dark:text-white">Optimized Supplier Allocations</div>
+              <div className="font-bold text-zinc-900 dark:text-white">{L.allocTitle}</div>
               {data.procurement_plan.allocations.map((al, i) => (
                 <div key={i} className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
                   <div>
                     <span className="font-bold">{al.nursery_name}</span> — {al.variety_name}
                     {al.is_demo && (
                       <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
-                        Demo Data
+                        {L.demoData}
                       </span>
                     )}
                     <div className="text-[11px] text-zinc-500">
-                      Qty: {al.quantity_allocated.toLocaleString('en-IN')} × ₹{al.unit_price_inr} • {al.distance_km} km ({al.distance_type})
+                      {L.qtyLbl} {al.quantity_allocated.toLocaleString('en-IN')} × ₹{al.unit_price_inr} • {al.distance_km} km ({al.distance_type})
                     </div>
                   </div>
                   <div className="text-right font-bold text-emerald-700 dark:text-emerald-400">
-                    ₹{al.subtotal_inr.toLocaleString('en-IN')}
+                    {formatLocalizedCurrency(al.subtotal_inr, language)}
                   </div>
                 </div>
               ))}
@@ -241,7 +310,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
               <div className="font-bold text-zinc-900 dark:text-white flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-green-700" />
-                  Indian Official Cultivar Releases (ICAR / IIHR)
+                  {L.icarTitle}
                 </span>
                 <a
                   href={data.national_nursery_portal.portal_url}
@@ -249,7 +318,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
                   rel="noopener noreferrer"
                   className="text-green-700 dark:text-green-400 hover:underline flex items-center gap-1"
                 >
-                  National Nursery Portal <ExternalLink className="w-3 h-3" />
+                  {L.portalLink} <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
               {data.indian_agricultural_evidence.slice(0, 2).map((ind, i) => (
@@ -269,37 +338,37 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
             >
               <span className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-blue-600" />
-                Crop Genetic & Plant Genomic Intelligence (NCBI E-utilities & Ensembl Plants)
+                {L.genomicsToggle}
               </span>
               {showGenomics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {showGenomics && (
               <div className="p-4 space-y-3 bg-white dark:bg-zinc-900">
                 <div>
-                  <div className="font-semibold text-zinc-700 dark:text-zinc-300">Ensembl Plants Assembly:</div>
+                  <div className="font-semibold text-zinc-700 dark:text-zinc-300">{L.ensemblLbl}</div>
                   <p className="text-zinc-500">
                     {data.genomic_evidence?.is_supported
-                      ? `Supported: ${data.genomic_evidence.ensembl_species_name} (${data.genomic_evidence.assembly_name})`
-                      : data.genomic_evidence?.limitations || 'Genomic assembly not queried.'}
+                      ? `${data.genomic_evidence.ensembl_species_name} (${data.genomic_evidence.assembly_name})`
+                      : data.genomic_evidence?.limitations || L.noNcbi}
                   </p>
                 </div>
                 <div>
                   <div className="font-semibold text-zinc-700 dark:text-zinc-300">
-                    NCBI Gene Records ({data.genetic_evidence?.genes.length || 0}):
+                    {L.ncbiLbl} ({data.genetic_evidence?.genes.length || 0}):
                   </div>
                   {data.genetic_evidence?.genes.length ? (
                     <ul className="space-y-1 mt-1">
                       {data.genetic_evidence.genes.map((g) => (
                         <li key={g.gene_id}>
                           <a href={g.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-semibold">
-                            {g.symbol} (Gene #{g.gene_id})
+                            {g.symbol} (#{g.gene_id})
                           </a>
                           : {g.description}
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-zinc-500">{data.genetic_evidence?.limitations || 'No live NCBI gene hits returned.'}</p>
+                    <p className="text-zinc-500">{data.genetic_evidence?.limitations || L.noNcbi}</p>
                   )}
                 </div>
               </div>
@@ -314,19 +383,19 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
             >
               <span className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Scientific Evidence Validation & Missing Data Warnings ({data.missing_data.length})
+                {L.valToggle} ({data.missing_data.length})
               </span>
               {showValidation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {showValidation && (
               <div className="p-4 space-y-2 bg-white dark:bg-zinc-900">
-                <div><strong>Rule:</strong> {data.evidence_validation.classification_rule}</div>
+                <div><strong>{L.ruleLbl}</strong> {data.evidence_validation.classification_rule}</div>
                 <div>
-                  Field Trials: {data.evidence_validation.field_trials_count} • Lab Studies: {data.evidence_validation.lab_experiments_count} • Official Releases: {data.evidence_validation.indian_official_releases_count}
+                  Trials: {data.evidence_validation.field_trials_count} • Lab: {data.evidence_validation.lab_experiments_count} • ICAR: {data.evidence_validation.indian_official_releases_count}
                 </div>
                 {data.missing_data.length > 0 && (
                   <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300">
-                    <strong>Missing Data:</strong> {data.missing_data.join(' | ')}
+                    <strong>{L.missingData}</strong> {data.missing_data.join(' | ')}
                   </div>
                 )}
               </div>
@@ -341,7 +410,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
             >
               <span className="flex items-center gap-2">
                 <Database className="w-4 h-4 text-purple-600" />
-                Data Sources & 12-Provider Integration Status
+                {L.providersToggle}
               </span>
               {showProviders ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
@@ -353,7 +422,7 @@ export function AdvancedBioIntelPanel({ selectedCrop }: { selectedCrop: string }
                     <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">{ps.status}</div>
                     <div className="text-[10px] text-zinc-500">{ps.data_classification}</div>
                     {ps.missing_configuration && (
-                      <div className="text-[10px] text-amber-600">Missing: {ps.missing_configuration}</div>
+                      <div className="text-[10px] text-amber-600">{L.missingCfg} {ps.missing_configuration}</div>
                     )}
                   </div>
                 ))}
