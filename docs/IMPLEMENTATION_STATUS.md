@@ -54,17 +54,14 @@ In accordance with judging instructions for Round 2, the platform elevates and i
 
 ## 4. Automated Verification & Testing Suite
 
-- **Backend Pytest Suite:** `13 passed, 0 failed` in 2.89s (`backend/tests/test_api.py`, `backend/tests/test_flagship_api.py`).
-  - `test_health`: API alive check.
-  - `test_get_farms`: Multi-farm retrieval.
-  - `test_get_weather`: Open-Meteo live coordinates forecast.
-  - `test_get_recommendations`: Agronomic rule-based engine.
-  - `test_get_schemes`: PM-KISAN, PMFBY scheme engine.
-  - `test_auth_workflow`: Unified register/login & demo user catalog.
-  - `test_labour_connect_workflow`: Post job → Discover → Apply → Hire → Complete.
-  - `test_smart_bidding_workflow`: Create lot → Bids → Bidding intelligence → Atomic sale confirmation → Purchase Order.
-  - `test_transport_connect_workflow`: Capacity filter → Book driver → 6-stage lifecycle (`requested` → `delivered`) → OR-Tools load pooling.
-  - `test_biointel_search`: Europe PMC research papers search with open-access verification.
-  - `test_biointel_nurseries`: ICAR & KAU certified nursery discovery.
-- **Frontend Build Status:** Next.js 14.2.18 with React 18, TypeScript strict checking, and Tailwind CSS.
-- **Database Engine:** Single unified SQLite database (`database/raithamitra.db`) with automatic table creation & 5 pre-seeded evaluation accounts.
+- **Backend Pytest Suite:** `56 passed, 0 failed` across 8 test suites:
+  - `backend/tests/test_api.py` (7 tests): Core health, farms, live weather, recommendations, schemes.
+  - `backend/tests/test_auth_rbac.py` (6 tests): Salted SHA-256 hashing, multi-role registration, session tokens, logout invalidation, role mismatch rejection, RBAC privilege escalation rejection.
+  - `backend/tests/test_flagship_api.py` (6 tests): Multi-role login, Labour Connect, Smart Bidding, Transport Connect, BioIntel workflows.
+  - `backend/tests/test_biointel_advanced.py` (7 tests): GBIF taxonomy, NCBI/Ensembl parsing, Haversine fallback, Google OR-Tools MILP procurement.
+  - `backend/tests/test_biointel_nursery.py` (11 tests): Europe PMC research caching, nursery discovery, inquiries, supplier comparisons.
+  - `backend/tests/test_locations.py` (4 tests): Nominatim geocoding mock, coordinate validation, farm location patching.
+  - `backend/tests/test_scientific_modules.py` (9 tests): FAO-56 irrigation, soil NPK analysis, Monte Carlo simulation, farm twin water balance, NDVI/NDWI/EVI calculations, diagnostics image validation.
+  - `backend/tests/test_scientific_regression.py` (6 tests): Demonstration Scenarios A, B, C, D; multilingual Kannada/Hindi support; GBIF species precision.
+- **Frontend Production Build:** Next.js 14.2.18 with React 18, TypeScript strict validation (`tsc --noEmit` 0 errors), and 32/32 static pages prerendered.
+- **Database Engine:** Single unified SQLite database (`database/raithamitra.db`) with 12 interconnected tables (`users`, `farms`, `buyer_profiles`, `user_sessions`, `labour_profiles`, `labour_jobs`, `labour_applications`, `bidding_listings`, `bidding_bids`, `purchase_orders`, `transport_vehicles`, `transport_bookings`) and safe evaluation accounts.

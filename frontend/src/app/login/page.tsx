@@ -4,227 +4,641 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
-import { UserRole } from '@/types';
-import { Sprout, ShieldCheck, UserCheck, ArrowRight, Sparkles, Building2, Users, Truck, Lock, Mail } from 'lucide-react';
+import { UserRole, Language } from '@/types';
+import {
+  Sprout,
+  Building2,
+  Users,
+  Truck,
+  Sparkles,
+  ShieldCheck,
+  UserCheck,
+  ArrowRight,
+  Lock,
+  Mail,
+  Phone,
+  MapPin,
+  Check,
+  Globe,
+  AlertCircle
+} from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { switchDemoUser, currentUser } = useFarm();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<UserRole>('farmer');
+  const { login, registerUser, switchDemoUser, language, setLanguage, setIsOnboardingOpen } = useFarm();
 
-  const DEMO_PERSONAS: { role: UserRole; name: string; email: string; label: string; desc: string; icon: any; redirect: string }[] = [
+  const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'demo'>('signin');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('farmer');
+  
+  // Sign In state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  
+  // Registration state
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regVillage, setRegVillage] = useState('Mandya Rural');
+  const [regDistrict, setRegDistrict] = useState('Mandya');
+  
+  // Role-specific fields
+  const [buyerType, setBuyerType] = useState<'individual' | 'business'>('business');
+  const [businessName, setBusinessName] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(['Harvesting', 'Transplantation']);
+  const [dailyWage, setDailyWage] = useState<number>(600);
+  
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const PRIMARY_ROLES: { role: UserRole; title: string; subtitle: string; icon: any; color: string; desc: string }[] = [
     {
       role: 'farmer',
-      name: 'Suresh Gowda',
-      email: 'farmer@raithamitra.in',
-      label: 'Farmer Persona',
-      desc: 'Cauvery Valley Farm (Mandya) — 2.5 ha Tomato crop, job poster & seller.',
+      title: 'Farmer Profile',
+      subtitle: 'ಕೃಷಿಕ / किसान',
       icon: Sprout,
-      redirect: '/',
+      color: 'from-emerald-500 to-green-600',
+      desc: 'Smart irrigation, agronomic intelligence, harvest listing, and labour hiring.'
     },
     {
       role: 'buyer',
-      name: 'Nandini Retail Foods',
-      email: 'buyer1@raithamitra.in',
-      label: 'Buyer Persona',
-      desc: 'Bangalore Agrimarket buyer — placing competitive bids on verified lots.',
+      title: 'Buyer Profile',
+      subtitle: 'ಖರೀದಿದಾರ / खरीदार',
       icon: Building2,
-      redirect: '/dashboard/buyer',
+      color: 'from-blue-500 to-cyan-600',
+      desc: 'Direct farm-gate produce procurement, transparent bidding, and purchase orders.'
     },
     {
       role: 'labour',
-      name: 'Ramesh Kumar',
-      email: 'labour@raithamitra.in',
-      label: 'Labour Persona',
-      desc: 'Mandya rural specialist — harvesting & transplantation, daily wage worker.',
+      title: 'Labour Profile',
+      subtitle: 'ಕಾರ್ಮಿಕ / श्रमिक',
       icon: Users,
-      redirect: '/dashboard/labour',
-    },
-    {
-      role: 'driver',
-      name: 'Somanna Gowda',
-      email: 'driver@raithamitra.in',
-      label: 'Driver Persona',
-      desc: 'Mahindra Bolero Pickup (1.5T) — rural agri cargo carrier.',
-      icon: Truck,
-      redirect: '/dashboard/driver',
-    },
+      color: 'from-amber-500 to-orange-600',
+      desc: 'Find nearby agricultural work, register skills, and track daily wages directly.'
+    }
   ];
 
-  const handle1ClickLogin = async (role: UserRole, redirect: string) => {
+  const DEMO_PERSONAS = [
+    {
+      role: 'farmer' as UserRole,
+      name: 'Suresh Gowda',
+      email: 'farmer@raithamitra.in',
+      location: 'Cauvery Valley Farm, Mandya',
+      crop: 'Tomato (Arka Rakshak, 2.5 ha)',
+      redirect: '/',
+      icon: Sprout
+    },
+    {
+      role: 'buyer' as UserRole,
+      name: 'Bengaluru Fresh Foods Co',
+      email: 'buyer1@raithamitra.in',
+      location: 'Yeshwanthpur APMC Yard',
+      crop: 'Licensed Wholesale Produce Buyer',
+      redirect: '/dashboard/buyer',
+      icon: Building2
+    },
+    {
+      role: 'labour' as UserRole,
+      name: 'Basavaraj Koravara',
+      email: 'labour@raithamitra.in',
+      location: 'Mandya Rural',
+      crop: 'Harvesting & Transplantation Specialist',
+      redirect: '/dashboard/labour',
+      icon: Users
+    },
+    {
+      role: 'driver' as UserRole,
+      name: 'Manjunath Transport',
+      email: 'driver@raithamitra.in',
+      location: 'Mandya Highway Hub',
+      crop: 'Tata Ace (1.5T Freight Carrier)',
+      redirect: '/dashboard/driver',
+      icon: Truck
+    }
+  ];
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
     setIsSubmitting(true);
     try {
-      await switchDemoUser(role);
-      router.push(redirect);
-    } catch (err) {
-      console.error('Demo login failed:', err);
+      const res = await login({
+        email: loginEmail,
+        password: loginPassword,
+        role: selectedRole
+      });
+      if (res.success && res.redirect_url) {
+        router.push(res.redirect_url);
+      } else {
+        setErrorMsg(res.error || 'Invalid credentials or role mismatch.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Login connection failed.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
     setIsSubmitting(true);
-    // Find matching persona or default to role
-    const persona = DEMO_PERSONAS.find((p) => p.email.toLowerCase() === email.toLowerCase()) || DEMO_PERSONAS.find((p) => p.role === selectedRole);
-    if (persona) {
+    try {
+      const payload: any = {
+        name: regName,
+        email: regEmail,
+        phone: regPhone,
+        password: regPassword,
+        role: selectedRole,
+        preferred_language: language,
+        village: regVillage,
+        district: regDistrict,
+        state: 'Karnataka'
+      };
+
+      if (selectedRole === 'buyer') {
+        payload.buyer_type = buyerType;
+        payload.business_name = businessName || regName;
+        payload.delivery_address = deliveryAddress || `${regVillage}, ${regDistrict}`;
+      } else if (selectedRole === 'labour') {
+        payload.skills = selectedSkills;
+        payload.daily_wage_rate = dailyWage;
+      }
+
+      const res = await registerUser(payload);
+      if (res.success) {
+        if (selectedRole === 'farmer') {
+          setIsOnboardingOpen(true);
+        }
+        router.push(res.redirect_url || '/');
+      } else {
+        setErrorMsg(res.error || 'Registration failed.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Registration connection failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDemoLogin = async (persona: typeof DEMO_PERSONAS[0]) => {
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
       await switchDemoUser(persona.role);
       router.push(persona.redirect);
-    } else {
-      await switchDemoUser('farmer');
-      router.push('/');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Demo login failed.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-10 px-4">
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-6 sm:p-10">
-        {/* Left Side: 1-Click Judging Personas */}
-        <div className="space-y-6 flex flex-col justify-between">
+    <div className="min-h-[90vh] flex flex-col items-center justify-center py-6 px-4">
+      {/* Brand & Language Header */}
+      <div className="w-full max-w-4xl flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-lg">
+            <Sprout className="w-7 h-7 text-emerald-300" />
+          </div>
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Judging Evaluation Quick-Access</span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+                RaithaMitra
+              </h1>
+              <span className="text-xs px-2 py-0.5 font-bold rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                ರೈತ ಮಿತ್ರ
+              </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              RaithaMitra Auth
-            </h1>
-            <p className="text-slate-400 text-sm mt-2">
-              Select any verified persona below to immediately simulate realistic end-to-end multi-role workflows.
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+              From Seed to Sale, One Intelligent Companion.
             </p>
-          </div>
-
-          <div className="space-y-3 my-4">
-            {DEMO_PERSONAS.map((p) => {
-              const Icon = p.icon;
-              const isCurrent = currentUser?.role === p.role;
-              return (
-                <button
-                  key={p.role}
-                  type="button"
-                  onClick={() => handle1ClickLogin(p.role, p.redirect)}
-                  disabled={isSubmitting}
-                  className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start gap-3 group ${
-                    isCurrent
-                      ? 'bg-emerald-950/40 border-emerald-500/60 ring-1 ring-emerald-500/50'
-                      : 'bg-slate-800/70 border-slate-700/80 hover:bg-slate-800 hover:border-emerald-500/40'
-                  }`}
-                >
-                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 group-hover:scale-105 transition-transform mt-0.5">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
-                        {p.name}
-                      </span>
-                      <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-700/80 text-emerald-400 border border-slate-600/60">
-                        {p.role}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-0.5 truncate">{p.desc}</p>
-                    <span className="text-[11px] font-mono text-slate-500 mt-1 block">{p.email}</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all self-center" />
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="text-xs text-slate-500 flex items-center gap-1.5 border-t border-slate-800 pt-4">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            <span>SQLite persistent backend (`database/raithamitra.db`) with active seed data.</span>
           </div>
         </div>
 
-        {/* Right Side: Standard Login Form */}
-        <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 sm:p-8 flex flex-col justify-center">
-          <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-            <UserCheck className="w-5 h-5 text-emerald-400" />
-            Standard Credentials Sign In
-          </h2>
-          <p className="text-xs text-slate-400 mb-6">
-            Enter registered email and password to log in to your account.
-          </p>
+        {/* Multilingual Selector */}
+        <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 shadow-sm">
+          <Globe className="w-3.5 h-3.5 text-zinc-400 ml-2" />
+          {(['en', 'kn', 'hi'] as Language[]).map((l) => (
+            <button
+              key={l}
+              onClick={() => setLanguage(l)}
+              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${
+                language === l
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {l === 'en' ? 'English' : l === 'kn' ? 'ಕನ್ನಡ' : 'हिंदी'}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Select Persona Role
-              </label>
-              <select
-                value={selectedRole}
-                onChange={(e) => {
-                  const r = e.target.value as UserRole;
-                  setSelectedRole(r);
-                  const p = DEMO_PERSONAS.find((dp) => dp.role === r);
-                  if (p) {
-                    setEmail(p.email);
-                    setPassword('demo123');
-                  }
-                }}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="farmer">Farmer (ರೈತ)</option>
-                <option value="buyer">Produce Buyer (ಖರೀದಿದಾರ)</option>
-                <option value="labour">Agricultural Labour (ಕೃಷಿ ಕಾರ್ಮಿಕ)</option>
-                <option value="driver">Logistics Driver (ವಾಹನ ಚಾಲಕ)</option>
-              </select>
+      {/* Main Authentication Card */}
+      <div className="w-full max-w-4xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden p-6 md:p-8 space-y-6">
+        {/* Navigation Mode Tabs */}
+        <div className="grid grid-cols-3 gap-2 p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-2xl">
+          <button
+            onClick={() => { setActiveTab('signin'); setErrorMsg(null); }}
+            className={`py-2.5 text-xs font-bold rounded-xl transition-all ${
+              activeTab === 'signin'
+                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => { setActiveTab('register'); setErrorMsg(null); }}
+            className={`py-2.5 text-xs font-bold rounded-xl transition-all ${
+              activeTab === 'register'
+                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+            }`}
+          >
+            Register Account
+          </button>
+          <button
+            onClick={() => { setActiveTab('demo'); setErrorMsg(null); }}
+            className={`py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'demo'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Try Demo (Judging)</span>
+          </button>
+        </div>
+
+        {/* Error Alert */}
+        {errorMsg && (
+          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs flex items-center gap-3">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {/* TAB 1: Sign In & TAB 2: Register (Role Cards Selection) */}
+        {activeTab !== 'demo' && (
+          <div className="space-y-4">
+            <div className="text-center md:text-left">
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {activeTab === 'signin' ? 'Select Profile Category to Sign In' : 'Select Registration Category'}
+              </h2>
+              <p className="text-xs text-zinc-500">
+                Choose your primary role in the rural economic network.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. farmer@raithamitra.in"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+            {/* Exactly Three Primary Role-Selection Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {PRIMARY_ROLES.map((r) => {
+                const Icon = r.icon;
+                const isSelected = selectedRole === r.role;
+                return (
+                  <button
+                    key={r.role}
+                    type="button"
+                    onClick={() => { setSelectedRole(r.role); setErrorMsg(null); }}
+                    className={`p-5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-md ring-2 ring-emerald-500/30'
+                        : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${r.color} text-white flex items-center justify-center shadow-md`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        {isSelected && (
+                          <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="font-extrabold text-sm text-zinc-900 dark:text-white">
+                        {r.title}
+                      </h3>
+                      <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        {r.subtitle}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 line-clamp-2">
+                      {r.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1: SIGN IN FORM */}
+        {activeTab === 'signin' && (
+          <form onSubmit={handleSignIn} className="space-y-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Email Address or Mobile ID
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder={
+                      selectedRole === 'farmer' ? 'farmer@raithamitra.in' :
+                      selectedRole === 'buyer' ? 'buyer1@raithamitra.in' : 'labour@raithamitra.in'
+                    }
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Account Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
+                  <input
+                    type="password"
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-emerald-950 transition-all flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mt-2"
             >
-              {isSubmitting ? 'Authenticating...' : 'Sign In to Workspace'}
+              <span>{isSubmitting ? 'Authenticating...' : `Sign In as ${selectedRole.toUpperCase()}`}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+        )}
 
-          <div className="mt-6 text-center">
-            <span className="text-xs text-slate-500">
-              Demo passwords default to <code className="text-emerald-400 bg-slate-900 px-1 py-0.5 rounded">farmer123</code>, <code className="text-emerald-400 bg-slate-900 px-1 py-0.5 rounded">buyer123</code>, etc.
-            </span>
+        {/* TAB 2: REGISTRATION FORM */}
+        {activeTab === 'register' && (
+          <form onSubmit={handleRegister} className="space-y-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="e.g. Anand Kumar"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="name@domain.com"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Mobile Number
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value)}
+                  placeholder="+91 98450 00000"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Password (min 6 chars)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Village / Ward
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={regVillage}
+                  onChange={(e) => setRegVillage(e.target.value)}
+                  placeholder="e.g. Maddur Rural"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  District
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={regDistrict}
+                  onChange={(e) => setRegDistrict(e.target.value)}
+                  placeholder="e.g. Mandya"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Role Specific Additional Fields */}
+            {selectedRole === 'buyer' && (
+              <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 space-y-3">
+                <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase">
+                  Buyer Business Details
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Buyer Category
+                    </label>
+                    <select
+                      value={buyerType}
+                      onChange={(e) => setBuyerType(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    >
+                      <option value="business">Wholesale / Business Buyer</option>
+                      <option value="individual">Direct Retail Buyer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Business or Entity Name
+                    </label>
+                    <input
+                      type="text"
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                      placeholder="e.g. Apex Agri Retail"
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Delivery APMC / Mandi Address
+                    </label>
+                    <input
+                      type="text"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="e.g. Yeshwanthpur APMC Yard"
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedRole === 'labour' && (
+              <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 space-y-3">
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase">
+                  Agricultural Skills & Wage Details
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
+                      Select Primary Skills
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Harvesting', 'Transplantation', 'Weeding', 'Spraying', 'Loading & Unloading'].map((sk) => {
+                        const hasSkill = selectedSkills.includes(sk);
+                        return (
+                          <button
+                            key={sk}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSkills(hasSkill ? selectedSkills.filter(s => s !== sk) : [...selectedSkills, sk]);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                              hasSkill
+                                ? 'bg-amber-500 text-white border-amber-600'
+                                : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800'
+                            }`}
+                          >
+                            {sk}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Expected Daily Wage (₹ / day)
+                    </label>
+                    <input
+                      type="number"
+                      min={400}
+                      max={2000}
+                      value={dailyWage}
+                      onChange={(e) => setDailyWage(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mt-2"
+            >
+              <span>{isSubmitting ? 'Registering Account...' : `Register & Continue as ${selectedRole.toUpperCase()}`}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        )}
+
+        {/* TAB 3: TRY DEMO (JUDGING EVALUATION QUICK-ACCESS) */}
+        {activeTab === 'demo' && (
+          <div className="space-y-4 pt-1">
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Demonstration Mode for Judging Evaluation</span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+                Instantly simulate realistic multi-role agricultural workflows using predefined, persistent demonstration identities. Fictional demo sessions remain strictly separated from real user accounts.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {DEMO_PERSONAS.map((p) => {
+                const Icon = p.icon;
+                return (
+                  <button
+                    key={p.role}
+                    type="button"
+                    onClick={() => handleDemoLogin(p)}
+                    disabled={isSubmitting}
+                    className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40 hover:border-emerald-500 transition-all text-left flex items-start gap-4 group"
+                  >
+                    <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          {p.role} Persona
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:translate-x-1 group-hover:text-emerald-500 transition-all" />
+                      </div>
+                      <h4 className="font-extrabold text-sm text-zinc-900 dark:text-white mt-0.5">
+                        {p.name}
+                      </h4>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                        {p.crop} • {p.location}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -30,7 +30,12 @@ import {
   Store,
   Warehouse,
   Tractor,
-  Activity
+  Activity,
+  Search,
+  CheckCircle2,
+  Clock,
+  CalendarCheck,
+  ShieldCheck
 } from 'lucide-react';
 
 interface NavItem {
@@ -50,54 +55,120 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const pathname = usePathname();
   const { t, currentUser } = useFarm();
 
-  const navigationGroups: NavGroup[] = [
-    {
-      title: "FLAGSHIP INNOVATIONS",
-      items: [
-        { name: "BioIntel Research", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Flagship' },
-        { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
-        { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
-        { name: "Smart Bidding", href: '/bidding', icon: Gavel, status: 'flagship', badge: 'Flagship' },
-        { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Flagship' },
-      ],
-    },
-    {
-      title: "ROLE DASHBOARDS",
-      items: [
-        { name: "Farmer Dashboard", href: '/', icon: LayoutDashboard, status: 'role', badge: 'Farmer' },
-        { name: "Buyer Marketplace", href: '/dashboard/buyer', icon: ShoppingBag, status: 'role', badge: 'Buyer' },
-        { name: "Labour Portal", href: '/dashboard/labour', icon: HardHat, status: 'role', badge: 'Labour' },
-        { name: "Driver Console", href: '/dashboard/driver', icon: Truck, status: 'role', badge: 'Driver' },
-      ],
-    },
-    {
-      title: "SUPPORTING AGRI CAPABILITIES",
-      items: [
-        { name: t('climate'), href: '/climate', icon: CloudSun, status: 'operational' },
-        { name: t('satellite'), href: '/satellite', icon: Satellite, status: 'prototype' },
-        { name: t('digitalTwin'), href: '/farm-twin', icon: Layers, status: 'prototype' },
-        { name: t('irrigation'), href: '/irrigation', icon: Droplets, status: 'prototype' },
-        { name: t('diagnostics'), href: '/diagnostics', icon: Microscope, status: 'prototype' },
-        { name: t('soilNutrients'), href: '/soil-nutrients', icon: Sprout, status: 'prototype' },
-        { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
-        { name: t('simulation'), href: '/simulation', icon: LineChart, status: 'prototype' },
-        { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'operational' },
-        { name: t('postHarvest'), href: '/post-harvest', icon: Warehouse, status: 'prototype' },
-        { name: t('resources'), href: '/resources', icon: Tractor, status: 'prototype' },
-        { name: t('surveillance'), href: '/surveillance', icon: Activity, status: 'prototype' },
-        { name: t('schemes'), href: '/schemes', icon: Award, status: 'operational' },
-        { name: t('assistant'), href: '/assistant', icon: BotMessageSquare, status: 'prototype' },
-        { name: t('decisionIntelligence'), href: '/decision-intelligence', icon: Compass, status: 'operational' },
-      ],
-    },
-    {
-      title: "SYSTEM PREFERENCES",
-      items: [
-        { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
-        { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
-      ],
-    },
-  ];
+  let navigationGroups: NavGroup[] = [];
+
+  if (currentUser.role === 'buyer') {
+    navigationGroups = [
+      {
+        title: "BUYER PORTAL",
+        items: [
+          { name: "Buyer Overview", href: '/dashboard/buyer', icon: LayoutDashboard, status: 'role', badge: 'Buyer' },
+          { name: "Browse Produce Lots", href: '/bidding', icon: ShoppingBag, status: 'flagship', badge: 'Flagship' },
+          { name: "Active Auctions & Bids", href: '/dashboard/buyer#bids', icon: Gavel, status: 'flagship' },
+          { name: "Confirmed Purchases", href: '/dashboard/buyer#orders', icon: ShieldCheck, status: 'operational' },
+          { name: "Delivery Tracking", href: '/transport', icon: Truck, status: 'flagship' },
+          { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
+        ],
+      },
+      {
+        title: "SYSTEM PREFERENCES",
+        items: [
+          { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
+          { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
+        ],
+      },
+    ];
+  } else if (currentUser.role === 'labour') {
+    navigationGroups = [
+      {
+        title: "LABOUR PORTAL",
+        items: [
+          { name: "Labour Overview", href: '/dashboard/labour', icon: HardHat, status: 'role', badge: 'Labour' },
+          { name: "Find Agricultural Work", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
+          { name: "My Jobs & Schedule", href: '/dashboard/labour#my-jobs', icon: CheckCircle2, status: 'operational' },
+          { name: "My Daily Earnings", href: '/dashboard/labour#earnings', icon: Coins, status: 'operational' },
+        ],
+      },
+      {
+        title: "SYSTEM PREFERENCES",
+        items: [
+          { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
+          { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
+        ],
+      },
+    ];
+  } else if (currentUser.role === 'driver') {
+    navigationGroups = [
+      {
+        title: "LOGISTICS CONSOLE",
+        items: [
+          { name: "Driver Console", href: '/dashboard/driver', icon: Truck, status: 'role', badge: 'Driver' },
+          { name: "Find Agri Cargo Loads", href: '/transport', icon: Search, status: 'flagship', badge: 'Flagship' },
+          { name: "Booking Requests", href: '/dashboard/driver#requests', icon: Clock, status: 'operational' },
+          { name: "My Trips & Deliveries", href: '/dashboard/driver#trips', icon: CalendarCheck, status: 'operational' },
+          { name: "My Vehicle & Capacity", href: '/dashboard/driver#vehicle', icon: ShieldCheck, status: 'operational' },
+          { name: "My Freight Earnings", href: '/dashboard/driver#earnings', icon: Coins, status: 'operational' },
+        ],
+      },
+      {
+        title: "SYSTEM PREFERENCES",
+        items: [
+          { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
+          { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
+        ],
+      },
+    ];
+  } else {
+    // Farmer Dashboard & Full Agri Intelligence
+    navigationGroups = [
+      {
+        title: "FLAGSHIP INNOVATIONS",
+        items: [
+          { name: "BioIntel Research", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Flagship' },
+          { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
+          { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
+          { name: "Smart Bidding", href: '/bidding', icon: Gavel, status: 'flagship', badge: 'Flagship' },
+          { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Flagship' },
+        ],
+      },
+      {
+        title: "ROLE DASHBOARDS",
+        items: [
+          { name: "Farmer Dashboard", href: '/', icon: LayoutDashboard, status: 'role', badge: 'Farmer' },
+          { name: "Buyer Marketplace", href: '/dashboard/buyer', icon: ShoppingBag, status: 'role', badge: 'Buyer' },
+          { name: "Labour Portal", href: '/dashboard/labour', icon: HardHat, status: 'role', badge: 'Labour' },
+          { name: "Driver Console", href: '/dashboard/driver', icon: Truck, status: 'role', badge: 'Driver' },
+        ],
+      },
+      {
+        title: "SUPPORTING AGRI CAPABILITIES",
+        items: [
+          { name: t('climate'), href: '/climate', icon: CloudSun, status: 'operational' },
+          { name: t('satellite'), href: '/satellite', icon: Satellite, status: 'prototype' },
+          { name: t('digitalTwin'), href: '/farm-twin', icon: Layers, status: 'prototype' },
+          { name: t('irrigation'), href: '/irrigation', icon: Droplets, status: 'prototype' },
+          { name: t('diagnostics'), href: '/diagnostics', icon: Microscope, status: 'prototype' },
+          { name: t('soilNutrients'), href: '/soil-nutrients', icon: Sprout, status: 'prototype' },
+          { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
+          { name: t('simulation'), href: '/simulation', icon: LineChart, status: 'prototype' },
+          { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'operational' },
+          { name: t('postHarvest'), href: '/post-harvest', icon: Warehouse, status: 'prototype' },
+          { name: t('resources'), href: '/resources', icon: Tractor, status: 'prototype' },
+          { name: t('surveillance'), href: '/surveillance', icon: Activity, status: 'prototype' },
+          { name: t('schemes'), href: '/schemes', icon: Award, status: 'operational' },
+          { name: t('assistant'), href: '/assistant', icon: BotMessageSquare, status: 'prototype' },
+          { name: t('decisionIntelligence'), href: '/decision-intelligence', icon: Compass, status: 'operational' },
+        ],
+      },
+      {
+        title: "SYSTEM PREFERENCES",
+        items: [
+          { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
+          { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
+        ],
+      },
+    ];
+  }
 
   return (
     <>

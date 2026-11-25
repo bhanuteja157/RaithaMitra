@@ -10,6 +10,7 @@ Validates:
 - Backend-enforced authorization across modules
 """
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.db.database import init_db
@@ -21,9 +22,10 @@ def setup_database():
 client = TestClient(app)
 
 def test_register_all_roles():
+    uid = uuid.uuid4().hex[:6]
     # 1. Register Farmer
     r_farmer = client.post("/api/v1/auth/register", json={
-        "email": "new_farmer@example.com",
+        "email": f"farmer_{uid}@example.com",
         "password": "securePassword123",
         "name": "Manjunath Gowda",
         "phone": "+91 99001 12233",
@@ -38,7 +40,7 @@ def test_register_all_roles():
 
     # 2. Register Buyer
     r_buyer = client.post("/api/v1/auth/register", json={
-        "email": "new_buyer@example.com",
+        "email": f"buyer_{uid}@example.com",
         "password": "securePassword123",
         "name": "Apex Food Procurements",
         "phone": "+91 99002 23344",
@@ -53,7 +55,7 @@ def test_register_all_roles():
 
     # 3. Register Labour
     r_labour = client.post("/api/v1/auth/register", json={
-        "email": "new_labour@example.com",
+        "email": f"labour_{uid}@example.com",
         "password": "securePassword123",
         "name": "Kempaiah",
         "phone": "+91 99003 34455",
@@ -68,7 +70,7 @@ def test_register_all_roles():
 
     # 4. Register Driver
     r_driver = client.post("/api/v1/auth/register", json={
-        "email": "new_driver@example.com",
+        "email": f"driver_{uid}@example.com",
         "password": "securePassword123",
         "name": "Raju Transport",
         "phone": "+91 99004 45566",
@@ -83,8 +85,9 @@ def test_register_all_roles():
 
 
 def test_register_duplicate_email():
+    uid = uuid.uuid4().hex[:6]
     payload = {
-        "email": "duplicate_check@example.com",
+        "email": f"dup_{uid}@example.com",
         "password": "password123",
         "name": "Duplicate Tester",
         "phone": "+91 98765 00000",
