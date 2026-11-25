@@ -472,7 +472,7 @@ export default function BioIntelPage() {
                       Expected Agricultural Benefits:
                     </div>
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-700 dark:text-zinc-300">
-                      {rec.expected_agricultural_benefits.map((benefit, i) => (
+                      {(rec.expected_agricultural_benefits || []).map((benefit, i) => (
                         <li key={i} className="flex items-start gap-1.5">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                           <span>{benefit}</span>
@@ -521,7 +521,11 @@ export default function BioIntelPage() {
                     </span>
                     <button
                       onClick={() =>
-                        handleNavigateToNursery(rec.crop_name, rec.nursery_search_category, rec.variety_or_intervention_name)
+                        handleNavigateToNursery(
+                          rec.crop_name || rec.crop || 'Tomato',
+                          rec.nursery_search_category || '',
+                          rec.variety_or_intervention_name || ''
+                        )
                       }
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-800 hover:bg-green-700 text-white font-semibold text-xs transition shadow-sm"
                     >
@@ -628,7 +632,7 @@ export default function BioIntelPage() {
                         {paper.title}
                       </h4>
                       <p className="text-xs text-zinc-500">
-                        {paper.authors.length > 0 ? paper.authors.join(', ') : 'Collaborative Authors'} •{' '}
+                        {(paper.authors && paper.authors.length > 0) ? paper.authors.join(', ') : 'Collaborative Authors'} •{' '}
                         <em>{paper.journal_title}</em>
                       </p>
                     </div>

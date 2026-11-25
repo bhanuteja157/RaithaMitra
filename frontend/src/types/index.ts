@@ -59,25 +59,41 @@ export interface FarmSummary {
 }
 
 export interface WeatherCurrent {
+  time?: string;
   temperature_c: number;
   relative_humidity_pct: number;
   wind_speed_kmh: number;
-  precipitation_probability_pct: number;
+  wind_direction_deg?: number;
+  precipitation_probability_pct?: number;
+  rain_probability_pct?: number;
   precipitation_mm: number;
-  surface_pressure_hpa: number;
-  condition: string;
-  icon: string;
+  surface_pressure_hpa?: number;
+  weather_code?: number;
+  condition?: string;
+  condition_text?: string;
+  icon?: string;
+  et0_fao56_mm?: number;
 }
 
 export interface WeatherDailyForecast {
   date: string;
   temp_max_c: number;
   temp_min_c: number;
-  precipitation_probability_pct: number;
+  precipitation_probability_pct?: number;
+  rain_probability_max_pct: number;
   precipitation_sum_mm: number;
-  condition: string;
-  icon: string;
-  evapotranspiration_mm: number;
+  condition?: string;
+  condition_text: string;
+  icon?: string;
+  evapotranspiration_mm?: number;
+  et0_fao56_mm: number;
+}
+
+export interface WeatherProvenance {
+  source: string;
+  timestamp: string;
+  quality: string;
+  is_live: boolean;
 }
 
 export interface WeatherResponse {
@@ -86,30 +102,46 @@ export interface WeatherResponse {
   elevation_m: number;
   timezone: string;
   current: WeatherCurrent;
-  daily: WeatherDailyForecast[];
-  et0_fao56_mm_day: number;
-  irrigation_recommendation: string;
-  source: string;
-  timestamp: string;
+  daily?: WeatherDailyForecast[];
+  daily_forecast?: WeatherDailyForecast[];
+  provenance?: WeatherProvenance;
+  et0_fao56_mm_day?: number;
+  irrigation_recommendation?: string;
+  source?: string;
+  timestamp?: string;
 }
 
 export interface SupportingData {
-  primary_driver: string;
+  primary_driver?: string;
   key_metrics: Record<string, any>;
   source: string;
   timestamp: string;
-  data_quality: 'live' | 'measured' | 'user_provided' | 'estimated' | 'simulated';
+  data_quality: 'live' | 'measured' | 'user_provided' | 'forecast' | 'estimated' | 'simulated' | 'demo' | 'cached' | 'unavailable';
   uncertainty: string;
 }
 
 export interface FarmRecommendation {
   id: string;
-  category: 'irrigation' | 'nutrition' | 'crop_protection' | 'market' | 'risk';
+  category: 'irrigation' | 'nutrition' | 'crop_protection' | 'market' | 'risk' | 'biotech' | 'labour' | 'logistics';
   priority: 'critical' | 'high' | 'medium' | 'low';
+  title?: string;
   action: string;
   reason: string;
   supporting_data: SupportingData;
   alternative_action?: string;
+  action_deadline?: string;
+  estimated_cost_inr?: number;
+  conflict_detected?: string;
+  resolution_rationale?: string;
+  limitations?: string;
+  urgency?: 'immediate' | 'today' | 'upcoming' | 'monitoring';
+}
+
+export interface ConflictResolutionRecord {
+  conflict_type: string;
+  factors: string[];
+  tradeoff_analysis: string;
+  decision_outcome: string;
 }
 
 export interface RecommendationResponse {
@@ -118,6 +150,8 @@ export interface RecommendationResponse {
   overall_risk_level: 'low' | 'medium' | 'high';
   recommendations: FarmRecommendation[];
   active_advisories_count: number;
+  conflicts_resolved?: ConflictResolutionRecord[];
+  decision_pipeline_stage?: string;
 }
 
 export interface GovernmentScheme {
@@ -361,71 +395,72 @@ export type BiotechCategoryType =
 export type EvidenceType = 'peer_reviewed' | 'field_trial' | 'extension_study' | 'institutional_recommendation';
 
 export interface FarmerProfileInput {
-  crop: string;
+  farm_id?: string;
+  farmer_name?: string;
+  farm_location?: string;
+  latitude?: number;
+  longitude?: number;
+  crop?: string;
+  crop_type?: string;
   soil_type?: string;
-  target_problem?: string;
-  budget_inr?: number;
+  soil_ph?: number;
+  npk_values?: Record<string, number>;
+  water_availability?: string;
   available_water?: string;
+  climate_conditions?: string;
   land_area_ha?: number;
+  cultivation_budget_inr?: number;
+  budget_inr?: number;
+  target_problem?: string;
+  previous_crop_diseases?: string[];
   farmer_location?: string;
 }
 
 export interface EuropePmcPaper {
-  id: string;
-  source: string;
+  id?: string;
+  source?: string;
   pmcid?: string;
+  pmid?: string;
   doi?: string;
   title: string;
-  author_string: string;
+  author_string?: string;
+  authors: string[];
   journal_title?: string;
   pub_year?: number;
   abstract_text?: string;
-  isOpenAccess: boolean;
-  citation_count: number;
+  isOpenAccess?: boolean;
+  is_open_access?: boolean;
+  citation_count?: number;
   europe_pmc_url?: string;
+  article_url?: string;
   doi_url?: string;
-  relevance_explanation: string;
-  evidence_type: EvidenceType;
-  practical_takeaways: string[];
+  relevance_explanation?: string;
+  evidence_type?: string;
+  practical_takeaways?: string[];
 }
 
 export interface BiotechResearchResponse {
   crop: string;
-  target_problem: string;
+  problem?: string;
+  target_problem?: string;
+  category?: string;
   query_used: string;
   total_results: number;
-  cached: boolean;
-  retrieved_at: string;
+  cached?: boolean;
+  retrieved_at?: string;
+  fetched_at?: string;
   evidence_summary: string;
+  data_source?: string;
+  is_live?: boolean;
   papers: EuropePmcPaper[];
 }
 
 export interface CentralizedDecisionPayload {
-  source_module: string;
-  crop: string;
-  risk_category: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  confidence_score: number;
-  evidence_summary: string;
-  recommended_actions: string[];
-  scientific_grounding: string;
-  water_constraint_impact?: string;
-  financial_constraint_impact?: string;
-  conflicting_factors?: string[];
-  data_quality: string;
-}
-
-export interface BiotechRecommendation {
-  id: string;
-  crop: string;
-  category: BiotechCategoryType;
-  category_label: string;
-  problem_targeted: string;
-  recommended_variety_or_product: string;
-  scientific_rationale: string;
-  confidence_score: number;
-  expected_benefit: string;
-  evidence_citations: string[];
+  recommended_crop_variety: string;
+  biotechnology_intervention: string;
+  biotechnology_category: string;
+  supporting_scientific_evidence: string;
+  evidence_strength: string;
   soil_suitability: string;
   water_suitability: string;
   supplier_availability_status: string;
@@ -434,6 +469,55 @@ export interface BiotechRecommendation {
   budget_compatibility: 'Within Budget' | 'Exceeds Budget' | 'Pending Quote';
   recommendation_limitations: string;
   generated_timestamp: string;
+  source_module?: string;
+  crop?: string;
+  risk_category?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  confidence_score?: number;
+  evidence_summary?: string;
+  recommended_actions?: string[];
+  scientific_grounding?: string;
+  water_constraint_impact?: string;
+  financial_constraint_impact?: string;
+  conflicting_factors?: string[];
+  data_quality?: string;
+}
+
+export interface BiotechRecommendation {
+  id: string;
+  crop?: string;
+  crop_name: string;
+  category?: BiotechCategoryType;
+  biotechnology_category?: BiotechCategoryType;
+  category_label: string;
+  problem_targeted?: string;
+  recommended_variety_or_product?: string;
+  variety_or_intervention_name: string;
+  scientific_rationale?: string;
+  scientific_evidence?: string;
+  confidence_score?: number;
+  expected_benefit?: string;
+  expected_agricultural_benefits: string[];
+  evidence_citations?: string[];
+  evidence_strength?: string;
+  evidence_paper_doi?: string;
+  soil_suitability?: string;
+  suitable_soil_conditions?: string;
+  water_suitability?: string;
+  water_requirements?: string;
+  disease_resistance?: string;
+  supplier_availability_status?: string;
+  estimated_cost_inr?: number;
+  estimated_cost_unit?: string;
+  estimated_procurement_cost_inr?: number;
+  farmer_budget_inr?: number;
+  budget_compatibility?: 'Within Budget' | 'Exceeds Budget' | 'Pending Quote';
+  recommendation_limitations?: string;
+  limitations?: string;
+  find_nearby_suppliers_query?: string;
+  nursery_search_category: string;
+  is_established_practice?: boolean;
+  generated_timestamp?: string;
 }
 
 export interface BiotechRecommendationResponse {
@@ -630,7 +714,7 @@ export interface SmartLocationState {
 export interface SelectedLocation {
   latitude: number;
   longitude: number;
-  formatted_address: string;
+  formatted_address?: string;
   village?: string;
   village_or_town?: string;
   district?: string;
@@ -641,4 +725,42 @@ export interface SelectedLocation {
   accuracy_m?: number;
   location_accuracy_m?: number;
   updated_at?: string;
+}
+
+export type LocationSource = 'gps' | 'map' | 'search' | 'manual';
+
+export interface GeocodeSearchResult {
+  display_name: string;
+  latitude: number;
+  longitude: number;
+  village_or_locality?: string;
+  district?: string;
+  state?: string;
+  country?: string;
+  pin_code?: string;
+  place_type?: string;
+}
+
+export interface GeocodeSearchResponse {
+  query: string;
+  results: GeocodeSearchResult[];
+  attribution: string;
+  cached: boolean;
+  is_live: boolean;
+  error_message?: string;
+}
+
+export interface ReverseGeocodeResponse {
+  latitude: number;
+  longitude: number;
+  formatted_address?: string;
+  village_or_locality?: string;
+  district?: string;
+  state?: string;
+  country?: string;
+  pin_code?: string;
+  attribution: string;
+  cached: boolean;
+  is_live: boolean;
+  unavailable_reason?: string;
 }

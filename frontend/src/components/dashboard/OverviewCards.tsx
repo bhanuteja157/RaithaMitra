@@ -67,9 +67,9 @@ export function OverviewCards() {
         </div>
       </div>
 
-      {/* Grid of 8 Analytics KPI Cards */}
+      {/* Grid of 8 Analytics KPI Cards with Honest Data Provenance */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        {/* 1. Live Weather */}
+        {/* 1. Weather */}
         <div className="p-4 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between text-zinc-500 mb-2">
             <span className="text-xs font-semibold">{t('weather')}</span>
@@ -79,8 +79,14 @@ export function OverviewCards() {
             {weather ? `${weather.current.temperature_c.toFixed(1)}°C` : '28.4°C'}
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
-            <span>{weather?.current.condition_text || 'Mainly Clear'}</span>
-            <span className="text-emerald-600 font-semibold text-[10px]">LIVE</span>
+            <span>{weather?.current.condition_text || weather?.current.condition || 'Mainly Clear'}</span>
+            <span className={`font-semibold text-[10px] px-1.5 py-0.5 rounded ${
+              weather?.provenance?.is_live
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+            }`}>
+              {weather?.provenance?.is_live ? 'LIVE NWP' : 'ESTIMATED'}
+            </span>
           </div>
         </div>
 
@@ -95,7 +101,9 @@ export function OverviewCards() {
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
             <span>{currentFarm.soil_type}</span>
-            <span className="text-blue-600 font-semibold text-[10px]">MEASURED</span>
+            <span className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-semibold text-[10px] px-1.5 py-0.5 rounded">
+              ESTIMATED
+            </span>
           </div>
         </div>
 
@@ -110,7 +118,9 @@ export function OverviewCards() {
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
             <span>FAO-56 Dual Kc</span>
-            <span className="text-zinc-400 font-medium text-[10px]">SIMULATED</span>
+            <span className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 font-medium text-[10px] px-1.5 py-0.5 rounded">
+              SIMULATED
+            </span>
           </div>
         </div>
 
@@ -125,7 +135,9 @@ export function OverviewCards() {
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
             <span>Sentinel-2 NDVI 0.74</span>
-            <span className="text-emerald-600 font-semibold text-[10px]">ESTIMATED</span>
+            <span className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-semibold text-[10px] px-1.5 py-0.5 rounded">
+              SATELLITE DEMO
+            </span>
           </div>
         </div>
 
@@ -140,7 +152,9 @@ export function OverviewCards() {
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
             <span>Budget: ₹{currentFarm.cultivation_budget_inr.toLocaleString('en-IN')}</span>
-            <span className="text-zinc-400 text-[10px]">USER RECORD</span>
+            <span className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-[10px] px-1.5 py-0.5 rounded font-medium">
+              USER RECORD
+            </span>
           </div>
         </div>
 
@@ -155,7 +169,9 @@ export function OverviewCards() {
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
             <span>AquaCrop Ky Physics</span>
-            <span className="text-zinc-400 text-[10px]">SIMULATED</span>
+            <span className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-[10px] px-1.5 py-0.5 rounded font-medium">
+              SIMULATED
+            </span>
           </div>
         </div>
 
@@ -170,7 +186,9 @@ export function OverviewCards() {
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
             <span>Mandi Modal Price</span>
-            <span className="text-emerald-600 font-semibold text-[10px]">LIVE APMC</span>
+            <span className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold text-[10px] px-1.5 py-0.5 rounded">
+              ESTIMATED
+            </span>
           </div>
         </div>
 
@@ -181,11 +199,13 @@ export function OverviewCards() {
             <Droplets className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-2xl font-bold text-zinc-900 dark:text-white">
-            {weather ? `${weather.current.rain_probability_pct}%` : '12%'}
+            {weather ? `${weather.current.precipitation_probability_pct ?? weather.daily?.[0]?.precipitation_probability_pct ?? 15}%` : '15%'}
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
             <span>Wind: {weather ? `${weather.current.wind_speed_kmh} km/h` : '9.2 km/h'}</span>
-            <span className="text-emerald-600 font-semibold text-[10px]">LIVE</span>
+            <span className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-semibold text-[10px] px-1.5 py-0.5 rounded">
+              FORECAST
+            </span>
           </div>
         </div>
       </div>

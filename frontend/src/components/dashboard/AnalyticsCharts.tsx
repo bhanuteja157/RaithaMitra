@@ -24,9 +24,9 @@ export function AnalyticsCharts() {
   const forecastDays = weather?.daily_forecast || [];
   const waterChartData = forecastDays.map((d, index) => ({
     name: d.date.slice(5), // MM-DD
-    evapotranspiration: d.et0_fao56_mm,
+    evapotranspiration: d.et0_fao56_mm || 0,
     rainfall: d.precipitation_sum_mm,
-    deficit: Math.max(0, +(d.et0_fao56_mm - d.precipitation_sum_mm).toFixed(2)),
+    deficit: Math.max(0, +((d.et0_fao56_mm || 0) - d.precipitation_sum_mm).toFixed(2)),
   }));
 
   // Cost vs revenue breakdown

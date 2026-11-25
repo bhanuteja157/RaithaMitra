@@ -61,3 +61,17 @@ references/
 *.pth
 *.h5
 *.keras
+
+# Databases & Runtime State (Preserve local DB without git tracking)
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Shell Pager Artifacts
+h -u origin main

@@ -6,7 +6,7 @@ and FAO-56 Penman-Monteith reference evapotranspiration (ET0).
 Includes graceful offline fallback cache when network is degraded.
 """
 import httpx
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, Any, Optional
 from backend.app.schemas.weather import WeatherResponse, CurrentWeather, DailyForecast, Provenance
 from backend.app.core.config import settings
@@ -67,7 +67,7 @@ class WeatherService:
         wmo_code = int(cur.get("weather_code", 1))
 
         current_weather = CurrentWeather(
-            time=datetime.fromisoformat(cur.get("time", datetime.utcnow().isoformat())),
+            time=datetime.fromisoformat(cur.get("time", datetime.now(timezone.utc).isoformat())),
             temperature_c=float(cur.get("temperature_2m", 28.0)),
             relative_humidity_pct=int(cur.get("relative_humidity_2m", 60)),
             precipitation_mm=float(cur.get("precipitation", 0.0)),
@@ -108,14 +108,14 @@ class WeatherService:
             daily_forecast=daily_forecast,
             provenance=Provenance(
                 source="Open-Meteo High Resolution Weather API",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 quality="live_telemetry" if is_live else "calibrated_offline_fallback",
                 is_live=is_live
             )
         )
 
     def _generate_fallback_response(self, lat: float, lon: float) -> WeatherResponse:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         today = now.date()
         current_weather = CurrentWeather(
             time=now,

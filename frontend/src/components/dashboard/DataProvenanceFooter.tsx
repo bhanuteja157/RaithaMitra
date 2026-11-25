@@ -20,7 +20,7 @@ export function DataProvenanceFooter() {
         <div className="flex flex-wrap items-center gap-3 text-[11px]">
           <span className="flex items-center gap-1">
             <Wifi className="w-3.5 h-3.5 text-emerald-500" />
-            Weather: {weather?.provenance.source || 'Open-Meteo High Resolution NWP'}
+            Weather: {weather?.provenance?.source || 'Open-Meteo High Resolution NWP'}
           </span>
           <span className="flex items-center gap-1">
             <Cpu className="w-3.5 h-3.5 text-cyan-500" />

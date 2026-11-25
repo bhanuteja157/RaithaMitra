@@ -111,7 +111,7 @@ export default function ClimatePage() {
                   <td className="py-3 px-3">{d.precipitation_sum_mm.toFixed(1)} mm</td>
                   <td className="py-3 px-3">
                     <span className={`px-2 py-0.5 rounded font-semibold ${
-                      d.rain_probability_max_pct > 50
+                      (d.rain_probability_max_pct ?? 0) > 50
                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
                         : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                     }`}>

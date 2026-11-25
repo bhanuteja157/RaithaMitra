@@ -14,8 +14,10 @@ import {
   ArrowRight,
   ExternalLink,
   MapPin,
-  CheckCircle2
+  CheckCircle2,
+  Store
 } from 'lucide-react';
+import { NurserySellerInventoryWidget } from '@/components/dashboard/NurserySellerInventoryWidget';
 
 export default function BuyerDashboardPage() {
   const { currentUser } = useFarm();
@@ -133,6 +135,11 @@ export default function BuyerDashboardPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Authorized Nursery & Bio-Input Inventory Management */}
+      <div className="pt-4">
+        <NurserySellerInventoryWidget />
       </div>
     </div>
   );
