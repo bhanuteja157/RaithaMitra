@@ -87,83 +87,94 @@ class SatelliteService:
                 ],
             )
 
-        # Case 2: No live Sentinel-2 credentials configured
-        if not has_sentinel_creds:
-            if not req.use_demo_observation:
-                return ScientificModuleOutput(
-                    farm_id=req.farm_id,
-                    module="satellite_geospatial_intelligence",
-                    source="Sentinel-2 L2A Provider (Credentials Not Configured)",
-                    timestamp=datetime.now(timezone.utc),
-                    units={"ndvi": "index (-1 to +1)"},
-                    data_quality="unavailable",
-                    is_live=False,
-                    assumptions=[
-                        "Live Sentinel-2 API requires SENTINEL_HUB_CLIENT_ID and SENTINEL_HUB_CLIENT_SECRET.",
-                        "No live satellite observations were fabricated.",
-                    ],
-                    uncertainty="Unavailable",
-                    results={
-                        "coordinates": {"latitude": req.latitude, "longitude": req.longitude},
-                        "sentinel_credentials_configured": False,
-                        "available": False,
-                        "message": "Sentinel-2 API credentials are not configured. Supply spectral bands manually or enable Demonstration Mode.",
-                    },
-                    recommended_actions=[
-                        "Configure SENTINEL_HUB_CLIENT_ID / SENTINEL_HUB_CLIENT_SECRET or enter NIR/Red band reflectance manually.",
-                    ],
-                )
+        # Case 2: Retrieve real open Copernicus Sentinel-2 L2A COG observations when boundary/coords provided
+        from datetime import timedelta
+        from backend.app.features.satellite_monitoring.monitoring_service import retrieve_historical_timelapse
 
-            # Clearly labelled Demonstration Observation (derived from documented sample bands: NIR=0.44, Red=0.08, SWIR=0.22, Blue=0.05)
-            demo_nir, demo_red, demo_swir, demo_blue = 0.44, 0.08, 0.22, 0.05
+        coords = None
+        if req.boundary_geojson and isinstance(req.boundary_geojson, dict):
+            ring = req.boundary_geojson.get("coordinates", [[]])[0]
+            if isinstance(ring, list) and len(ring) >= 3:
+                coords = ring
+        if coords is None:
+            d = 0.0012
+            coords = [
+                [req.longitude - d, req.latitude - d],
+                [req.longitude + d, req.latitude - d],
+                [req.longitude + d, req.latitude + d],
+                [req.longitude - d, req.latitude + d],
+                [req.longitude - d, req.latitude - d],
+            ]
+
+        now = datetime.now(timezone.utc)
+        tl = retrieve_historical_timelapse(
+            coordinates=coords,
+            start_date=(now - timedelta(days=35)).date().isoformat(),
+            end_date=now.date().isoformat(),
+            farm_id=req.farm_id,
+            max_scenes=3,
+        )
+        latest = tl.get("latest_usable")
+        if latest:
+            indices = latest.get("indices") or {}
+            ndvi_val = indices.get("ndvi_mean")
+            stress_zone = (
+                "Low Stress (Dense healthy canopy)"
+                if (ndvi_val or 0) >= 0.6
+                else ("Moderate Vigor / Early Stress Watch" if (ndvi_val or 0) >= 0.35 else "Bare Soil / Sparse Canopy / High Stress")
+            )
             return ScientificModuleOutput(
                 farm_id=req.farm_id,
                 module="satellite_geospatial_intelligence",
-                source="DEMONSTRATION DATA — Sentinel-2 Sample Spectral Profile (Not Live Retrieval)",
+                source=latest.get("provider", "Copernicus Sentinel-2 L2A COG"),
                 timestamp=datetime.now(timezone.utc),
                 units={"ndvi": "index (-1 to +1)", "ndwi": "index (-1 to +1)", "evi": "index", "cloud_coverage": "%"},
-                data_quality="demonstration",
-                is_live=False,
+                data_quality="live",
+                is_live=True,
                 assumptions=[
-                    "DEMONSTRATION DATA ONLY: Live Sentinel-2 credentials (SENTINEL_HUB_CLIENT_ID / SECRET) are not configured.",
-                    "Indices are computed from sample reflectance values (NIR=0.44, Red=0.08, SWIR=0.22, Blue=0.05).",
-                    "Satellite imagery monitors vegetation vigor and moisture stress; it does NOT independently diagnose crop diseases.",
+                    f"Real 10m/20m Sentinel-2 L2A bands retrieved for scene {latest.get('scene_id')} on {latest.get('acquisition_date')}.",
+                    f"SCL cloud/shadow mask applied; valid parcel pixels: {latest.get('valid_pixel_coverage_pct')}%.",
                 ],
-                uncertainty="Demonstration sample (not a live measurement)",
+                uncertainty="±0.03 reflectance index units (10m Sentinel-2 L2A)",
                 results={
                     "coordinates": {"latitude": req.latitude, "longitude": req.longitude},
                     "boundary_provided": req.boundary_geojson is not None,
-                    "sentinel_credentials_configured": False,
-                    "is_demonstration_data": True,
-                    "observation_timestamp": "2026-11-22T05:18:00Z",
-                    "cloud_coverage_pct": 8.4,
-                    "sample_bands": {"nir_b8": demo_nir, "red_b4": demo_red, "swir_b11": demo_swir, "blue_b2": demo_blue},
+                    "sentinel_credentials_configured": has_sentinel_creds,
+                    "scene_id": latest.get("scene_id"),
+                    "observation_timestamp": latest.get("acquisition_date"),
+                    "cloud_coverage_pct": latest.get("parcel_cloud_cover_pct"),
+                    "valid_pixel_coverage_pct": latest.get("valid_pixel_coverage_pct"),
                     "indices": {
-                        "ndvi": compute_ndvi(demo_nir, demo_red),
-                        "ndwi": compute_ndwi(demo_nir, demo_swir),
-                        "evi": compute_evi(demo_nir, demo_red, demo_blue),
+                        "ndvi": indices.get("ndvi_mean"),
+                        "ndwi": indices.get("ndmi_mean"),
+                        "evi": indices.get("evi_mean"),
                     },
-                    "stress_assessment": "Demo Sample: Healthy canopy with minor eastern-edge moisture variation",
+                    "layers": latest.get("layers"),
+                    "stress_assessment": stress_zone,
+                    "is_demonstration_data": False,
                 },
                 recommended_actions=[
-                    "Connect Sentinel Hub credentials in backend .env for live field imagery.",
-                    "Perform ground scouting to verify any localized canopy stress.",
+                    "Inspect the Observed Satellite Data timeline for multi-date vegetation trends.",
+                    "Use AI Crop Doctor or field scouting if NDVI is below crop expectations.",
                 ],
             )
 
-        # Case 3: Credentials present — ready for live Sentinel Hub Statistical/Process API integration
         return ScientificModuleOutput(
             farm_id=req.farm_id,
             module="satellite_geospatial_intelligence",
-            source="Sentinel Hub Configured (Token Exchange Required at Runtime)",
+            source="Copernicus Sentinel-2 L2A (Cloudy / Unavailable Overpass)",
             timestamp=datetime.now(timezone.utc),
             units={"ndvi": "index (-1 to +1)"},
             data_quality="unavailable",
             is_live=False,
-            assumptions=["Supply NIR/Red bands or verify Sentinel Hub quota."],
-            uncertainty="Pending live tile retrieval",
-            results={"coordinates": {"latitude": req.latitude, "longitude": req.longitude}, "sentinel_credentials_configured": True},
-            recommended_actions=["Enter spectral bands manually to compute immediate NDVI."],
+            assumptions=["No cloud-free Sentinel-2 L2A scene was available in the last 35 days."],
+            uncertainty="Unavailable due to cloud cover or network",
+            results={
+                "coordinates": {"latitude": req.latitude, "longitude": req.longitude},
+                "available": False,
+                "message": tl.get("error") or tl.get("insufficient_history_note") or "No usable cloud-free Sentinel-2 scene found.",
+            },
+            recommended_actions=["Check back after the next 5-day Sentinel-2 overpass or widen the historical date range."],
         )
 
 

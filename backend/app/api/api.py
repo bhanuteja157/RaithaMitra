@@ -6,6 +6,7 @@ from backend.app.features.bidding import router as bidding_router
 from backend.app.features.transportation import router as transport_router
 from backend.app.features.biointel import router as biointel_router
 from backend.app.features.crop_diagnostics import router as crop_diagnostics_router
+from backend.app.features.satellite_monitoring import router as satellite_monitoring_router
 
 api_router = APIRouter()
 
@@ -32,3 +33,4 @@ api_router.include_router(bidding_router.router)
 api_router.include_router(transport_router.router)
 api_router.include_router(biointel_router.router)
 api_router.include_router(crop_diagnostics_router)
+api_router.include_router(satellite_monitoring_router)

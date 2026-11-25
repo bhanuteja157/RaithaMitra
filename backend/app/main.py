@@ -1,3 +1,6 @@
+import asyncio
+import json
+from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -6,11 +9,43 @@ from backend.app.core.config import settings
 from backend.app.api.api import api_router
 from backend.app.db.database import init_db
 
+
+async def _daily_satellite_monitor_loop():
+    """Checks monitored parcels daily while the backend service is running."""
+    from backend.app.features.satellite_monitoring.monitoring_service import (
+        list_monitored_parcels,
+        register_and_sync_parcel,
+    )
+
+    while True:
+        await asyncio.sleep(24 * 3600)
+        try:
+            parcels = list_monitored_parcels()
+            for p in parcels:
+                geo = json.loads(p.get("geojson_json") or "{}")
+                coords = (geo.get("coordinates") or [[]])[0]
+                if len(coords) >= 3:
+                    register_and_sync_parcel(
+                        farm_id=p["farm_id"],
+                        farm_name=p["farm_name"],
+                        crop_name=p["crop_name"],
+                        sowing_date=p["sowing_date"],
+                        area_acres=p["area_acres"],
+                        coordinates=coords,
+                    )
+        except Exception:
+            pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize SQLite database and seed demo data on startup
     init_db()
-    yield
+    task = asyncio.create_task(_daily_satellite_monitor_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
 
 app = FastAPI(
     title=settings.APP_NAME,

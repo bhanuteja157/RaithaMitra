@@ -92,7 +92,23 @@ const SatelliteCropTimeLapse = dynamic(() => import('./SatelliteCropTimeLapse'),
   ),
 });
 
+const CropDigitalTwin3D = dynamic(
+  () => import('./CropDigitalTwin3D').then((m) => m.CropDigitalTwin3D),
+  { ssr: false }
+);
+
+const RealSatelliteMonitorPanel = dynamic(
+  () => import('./RealSatelliteMonitorPanel').then((m) => m.RealSatelliteMonitorPanel),
+  { ssr: false }
+);
+
+const MaizeAgronomyCard = dynamic(
+  () => import('./MaizeAgronomyCard').then((m) => m.MaizeAgronomyCard),
+  { ssr: false }
+);
+
 type ActiveStep = 'map' | 'profile' | 'crops' | 'simulator' | 'finance';
+type DigitalTwinViewTab = 'live_sat' | 'sat_timelapse' | 'twin_3d' | 'closeup_3d' | 'analytics';
 
 export function DigitalFarmingWorkspace() {
   const router = useRouter();
@@ -100,6 +116,8 @@ export function DigitalFarmingWorkspace() {
   const t = DF_I18N[lang];
 
   const [activeStep, setActiveStep] = useState<ActiveStep>('map');
+  const [twinTab, setTwinTab] = useState<DigitalTwinViewTab>('twin_3d');
+  const [maizePopulation, setMaizePopulation] = useState<number | undefined>(undefined);
 
   // Phase 1: Mapped Farmland
   const demoFarm = useMemo(() => getTumakuruDemoFarm(), []);
@@ -308,10 +326,12 @@ export function DigitalFarmingWorkspace() {
     const applyControl = (action?: string | null) => {
       if (!action) return;
       if (action === 'play' || action === 'resume') {
-        setSim((prev) => ({ ...prev, started: true, isPlaying: true }));
+        setActiveStep('simulator');
+        setSim((prev) => ({ ...prev, started: true, sown: true, isPlaying: true }));
       } else if (action === 'pause') {
         setSim((prev) => ({ ...prev, isPlaying: false }));
       } else if (action === 'summary') {
+        setActiveStep('simulator');
         setSim((prev) => ({ ...prev, started: true }));
       }
       try {
@@ -920,63 +940,182 @@ export function DigitalFarmingWorkspace() {
       {/* STEP 4: INTERACTIVE DIGITAL FARMING SIMULATOR */}
       {activeStep === 'simulator' && (
         <div className="space-y-5">
-          {/* Crop Switcher Bar */}
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-3.5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-semibold text-zinc-600 dark:text-zinc-300">Active Crop:</span>
-              <select
-                value={selectedCropId}
-                onChange={(e) => startCultivatingCrop(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-sm font-semibold bg-zinc-50 dark:bg-zinc-800"
-              >
-                {CROP_CATALOG.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.durationDays}d)
-                  </option>
-                ))}
-              </select>
+          {/* Crop Switcher & Visualization Mode Bar */}
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-3.5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-semibold text-zinc-600 dark:text-zinc-300">Active Crop:</span>
+                <select
+                  value={selectedCropId}
+                  onChange={(e) => startCultivatingCrop(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-sm font-semibold bg-zinc-50 dark:bg-zinc-800"
+                >
+                  {CROP_CATALOG.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.durationDays}d)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-xs text-zinc-500">
+                Mapped Field: <strong>{confirmedFarm.name}</strong> ({activeAreaAcres} acres · Sowing: {profile.expectedSowingDate || '2026-09-01'})
+              </span>
             </div>
-            <span className="text-xs text-zinc-500">
-              Mapped Field: <strong>{confirmedFarm.name}</strong> ({activeAreaAcres} acres)
-            </span>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[11px]">
+              {(
+                [
+                  { id: 'live_sat', label: '1. Live Monitoring (Observed)' },
+                  { id: 'sat_timelapse', label: '2. Satellite Time-Lapse' },
+                  { id: 'twin_3d', label: '3. Predictive 3D Field' },
+                  { id: 'closeup_3d', label: '4. Seed-to-Harvest Close-Up' },
+                  { id: 'analytics', label: '5. Crop Health & Map' },
+                ] as { id: DigitalTwinViewTab; label: string }[]
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setTwinTab(tab.id)}
+                  className={`py-2 px-2.5 rounded-xl border font-semibold transition text-center ${
+                    twinTab === tab.id
+                      ? 'bg-[#173C2B] text-white border-[#173C2B]'
+                      : 'bg-[#F7F5ED] dark:bg-zinc-800 border-[#DCD8CA] dark:border-zinc-700 text-[#20372A] dark:text-zinc-300'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Left 2 cols: Satellite Time-Lapse + Activities + Log */}
+            {/* Left 2 cols: Mode A (Observed Satellite), Mode B (3D Field), Mode C (Close-Up), & Controls */}
             <div className="lg:col-span-2 space-y-4">
-              <SatelliteCropTimeLapse
-                points={points}
-                crop={selectedCrop}
-                sim={sim}
-                areaAcres={activeAreaAcres}
-                projectedYieldKg={liveFinancialSummary.expectedProductionKg}
-                projectedProfitInr={liveFinancialSummary.netProfitInr}
-                estimatedHarvestDate={estimatedHarvestDate}
-                canStepBack={simHistory.length > 0}
-                isCinematic={isCinematic}
-                onTogglePlay={() =>
-                  setSim((p) => ({ ...p, started: true, isPlaying: !p.isPlaying }))
-                }
-                onToggleCinematic={() => {
-                  setIsCinematic((c) => {
-                    const next = !c;
-                    if (next) setSim((p) => ({ ...p, started: true, isPlaying: true }));
-                    return next;
-                  });
-                }}
-                onStepDay={handleStepDay}
-                onPreviousDay={handlePreviousDay}
-                onNextStage={handleAdvanceToNextStage}
-                onScrubDay={handleScrubDay}
-                onSpeedChange={(spd) => setSim((p) => ({ ...p, speedDaysPerSec: spd }))}
-                onRestart={() => {
-                  setSim(createInitialSimulationState(selectedCrop, profile));
-                  setSimHistory([]);
-                  setIsCinematic(false);
-                  setActivityNotice('');
-                }}
-                onHarvest={() => handleActivity('harvest')}
-              />
+              {(twinTab === 'live_sat' || twinTab === 'sat_timelapse') && (
+                <RealSatelliteMonitorPanel
+                  farmId={confirmedFarm.id}
+                  farmName={confirmedFarm.name}
+                  cropName={selectedCrop.name}
+                  sowingDate={profile.expectedSowingDate || '2026-09-01'}
+                  areaAcres={activeAreaAcres}
+                  points={points}
+                  totalDays={sim.totalDays}
+                  mode={twinTab === 'live_sat' ? 'live' : 'timelapse'}
+                />
+              )}
+
+              {(twinTab === 'twin_3d' || twinTab === 'closeup_3d') && (
+                <div className="space-y-3">
+                  <CropDigitalTwin3D
+                    mode={twinTab === 'twin_3d' ? 'field' : 'closeup'}
+                    points={points}
+                    crop={selectedCrop}
+                    sim={sim}
+                    areaAcres={activeAreaAcres}
+                    estimatedPopulation={
+                      selectedCrop.id === 'maize' && maizePopulation
+                        ? maizePopulation
+                        : Math.round(activeAreaAcres * 24000)
+                    }
+                  />
+                  {/* Shared Biological Cultivation Timeline Bar */}
+                  <div className="p-3.5 rounded-2xl border border-[#DCD8CA] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSim((p) => ({ ...p, started: true, sown: true, isPlaying: !p.isPlaying }))
+                        }
+                        className="px-3.5 py-1.5 rounded-xl bg-[#173C2B] text-white font-semibold"
+                      >
+                        {sim.isPlaying ? 'Pause' : 'Play Growth'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStepDay(5)}
+                        className="px-2.5 py-1.5 rounded-xl border border-[#DCD8CA] dark:border-zinc-700"
+                      >
+                        +5 Days
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSim(createInitialSimulationState(selectedCrop, profile));
+                          setSimHistory([]);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl border border-[#DCD8CA] dark:border-zinc-700"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    <div className="flex-1 min-w-[180px] flex items-center gap-2">
+                      <span className="text-[11px] font-semibold shrink-0">
+                        Day {sim.currentDay}/{sim.totalDays}
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={sim.totalDays}
+                        value={sim.currentDay}
+                        onChange={(e) => {
+                          setSim((p) => ({ ...p, started: true, sown: true }));
+                          handleScrubDay(Number(e.target.value));
+                        }}
+                        className="w-full accent-[#173C2B]"
+                      />
+                    </div>
+                    <span className="text-[11px] text-zinc-500 font-medium">
+                      Harvest: {estimatedHarvestDate}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {selectedCrop.id === 'maize' && (
+                <MaizeAgronomyCard
+                  areaAcres={activeAreaAcres}
+                  sowingDate={profile.expectedSowingDate || '2026-09-01'}
+                  currentDay={sim.currentDay}
+                  meanTempC={liveWeather?.temperatureC ?? 25.5}
+                  onAgronomyUpdated={(agg) => setMaizePopulation(agg?.estimated_established_population)}
+                />
+              )}
+
+              {twinTab === 'analytics' && (
+                <SatelliteCropTimeLapse
+                  points={points}
+                  crop={selectedCrop}
+                  sim={sim}
+                  areaAcres={activeAreaAcres}
+                  projectedYieldKg={liveFinancialSummary.expectedProductionKg}
+                  projectedProfitInr={liveFinancialSummary.netProfitInr}
+                  estimatedHarvestDate={estimatedHarvestDate}
+                  canStepBack={simHistory.length > 0}
+                  isCinematic={isCinematic}
+                  onTogglePlay={() =>
+                    setSim((p) => ({ ...p, started: true, isPlaying: !p.isPlaying }))
+                  }
+                  onToggleCinematic={() => {
+                    setIsCinematic((c) => {
+                      const next = !c;
+                      if (next) setSim((p) => ({ ...p, started: true, isPlaying: true }));
+                      return next;
+                    });
+                  }}
+                  onStepDay={handleStepDay}
+                  onPreviousDay={handlePreviousDay}
+                  onNextStage={handleAdvanceToNextStage}
+                  onScrubDay={handleScrubDay}
+                  onSpeedChange={(spd) => setSim((p) => ({ ...p, speedDaysPerSec: spd }))}
+                  onRestart={() => {
+                    setSim(createInitialSimulationState(selectedCrop, profile));
+                    setSimHistory([]);
+                    setIsCinematic(false);
+                    setActivityNotice('');
+                  }}
+                  onHarvest={() => handleActivity('harvest')}
+                />
+              )}
 
               {/* Virtual Agricultural Activities */}
               <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
