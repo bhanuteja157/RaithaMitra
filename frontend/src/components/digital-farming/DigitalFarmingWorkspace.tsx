@@ -181,21 +181,21 @@ export function DigitalFarmingWorkspace() {
           const data = await res.json();
           if (!cancelled) {
             setLiveWeather({
-              temperatureC: data.current?.temperature_2m ?? null,
-              rainfallMm: data.current?.rain ?? data.current?.precipitation ?? 0,
-              humidityPct: data.current?.relative_humidity_2m ?? null,
-              windSpeedKmh: data.current?.wind_speed_10m ?? null,
-              et0Mm: data.daily?.[0]?.et0_fao_evapotranspiration ?? null,
+              temperatureC: data.current?.temperature_c ?? data.current?.temperature_2m ?? null,
+              rainfallMm: data.current?.precipitation_mm ?? data.current?.rain ?? data.current?.precipitation ?? null,
+              humidityPct: data.current?.relative_humidity_pct ?? data.current?.relative_humidity_2m ?? null,
+              windSpeedKmh: data.current?.wind_speed_kmh ?? data.current?.wind_speed_10m ?? null,
+              et0Mm: data.current?.et0_fao56_mm ?? data.daily_forecast?.[0]?.et0_fao56_mm ?? null,
               forecastPeriod: '7-day forecast',
-              source: 'RaithaMitra Weather Service (Open-Meteo)',
+              source: data.provenance?.source || 'RaithaMitra Weather Service (Open-Meteo)',
               lastUpdated: new Date().toLocaleTimeString(),
-              isLive: Boolean(data.is_live ?? true),
-              dailyForecast: Array.isArray(data.daily)
-                ? data.daily.slice(0, 7).map((d: any) => ({
+              isLive: Boolean(data.provenance?.is_live ?? data.is_live ?? true),
+              dailyForecast: Array.isArray(data.daily_forecast)
+                ? data.daily_forecast.slice(0, 7).map((d: any) => ({
                     date: d.date || '',
-                    tempMaxC: Number(d.temperature_2m_max ?? 30),
-                    tempMinC: Number(d.temperature_2m_min ?? 20),
-                    rainMm: Number(d.precipitation_sum ?? 0),
+                    tempMaxC: Number(d.temp_max_c ?? d.temperature_2m_max ?? 30),
+                    tempMinC: Number(d.temp_min_c ?? d.temperature_2m_min ?? 20),
+                    rainMm: Number(d.precipitation_sum_mm ?? d.precipitation_sum ?? 0),
                   }))
                 : undefined,
             });
@@ -216,7 +216,7 @@ export function DigitalFarmingWorkspace() {
             const dates: string[] = om.daily?.time || [];
             setLiveWeather({
               temperatureC: om.current?.temperature_2m ?? null,
-              rainfallMm: om.current?.precipitation ?? 0,
+              rainfallMm: om.current?.precipitation ?? null,
               humidityPct: om.current?.relative_humidity_2m ?? null,
               windSpeedKmh: om.current?.wind_speed_10m ?? null,
               et0Mm: om.daily?.et0_fao_evapotranspiration?.[0] ?? null,
@@ -283,6 +283,35 @@ export function DigitalFarmingWorkspace() {
     () => calculateDetailedFinancials(finInputs, activeAreaAcres, profile.budgetInr),
     [finInputs, activeAreaAcres, profile.budgetInr]
   );
+
+  // Synchronized live financials: reflects simulated yield, weather stress, and activity expenses
+  const liveFinancialSummary = useMemo(() => {
+    const effectiveYieldKg =
+      sim.started && sim.harvestedYieldKg > 0
+        ? sim.harvestedYieldKg
+        : financialSummary.expectedProductionKg;
+    const effectiveInvestmentInr = financialSummary.totalInvestmentInr + sim.expenditureInr;
+    const effectiveRevenueInr = Math.round(effectiveYieldKg * finInputs.expectedSellingPricePerKgInr);
+    const effectiveProfitInr = effectiveRevenueInr - effectiveInvestmentInr;
+    const effectiveRoiPct =
+      effectiveInvestmentInr > 0
+        ? Number(((effectiveProfitInr / effectiveInvestmentInr) * 100).toFixed(1))
+        : 0;
+    const effectiveBreakEven =
+      effectiveYieldKg > 0 ? Number((effectiveInvestmentInr / effectiveYieldKg).toFixed(2)) : 0;
+    return {
+      ...financialSummary,
+      expectedProductionKg: effectiveYieldKg,
+      totalInvestmentInr: effectiveInvestmentInr,
+      investmentPerAcreInr:
+        activeAreaAcres > 0 ? Math.round(effectiveInvestmentInr / activeAreaAcres) : 0,
+      grossRevenueInr: effectiveRevenueInr,
+      netProfitInr: effectiveProfitInr,
+      roiPct: effectiveRoiPct,
+      breakEvenSellingPricePerKg: effectiveBreakEven,
+      remainingBudgetInr: Math.round(profile.budgetInr - effectiveInvestmentInr),
+    };
+  }, [financialSummary, sim.started, sim.harvestedYieldKg, sim.expenditureInr, finInputs.expectedSellingPricePerKgInr, activeAreaAcres, profile.budgetInr]);
 
   const { risks, harvestWarning } = useMemo(
     () => evaluateAgriculturalRisks(sim, selectedCrop, profile, financialSummary, liveWeather),
@@ -364,8 +393,6 @@ export function DigitalFarmingWorkspace() {
   };
 
   const handleAnalyzeBestSelling = () => {
-    const qty = sim.harvestedYieldKg > 0 ? sim.harvestedYieldKg : financialSummary.expectedProductionKg;
-    const totalCost = Math.max(sim.expenditureInr, financialSummary.totalInvestmentInr);
     saveHarvestTransferPayload({
       farmName: confirmedFarm.name,
       locationLabel: confirmedFarm.locationLabel,
@@ -374,8 +401,8 @@ export function DigitalFarmingWorkspace() {
       areaAcres: activeAreaAcres,
       cropId: selectedCrop.id,
       cropName: selectedCrop.name,
-      harvestQuantityKg: qty,
-      cultivationExpensesInr: totalCost,
+      harvestQuantityKg: liveFinancialSummary.expectedProductionKg,
+      cultivationExpensesInr: liveFinancialSummary.totalInvestmentInr,
       expectedSellingPricePerKg: finInputs.expectedSellingPricePerKgInr,
       cultivationDurationDays: selectedCrop.durationDays,
       transferredAt: new Date().toISOString(),
@@ -865,7 +892,8 @@ export function DigitalFarmingWorkspace() {
                 crop={selectedCrop}
                 sim={sim}
                 areaAcres={activeAreaAcres}
-                projectedProfitInr={financialSummary.netProfitInr}
+                projectedYieldKg={liveFinancialSummary.expectedProductionKg}
+                projectedProfitInr={liveFinancialSummary.netProfitInr}
                 estimatedHarvestDate={estimatedHarvestDate}
                 canStepBack={simHistory.length > 0}
                 isCinematic={isCinematic}
@@ -968,16 +996,19 @@ export function DigitalFarmingWorkspace() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl">
                       <span className="text-zinc-500 block">Projected Yield</span>
-                      <strong>{sim.harvestedYieldKg.toLocaleString('en-IN')} kg</strong>
+                      <strong>{liveFinancialSummary.expectedProductionKg.toLocaleString('en-IN')} kg</strong>
                     </div>
                     <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl">
-                      <span className="text-zinc-500 block">Sim. Expenditure</span>
-                      <strong>₹{sim.expenditureInr.toLocaleString('en-IN')}</strong>
+                      <span className="text-zinc-500 block">Total Est. Expenses</span>
+                      <strong>₹{liveFinancialSummary.totalInvestmentInr.toLocaleString('en-IN')}</strong>
                     </div>
                     <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl">
-                      <span className="text-zinc-500 block">Est. Revenue</span>
+                      <span className="text-zinc-500 block">Est. Revenue / Profit</span>
                       <strong>
-                        ₹{Math.round(sim.harvestedYieldKg * finInputs.expectedSellingPricePerKgInr).toLocaleString('en-IN')}
+                        ₹{liveFinancialSummary.grossRevenueInr.toLocaleString('en-IN')} /{' '}
+                        <span className={liveFinancialSummary.netProfitInr >= 0 ? 'text-emerald-700' : 'text-red-600'}>
+                          ₹{liveFinancialSummary.netProfitInr.toLocaleString('en-IN')}
+                        </span>
                       </strong>
                     </div>
                     <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl">
@@ -1193,33 +1224,33 @@ export function DigitalFarmingWorkspace() {
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
                 <span className="text-[11px] text-zinc-500 block">Total Seed Needed</span>
-                <strong className="text-sm">{financialSummary.totalSeedKg} kg</strong>
+                <strong className="text-sm">{liveFinancialSummary.totalSeedKg} kg</strong>
               </div>
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
                 <span className="text-[11px] text-zinc-500 block">Total Investment</span>
-                <strong className="text-sm">₹{financialSummary.totalInvestmentInr.toLocaleString('en-IN')}</strong>
+                <strong className="text-sm">₹{liveFinancialSummary.totalInvestmentInr.toLocaleString('en-IN')}</strong>
                 <span className="text-[10px] text-zinc-500 block">
-                  ₹{financialSummary.investmentPerAcreInr.toLocaleString('en-IN')}/ac
+                  ₹{liveFinancialSummary.investmentPerAcreInr.toLocaleString('en-IN')}/ac
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
                 <span className="text-[11px] text-zinc-500 block">Gross Revenue</span>
-                <strong className="text-sm">₹{financialSummary.grossRevenueInr.toLocaleString('en-IN')}</strong>
+                <strong className="text-sm">₹{liveFinancialSummary.grossRevenueInr.toLocaleString('en-IN')}</strong>
               </div>
               <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30">
                 <span className="text-[11px] text-zinc-500 block">Est. Net Profit</span>
-                <strong className={`text-sm ${financialSummary.netProfitInr >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  ₹{financialSummary.netProfitInr.toLocaleString('en-IN')} ({financialSummary.roiPct}%)
+                <strong className={`text-sm ${liveFinancialSummary.netProfitInr >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  ₹{liveFinancialSummary.netProfitInr.toLocaleString('en-IN')} ({liveFinancialSummary.roiPct}%)
                 </strong>
               </div>
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
                 <span className="text-[11px] text-zinc-500 block">Break-Even Price</span>
-                <strong className="text-sm">₹{financialSummary.breakEvenSellingPricePerKg}/kg</strong>
+                <strong className="text-sm">₹{liveFinancialSummary.breakEvenSellingPricePerKg}/kg</strong>
               </div>
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
                 <span className="text-[11px] text-zinc-500 block">Remaining Budget</span>
-                <strong className={`text-sm ${financialSummary.remainingBudgetInr >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  ₹{financialSummary.remainingBudgetInr.toLocaleString('en-IN')}
+                <strong className={`text-sm ${liveFinancialSummary.remainingBudgetInr >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  ₹{liveFinancialSummary.remainingBudgetInr.toLocaleString('en-IN')}
                 </strong>
               </div>
             </div>
@@ -1400,10 +1431,10 @@ export function DigitalFarmingWorkspace() {
                 {confirmedFarm.perimeterMeters} m, centre {activeLat}, {activeLon}).
               </div>
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-                <strong>2. Money & Water Required:</strong> Est. investment ₹{financialSummary.totalInvestmentInr.toLocaleString('en-IN')}; est. crop water requirement {selectedCrop.waterRequirementMm} mm over {selectedCrop.durationDays} days.
+                <strong>2. Money & Water Required:</strong> Est. investment ₹{liveFinancialSummary.totalInvestmentInr.toLocaleString('en-IN')}; est. crop water requirement {selectedCrop.waterRequirementMm} mm over {selectedCrop.durationDays} days.
               </div>
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-                <strong>3. Production & Profit Projection:</strong> Expected {financialSummary.expectedProductionKg.toLocaleString('en-IN')} kg, gross revenue ₹{financialSummary.grossRevenueInr.toLocaleString('en-IN')}, projected net profit ₹{financialSummary.netProfitInr.toLocaleString('en-IN')}.
+                <strong>3. Production & Profit Projection:</strong> Expected {liveFinancialSummary.expectedProductionKg.toLocaleString('en-IN')} kg, gross revenue ₹{liveFinancialSummary.grossRevenueInr.toLocaleString('en-IN')}, projected net profit ₹{liveFinancialSummary.netProfitInr.toLocaleString('en-IN')}.
               </div>
               <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
                 <strong>4. Major Risks & Alternatives:</strong>{' '}
