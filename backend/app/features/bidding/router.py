@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 
 from backend.app.db.database import get_db_connection
+from backend.app.features.auth.router import verify_user_role_in_db
 
 router = APIRouter(prefix="/bidding", tags=["Smart Bidding"])
 
@@ -56,6 +57,8 @@ def list_produce_listings(crop: Optional[str] = None, status_filter: Optional[st
 
 @router.post("/listings", status_code=status.HTTP_201_CREATED)
 def create_produce_listing(listing: ListingCreate):
+    if not verify_user_role_in_db(listing.farmer_id, ["farmer", "admin"]):
+        raise HTTPException(status_code=403, detail="Unauthorized: Only registered farmers can list produce")
     conn = get_db_connection()
     cursor = conn.cursor()
     listing_id = f"list_{uuid.uuid4().hex[:6]}"
@@ -119,6 +122,8 @@ def get_listing_details(listing_id: str):
 
 @router.post("/listings/{listing_id}/bid")
 def submit_bid(listing_id: str, bid: BidSubmit):
+    if not verify_user_role_in_db(bid.buyer_id, ["buyer", "admin"]):
+        raise HTTPException(status_code=403, detail="Unauthorized: Only registered buyers can submit bids")
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -161,6 +166,8 @@ def submit_bid(listing_id: str, bid: BidSubmit):
 
 @router.post("/listings/{listing_id}/confirm")
 def confirm_sale(listing_id: str, farmer_id: str = Query("usr_farmer")):
+    if not verify_user_role_in_db(farmer_id, ["farmer", "admin"]):
+        raise HTTPException(status_code=403, detail="Unauthorized: Only registered farmers can confirm produce sales")
     conn = get_db_connection()
     cursor = conn.cursor()
     

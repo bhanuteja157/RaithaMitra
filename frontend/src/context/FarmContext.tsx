@@ -9,6 +9,12 @@ interface FarmContextType {
   currentUser: User;
   setCurrentUser: (user: User) => void;
   role: UserRole;
+  isAuthenticated: boolean;
+  isDemoMode: boolean;
+  token: string | null;
+  login: (credentials: { email: string; password: string; role?: UserRole }) => Promise<{ success: boolean; error?: string; redirect_url?: string }>;
+  registerUser: (data: any) => Promise<{ success: boolean; error?: string; redirect_url?: string }>;
+  logout: () => Promise<void>;
   switchDemoUser: (role: UserRole) => Promise<void>;
   farms: Farm[];
   currentFarm: Farm | null;
@@ -77,6 +83,9 @@ const FarmContext = createContext<FarmContextType | undefined>(undefined);
 
 export function FarmProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [token, setToken] = useState<string | null>(null);
   const [farms, setFarms] = useState<Farm[]>([DEFAULT_FARM]);
   const [currentFarmId, setCurrentFarmId] = useState<string>("farm_001");
   const [summary, setSummary] = useState<FarmSummary | null>(null);
@@ -107,10 +116,21 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       }
     }
     const savedUser = localStorage.getItem('rm_user');
+    const savedToken = localStorage.getItem('rm_token');
+    const savedIsDemo = localStorage.getItem('rm_is_demo');
     if (savedUser) {
       try {
-        setCurrentUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        setCurrentUser(parsed);
+        setIsAuthenticated(true);
+        setIsDemoMode(savedIsDemo === 'true');
+        setToken(savedToken || null);
       } catch (e) {}
+    } else {
+      // Unauthenticated first-time visitor
+      setIsAuthenticated(false);
+      setIsDemoMode(false);
+      setToken(null);
     }
     try {
       const savedFarms = localStorage.getItem('rm_farms_saved');
@@ -131,16 +151,108 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const login = async (credentials: { email: string; password: string; role?: UserRole }) => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const res = await fetch(`${backendUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.detail || 'Login failed' };
+      }
+      const user: User = data.user;
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      setIsDemoMode(Boolean(user.is_demo));
+      setToken(data.access_token);
+      localStorage.setItem('rm_user', JSON.stringify(user));
+      localStorage.setItem('rm_token', data.access_token);
+      localStorage.setItem('rm_is_demo', user.is_demo ? 'true' : 'false');
+      return { success: true, redirect_url: data.redirect_url };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error connecting to backend' };
+    }
+  };
+
+  const registerUser = async (data: any) => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const res = await fetch(`${backendUrl}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        return { success: false, error: resData.detail || 'Registration failed' };
+      }
+      const user: User = resData.user;
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      setIsDemoMode(false);
+      setToken(resData.access_token);
+      localStorage.setItem('rm_user', JSON.stringify(user));
+      localStorage.setItem('rm_token', resData.access_token);
+      localStorage.setItem('rm_is_demo', 'false');
+      return { success: true, redirect_url: resData.redirect_url };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error' };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      if (token) {
+        await fetch(`${backendUrl}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+    } catch (err) {
+      console.warn("Logout API call warning:", err);
+    } finally {
+      setIsAuthenticated(false);
+      setIsDemoMode(false);
+      setToken(null);
+      setCurrentUser(DEFAULT_USER);
+      localStorage.removeItem('rm_user');
+      localStorage.removeItem('rm_token');
+      localStorage.removeItem('rm_is_demo');
+    }
+  };
+
   const switchDemoUser = async (role: UserRole) => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/auth/demo-accounts`);
       if (res.ok) {
-        const accounts: User[] = await res.json();
-        const found = accounts.find(a => a.role === role);
+        const accounts: any[] = await res.json();
+        const found = accounts.find((a: any) => a.role === role);
         if (found) {
-          setCurrentUser(found);
-          localStorage.setItem('rm_user', JSON.stringify(found));
+          const demoUser: User = {
+            id: `usr_${found.role}`,
+            email: found.email,
+            name: found.name,
+            phone: found.role === 'farmer' ? "+91 98450 12345" : found.role === 'buyer' ? "+91 98450 67890" : found.role === 'labour' ? "+91 98450 44556" : "+91 98450 77889",
+            role: found.role,
+            preferred_language: found.role === 'buyer' ? 'en' : 'kn',
+            village: found.role === 'farmer' ? "Mandya Rural" : found.role === 'labour' ? "Maddur" : "Mandya",
+            district: "Mandya",
+            state: "Karnataka",
+            created_at: new Date().toISOString(),
+            is_demo: true
+          };
+          setCurrentUser(demoUser);
+          setIsAuthenticated(true);
+          setIsDemoMode(true);
+          setToken(`rm_demo_token_${found.role}`);
+          localStorage.setItem('rm_user', JSON.stringify(demoUser));
+          localStorage.setItem('rm_token', `rm_demo_token_${found.role}`);
+          localStorage.setItem('rm_is_demo', 'true');
           return;
         }
       }
@@ -152,13 +264,19 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       ...DEFAULT_USER,
       role: role,
       name: role === 'farmer' ? "Suresh Gowda" :
-            role === 'buyer' ? "Nandini Retail Foods" :
-            role === 'labour' ? "Ramesh Kumar" :
-            role === 'driver' ? "Somanna Gowda" : "Administrator",
-      email: `${role}@raithamitra.in`
+            role === 'buyer' ? "Bengaluru Fresh Foods Co" :
+            role === 'labour' ? "Basavaraj Koravara" :
+            role === 'driver' ? "Manjunath Transport" : "Administrator",
+      email: `${role}@raithamitra.in`,
+      is_demo: true
     };
     setCurrentUser(localFallback);
+    setIsAuthenticated(true);
+    setIsDemoMode(true);
+    setToken(`rm_demo_token_${role}`);
     localStorage.setItem('rm_user', JSON.stringify(localFallback));
+    localStorage.setItem('rm_token', `rm_demo_token_${role}`);
+    localStorage.setItem('rm_is_demo', 'true');
   };
 
   const setBuyerDeliveryLocation = (loc: SelectedLocation) => {
@@ -472,6 +590,12 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         currentUser,
         setCurrentUser,
         role: currentUser.role,
+        isAuthenticated,
+        isDemoMode,
+        token,
+        login,
+        registerUser,
+        logout,
         switchDemoUser,
         farms,
         currentFarm,

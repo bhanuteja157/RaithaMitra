@@ -15,6 +15,10 @@ export interface User {
   district?: string;
   state?: string;
   created_at: string;
+  is_demo?: boolean;
+  buyer_type?: 'individual' | 'business';
+  business_name?: string;
+  delivery_address?: string;
 }
 
 export interface Farm {

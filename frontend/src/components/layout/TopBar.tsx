@@ -17,7 +17,8 @@ import {
   Check,
   ChevronDown,
   UserCheck,
-  Sparkles
+  Sparkles,
+  LogOut
 } from 'lucide-react';
 
 export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
@@ -28,6 +29,8 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
     setCurrentFarmId,
     currentUser,
     switchDemoUser,
+    isDemoMode,
+    logout,
     language,
     setLanguage,
     theme,
@@ -144,52 +147,59 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         )}
       </div>
 
-      {/* Right Controls: Demo Role Switcher, Language, Theme, Notifications, Profile */}
+      {/* Right Controls: Demo Role Switcher, Language, Theme, Notifications, Profile, Logout */}
       <div className="flex items-center gap-2 md:gap-3">
-        {/* Judging 1-Click Demo Role Switcher */}
-        <div className="relative">
-          <button
-            onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-200 transition-colors shadow-sm"
-            title="Switch Demo Role for Judging Evaluation"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span className="hidden sm:inline">Role:</span>
-            <span className="capitalize">{currentUser.role}</span>
-            <ChevronDown className="w-3 h-3 text-amber-600" />
-          </button>
+        {/* Judging 1-Click Demo Role Switcher (Shown in Demo Mode) */}
+        {isDemoMode ? (
+          <div className="relative">
+            <button
+              onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-200 transition-colors shadow-sm"
+              title="Switch Demo Role for Judging Evaluation"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span className="hidden sm:inline">Demo:</span>
+              <span className="capitalize">{currentUser.role}</span>
+              <ChevronDown className="w-3 h-3 text-amber-600" />
+            </button>
 
-          {roleDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-50">
-              <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                1-Click Demo Role Switcher
+            {roleDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-50">
+                <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  1-Click Demo Personas
+                </div>
+                <div className="space-y-1">
+                  {[
+                    { role: 'farmer' as UserRole, name: 'Suresh Gowda', label: 'Farmer Dashboard (Mandya)' },
+                    { role: 'buyer' as UserRole, name: 'Bengaluru Fresh Foods', label: 'Buyer Smart Bidding' },
+                    { role: 'labour' as UserRole, name: 'Basavaraj Koravara', label: 'Labour Portal & Work' },
+                    { role: 'driver' as UserRole, name: 'Manjunath Transport', label: 'Driver Logistics Console' },
+                  ].map((item) => (
+                    <button
+                      key={item.role}
+                      onClick={() => handleRoleSwitch(item.role)}
+                      className={`w-full p-2 text-left rounded-lg text-xs transition-colors ${
+                        currentUser.role === item.role
+                          ? 'bg-rm-primary text-white font-bold'
+                          : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                      }`}
+                    >
+                      <div className="font-semibold">{item.label}</div>
+                      <div className={`text-[10px] ${currentUser.role === item.role ? 'text-zinc-200' : 'text-zinc-400'}`}>
+                        User: {item.name}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                {[
-                  { role: 'farmer' as UserRole, name: 'Suresh Gowda', label: 'Farmer Dashboard (Mandya)' },
-                  { role: 'buyer' as UserRole, name: 'Bengaluru Fresh Foods', label: 'Buyer Smart Bidding' },
-                  { role: 'labour' as UserRole, name: 'Basavaraj Koravara', label: 'Labour Portal & Work' },
-                  { role: 'driver' as UserRole, name: 'Manjunath Transport', label: 'Driver Logistics Console' },
-                ].map((item) => (
-                  <button
-                    key={item.role}
-                    onClick={() => handleRoleSwitch(item.role)}
-                    className={`w-full p-2 text-left rounded-lg text-xs transition-colors ${
-                      currentUser.role === item.role
-                        ? 'bg-rm-primary text-white font-bold'
-                        : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                    }`}
-                  >
-                    <div className="font-semibold">{item.label}</div>
-                    <div className={`text-[10px] ${currentUser.role === item.role ? 'text-zinc-200' : 'text-zinc-400'}`}>
-                      User: {item.name}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 shadow-sm">
+            <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="capitalize">{currentUser.role} Account</span>
+          </div>
+        )}
 
         {/* Refresh Data Button */}
         <button
@@ -266,7 +276,7 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           </button>
         </div>
 
-        {/* Profile Avatar */}
+        {/* Profile Avatar & Logout */}
         <div className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-xs shadow-inner">
             {currentUser?.name ? currentUser.name.charAt(0) : 'U'}
@@ -279,6 +289,17 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
               {currentUser?.role || 'Farmer'}
             </div>
           </div>
+          <button
+            onClick={async () => {
+              await logout();
+              router.push('/login');
+            }}
+            className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors ml-1"
+            title="Sign Out"
+            aria-label="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </header>

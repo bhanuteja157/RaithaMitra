@@ -11,6 +11,7 @@ import { ConceptualFarmMap } from '@/components/dashboard/ConceptualFarmMap';
 import { AnalyticsCharts } from '@/components/dashboard/AnalyticsCharts';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { DataProvenanceFooter } from '@/components/dashboard/DataProvenanceFooter';
+import { Sparkles, TrendingUp, ArrowRight, Layers, LineChart } from 'lucide-react';
 
 export default function DashboardPage() {
   return (

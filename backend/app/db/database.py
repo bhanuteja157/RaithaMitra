@@ -233,6 +233,30 @@ def init_db():
     )
     """)
 
+    # 11. Buyer Profiles (Registered by Buyer)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS buyer_profiles (
+        id TEXT PRIMARY KEY,
+        user_id TEXT UNIQUE NOT NULL,
+        buyer_type TEXT NOT NULL DEFAULT 'individual',
+        business_name TEXT,
+        delivery_address TEXT,
+        authorized_for_nursery INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
+    # 12. User Sessions (Active tokens & RBAC verification)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_sessions (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
     conn.commit()
     seed_demo_accounts(cursor)
     conn.commit()
@@ -254,6 +278,22 @@ def seed_demo_accounts(cursor):
         INSERT OR IGNORE INTO users (id, email, password_hash, name, phone, role, preferred_language, village, district, state, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, u)
+
+    # Seed Buyer Profiles
+    cursor.execute("""
+    INSERT OR IGNORE INTO buyer_profiles (
+        id, user_id, buyer_type, business_name, delivery_address, authorized_for_nursery
+    ) VALUES (
+        'buyer_prof_001', 'usr_buyer1', 'business', 'Bengaluru Fresh Foods Co', 'Yeshwanthpur APMC Yard, Bengaluru Urban', 0
+    )
+    """)
+    cursor.execute("""
+    INSERT OR IGNORE INTO buyer_profiles (
+        id, user_id, buyer_type, business_name, delivery_address, authorized_for_nursery
+    ) VALUES (
+        'buyer_prof_002', 'usr_buyer2', 'business', 'Mysuru Organic Retail Ltd', 'Bandipalya APMC Mandi, Mysuru', 0
+    )
+    """)
 
     # Seed Farmer's Farm
     cursor.execute("""

@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone
 
 from backend.app.db.database import get_db_connection
+from backend.app.features.auth.router import verify_user_role_in_db
 
 router = APIRouter(prefix="/transport", tags=["Transport Connect"])
 
@@ -78,6 +79,8 @@ def search_drivers(min_capacity_kg: Optional[float] = None, vehicle_type: Option
 
 @router.post("/vehicles")
 def register_vehicle(veh: VehicleRegister):
+    if not verify_user_role_in_db(veh.driver_id, ["driver", "admin"]):
+        raise HTTPException(status_code=403, detail="Unauthorized: Only registered drivers can register transport vehicles")
     conn = get_db_connection()
     cursor = conn.cursor()
     veh_id = f"veh_{uuid.uuid4().hex[:6]}"
@@ -100,6 +103,8 @@ def register_vehicle(veh: VehicleRegister):
 
 @router.post("/bookings", status_code=status.HTTP_201_CREATED)
 def create_booking(booking: BookingCreate):
+    if not verify_user_role_in_db(booking.farmer_id, ["farmer", "buyer", "admin"]):
+        raise HTTPException(status_code=403, detail="Unauthorized: Only registered farmers or buyers can book transport")
     conn = get_db_connection()
     cursor = conn.cursor()
     
