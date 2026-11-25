@@ -141,9 +141,15 @@ export function PersistentVoiceAssistant() {
       router.push(targetRoute);
     }
 
+    const exceedsBudget = result.totalCultivationInvestmentInr > budgetInr;
+    const budgetWarning = exceedsBudget
+      ? ` Warning: Estimated cultivation investment of ₹${result.totalCultivationInvestmentInr.toLocaleString('en-IN')} exceeds your available budget of ₹${budgetInr.toLocaleString('en-IN')}. Consider selecting a lower-input variety.`
+      : '';
+
     const summaryMsg =
       `Planned ${preset.name} for ${areaAcres} acres with ${waterAvailability} water and ₹${budgetInr.toLocaleString('en-IN')} budget. ` +
       `Estimated total investment is ₹${result.totalCultivationInvestmentInr.toLocaleString('en-IN')}, expected production ${result.expectedProductionKg.toLocaleString('en-IN')} kg, and projected net profit ₹${result.estimatedProfitInr.toLocaleString('en-IN')}.` +
+      budgetWarning +
       (openNurseries ? ' Opening nearby seed and nursery options below.' : '');
     speakAndSet(summaryMsg);
   };

@@ -29,14 +29,19 @@ router = APIRouter(prefix="/biotech", tags=["Biotechnology Intelligence (BioInte
     description="Fetches live peer-reviewed agricultural research papers from Europe PMC REST API with asynchronous caching and evidence synthesis."
 )
 def get_biotech_research(
-    crop: str = Query(..., min_length=2, description="Target crop e.g. Tomato, Rice, Banana, Chilli"),
+    crop: Optional[str] = Query(None, description="Target crop e.g. Tomato, Rice, Banana, Chilli"),
+    q: Optional[str] = Query(None, description="Search query alias for crop"),
+    query: Optional[str] = Query(None, description="Search query alias for crop"),
     problem: Optional[str] = Query(None, description="Agronomic issue e.g. bacterial wilt, drought tolerance, biofertilizer"),
     category: Optional[str] = Query(None, description="Biotech category filter"),
     page_size: int = Query(default=10, ge=1, le=25, description="Number of scientific papers to retrieve")
 ):
+    target_crop = (crop or q or query or "Tomato").strip()
+    if len(target_crop) < 2:
+        target_crop = "Tomato"
     try:
         return biotech_service.fetch_research_papers(
-            crop=crop,
+            crop=target_crop,
             problem=problem,
             category=category,
             page_size=page_size

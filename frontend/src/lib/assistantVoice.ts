@@ -409,6 +409,91 @@ const CROP_ALIASES: Array<{ canonical: string; terms: string[] }> = [
   { canonical: 'Chilli', terms: ['chilli', 'chili', 'ಮೆಣಸಿನಕಾಯಿ', 'मिर्च', 'మిర్చి'] },
 ];
 
+const SPOKEN_NUMBER_MAP: Record<string, number> = {
+  // English digits & words
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  hundred: 100, thousand: 1000, lakh: 100000, lakhs: 100000, crore: 10000000,
+  // Kannada words
+  ಒಂದು: 1, ಎರಡು: 2, ಮೂರು: 3, ನಾಲ್ಕು: 4, ಐದು: 5, ಆರು: 6, ಏಳು: 7, ಎಂಟು: 8, ಒಂಬತ್ತು: 9, ಹತ್ತು: 10,
+  ಇಪ್ಪತ್ತು: 20, ಮೂವತ್ತು: 30, ನಲವತ್ತು: 40, ಐವತ್ತು: 50, ಅರವತ್ತು: 60, ಎಪ್ಪತ್ತು: 70, ಎಂಬತ್ತು: 80, ತೊಂಬತ್ತು: 90,
+  ನೂರು: 100, ಸಾವಿರ: 1000, ಲಕ್ಷ: 100000,
+  // Hindi words
+  एक: 1, दो: 2, तीन: 3, चार: 4, पांच: 5, छह: 6, सात: 7, आठ: 8, नौ: 9, दस: 10,
+  ग्यारह: 11, बारह: 12, बीस: 20, तीस: 30, चालीस: 40, पचास: 50, साठ: 60, सत्तर: 70, अस्सी: 80, नब्बे: 90,
+  सौ: 100, हजार: 1000, हज़ार: 1000, लाख: 100000,
+  // Telugu words
+  ఒకటి: 1, రెండు: 2, మూడు: 3, నాలుగు: 4, ఐదు: 5, ఆరు: 6, ఏడు: 7, ఎనిమిది: 8, తొమ్మిది: 9, పది: 10,
+  ఇరవై: 20, ముప్పై: 30, నలభై: 40, యాభై: 50, అరవై: 60, డెబ్బై: 70, ఎనభై: 80, తొంబై: 90,
+  వంద: 100, వేలు: 1000, లక్ష: 100000,
+};
+
+export function extractAreaAcres(text: string): number | null {
+  const q = text.toLowerCase();
+  const digitMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:acre|acres|ac|ಎಕರೆ|एकड़|ఎకరాల|ఎకరం)/i);
+  if (digitMatch) return Number(digitMatch[1]);
+
+  for (const [word, val] of Object.entries(SPOKEN_NUMBER_MAP)) {
+    if (val <= 50) {
+      const pattern = new RegExp(`\\b${word}\\s*(?:acre|acres|ac|ಎಕರೆ|एकड़|ఎకరಾಲ|ఎకరం)`, 'i');
+      if (pattern.test(q)) return val;
+    }
+  }
+  return null;
+}
+
+export function extractBudgetInr(text: string): number | null {
+  const q = text.toLowerCase();
+  const multipliers = [
+    { multiplier: 1000, words: ['thousand', 'k', 'ಸಾವಿರ', 'हजार', 'हज़ार', 'వేలు', 'వేల'] },
+    { multiplier: 100000, words: ['lakh', 'lakhs', 'ಲಕ್ಷ', 'लाख', 'లక్ష'] },
+  ];
+
+  for (const group of multipliers) {
+    for (const w of group.words) {
+      const numMatch = q.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${w}\\b`, 'i'));
+      if (numMatch) return Math.round(Number(numMatch[1]) * group.multiplier);
+
+      for (const [numWord, val] of Object.entries(SPOKEN_NUMBER_MAP)) {
+        if (val < group.multiplier) {
+          const comboPattern = new RegExp(`\\b${numWord}\\s*${w}\\b`, 'i');
+          if (comboPattern.test(q)) {
+            return val * group.multiplier;
+          }
+        }
+      }
+    }
+  }
+
+  const rawBudgetMatch = q.match(/(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये|రూపాయలు)?/i);
+  if (rawBudgetMatch) {
+    return Number(rawBudgetMatch[1].replace(/,/g, ''));
+  }
+
+  for (const [word, val] of Object.entries(SPOKEN_NUMBER_MAP)) {
+    if (val >= 1000) {
+      if (new RegExp(`(?:budget|of)\\s*${word}`, 'i').test(q)) return val;
+    }
+  }
+
+  return null;
+}
+
+export function extractWorkersCount(text: string): number {
+  const q = text.toLowerCase();
+  const countMatch = q.match(/(\d+)\s*(?:worker|workers|labour|labor|people|men|women|ಕಾರ್ಮಿಕ|श्रमिक|కూలీ)/i);
+  if (countMatch) return Math.max(1, Math.min(100, Number(countMatch[1])));
+
+  for (const [word, val] of Object.entries(SPOKEN_NUMBER_MAP)) {
+    if (val <= 20) {
+      const pattern = new RegExp(`\\b${word}\\s*(?:worker|workers|labour|labor|people|men|women|ಕಾರ್ಮಿಕ|श्रमिक|కూలీ)`, 'i');
+      if (pattern.test(q)) return val;
+    }
+  }
+  return 2;
+}
+
 export function extractCropFromText(query: string): string | null {
   const q = query.toLowerCase();
   for (const entry of CROP_ALIASES) {
@@ -465,9 +550,8 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
   }
 
   // 2. Labour hiring draft
-  if (/(hire|book|find|post).*(worker|workers|labour|labor|ಕಾರ್ಮಿಕ|श्रमिक)/i.test(q)) {
-    const countMatch = q.match(/(\d+)\s*(?:worker|workers|labour|labor|people|men|women|ಕಾರ್ಮಿಕ|श्रमिक)/i);
-    const workersCount = countMatch ? Math.max(1, Math.min(100, Number(countMatch[1]))) : 2;
+  if (/(hire|book|find|post).*(worker|workers|labour|labor|ಕಾರ್ಮಿಕ|श्रमिक|ಕೂಲೀ)/i.test(q)) {
+    const workersCount = extractWorkersCount(q);
     let workType = 'Harvesting';
     if (/weed/i.test(q)) workType = 'Weeding';
     else if (/plant|sow|transplant/i.test(q)) workType = 'Planting';
@@ -512,23 +596,17 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
 
   // 5. BioIntel seed/crop planning
   const crop = extractCropFromText(q);
-  const areaMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:acre|acres|ac|ಎಕರೆ|एकड़|ఎకరాల|ఎకరం)/i);
-  const kBudgetMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:k|thousand)\b/i);
-  const rawBudgetMatch = q.match(/(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये)?/i);
-  const budgetInr = kBudgetMatch
-    ? Math.round(Number(kBudgetMatch[1]) * 1000)
-    : rawBudgetMatch
-      ? Number(rawBudgetMatch[1].replace(/,/g, ''))
-      : null;
+  const areaAcres = extractAreaAcres(q);
+  const budgetInr = extractBudgetInr(q);
   const waterAvailability = extractWaterAvailability(q);
-  const isPlanningIntent = /(plan|cultivat|seed|invest|calculate|recommend|grow|biointel)/i.test(q);
-  const openNurseries = /(nurser|seedling|sapling|buy seed|nearby)/i.test(q);
+  const isPlanningIntent = /(plan|cultivat|seed|invest|calculate|recommend|grow|biointel|ಬೆಳೆ|ಸಾಕು|ಬೆಳೆಯಲು)/i.test(q);
+  const openNurseries = /(nurser|seedling|sapling|buy seed|nearby|ನರ್ಸರಿ|नर्सरी)/i.test(q);
 
-  if ((crop && (areaMatch || budgetInr || isPlanningIntent)) || (isPlanningIntent && (areaMatch || budgetInr))) {
+  if ((crop && (areaAcres !== null || budgetInr !== null || isPlanningIntent)) || (isPlanningIntent && (areaAcres !== null || budgetInr !== null))) {
     return {
       type: 'biointel_plan',
       crop: crop || 'Tomato',
-      areaAcres: areaMatch ? Number(areaMatch[1]) : null,
+      areaAcres,
       budgetInr,
       waterAvailability,
       openNurseries,
