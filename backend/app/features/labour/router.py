@@ -11,6 +11,7 @@ import json
 from datetime import datetime, timezone
 
 from backend.app.db.database import get_db_connection
+from backend.app.features.auth.router import verify_user_role_in_db
 
 router = APIRouter(prefix="/labour", tags=["Labour Connect"])
 
@@ -59,6 +60,8 @@ def list_jobs(status_filter: Optional[str] = "open", job_type: Optional[str] = N
 
 @router.post("/jobs", status_code=status.HTTP_201_CREATED)
 def create_job(job: JobCreate):
+    if not verify_user_role_in_db(job.farmer_id, ["farmer", "admin"]):
+        raise HTTPException(status_code=403, detail="Unauthorized: Only registered farmers can post agricultural jobs")
     conn = get_db_connection()
     cursor = conn.cursor()
     job_id = f"job_{uuid.uuid4().hex[:6]}"
@@ -100,6 +103,8 @@ def get_job_details(job_id: str):
 
 @router.post("/jobs/{job_id}/apply")
 def apply_for_job(job_id: str, labour_id: str = Query(...), labour_name: str = Query("Basavaraj Koravara")):
+    if not verify_user_role_in_db(labour_id, ["labour", "admin"]):
+        raise HTTPException(status_code=403, detail="Unauthorized: Only registered agricultural labourers can apply for jobs")
     conn = get_db_connection()
     cursor = conn.cursor()
     
