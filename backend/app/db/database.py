@@ -834,6 +834,109 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_mkt_obs_comm_date ON market_price_observations(commodity, observation_date DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_mkt_obs_state_dist ON market_price_observations(state, district, market)")
 
+    # 20. Centralized Agricultural Decision Intelligence (AD-30)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agricultural_decision_runs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        preference_profile TEXT NOT NULL DEFAULT 'balanced',
+        evidence_count INTEGER NOT NULL DEFAULT 0,
+        conflicts_count INTEGER NOT NULL DEFAULT 0,
+        recommendations_count INTEGER NOT NULL DEFAULT 0,
+        summary_text TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agricultural_decision_evidence (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        source_module TEXT NOT NULL,
+        source_provider TEXT NOT NULL,
+        observed_value TEXT NOT NULL,
+        unit TEXT,
+        classification TEXT NOT NULL,
+        data_quality TEXT NOT NULL,
+        freshness TEXT NOT NULL,
+        observation_timestamp TEXT,
+        retrieval_timestamp TEXT NOT NULL,
+        applicable_crop TEXT,
+        limitations TEXT,
+        FOREIGN KEY (run_id) REFERENCES agricultural_decision_runs(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agricultural_decision_recommendations (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        action_group TEXT NOT NULL,
+        route TEXT NOT NULL,
+        score REAL NOT NULL,
+        feasible INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'dismissed', 'deferred', 'completed')),
+        explanation_json TEXT NOT NULL,
+        dependencies_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (run_id) REFERENCES agricultural_decision_runs(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agricultural_decision_actions (
+        id TEXT PRIMARY KEY,
+        run_id TEXT,
+        recommendation_id TEXT,
+        user_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        target_module TEXT NOT NULL,
+        preview_payload_json TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'previewed' CHECK(status IN ('previewed', 'confirmed', 'cancelled', 'expired')),
+        result_reference TEXT,
+        idempotency_key TEXT UNIQUE,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agricultural_decision_preferences (
+        user_id TEXT PRIMARY KEY,
+        preference_profile TEXT NOT NULL DEFAULT 'balanced',
+        custom_weights_json TEXT,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS agricultural_decision_feedback (
+        id TEXT PRIMARY KEY,
+        run_id TEXT,
+        recommendation_id TEXT,
+        user_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        followed INTEGER NOT NULL DEFAULT 1,
+        actual_cost_inr REAL,
+        actual_yield_kg REAL,
+        actual_price_per_kg REAL,
+        actual_water_m3 REAL,
+        outcome_notes TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_dec_runs_user_farm ON agricultural_decision_runs(user_id, farm_id, created_at DESC)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_dec_recs_run ON agricultural_decision_recommendations(run_id, status)")
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts

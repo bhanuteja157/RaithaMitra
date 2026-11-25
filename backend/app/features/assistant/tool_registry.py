@@ -193,6 +193,12 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "classification": "read_only",
         "provenance": "AD-29 Live Market Intelligence & Forecasting",
     },
+    "get_farm_decision_summary": {
+        "description": "Run AD-30 centralized decision intelligence, conflict resolution, and prioritized daily action plan for the farm.",
+        "allowed_roles": ["farmer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-30 Centralized Agricultural Decision Intelligence",
+    },
     "find_government_schemes": {
         "description": "Retrieve verified Indian government agricultural schemes and official links.",
         "allowed_roles": ["farmer", "buyer", "labour", "driver", "admin"],
@@ -990,6 +996,57 @@ async def execute_tool(
                 "latest_observations": obs[:3],
                 "forecast_available": fc.get("available", False),
                 "forecast": fc,
+            },
+            "cards": cards,
+            "sources": sources,
+            "provenance": meta["provenance"],
+        }
+
+    if tool_name == "get_farm_decision_summary":
+        if not farm:
+            return {"authorized": True, "data": {"error": "No farm profile found."}, "cards": cards, "sources": sources, "provenance": meta["provenance"]}
+        from backend.app.features.decision_intelligence.schemas import DecisionEvaluateRequest
+        from backend.app.features.decision_intelligence.service import evaluate_unified_decisions
+
+        res = await evaluate_unified_decisions(
+            user_id=user["user_id"],
+            role=user["role"],
+            req=DecisionEvaluateRequest(farm_id=farm["id"], persist_run=False),
+        )
+        top_recs = res["action_plan"]["ranked_recommendations"][:3]
+        conflicts = res["conflicts"]
+
+        metrics: Dict[str, Any] = {
+            "Farm": farm["farm_name"],
+            "Preference Profile": res["action_plan"]["preference_profile"],
+            "Evidence Items": len(res["evidence"]),
+            "Conflicts Detected": len(conflicts),
+        }
+        if top_recs:
+            metrics["Top Action"] = top_recs[0]["title"]
+
+        highlights = [
+            f"{r['title']}: {r['explanation']['why']}" for r in top_recs[:2]
+        ]
+        if conflicts:
+            highlights.append(f"Conflict: {conflicts[0]['title']} — {conflicts[0]['resolution']}")
+
+        cards.append(
+            StructuredCard(
+                card_type="decision_intelligence",
+                title=f"Centralized Decision Summary — {farm['farm_name']}",
+                metrics=metrics,
+                highlights=highlights[:3],
+            )
+        )
+        sources.append(SourceReference(title="AD-30 Cross-Module Decision Engine", source="RaithaMitra Decision Intelligence", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": {
+                "summary_text": res["summary_text"],
+                "top_recommendations": [r["title"] for r in top_recs],
+                "top_why": top_recs[0]["explanation"]["why"] if top_recs else None,
+                "conflicts_count": len(conflicts),
             },
             "cards": cards,
             "sources": sources,

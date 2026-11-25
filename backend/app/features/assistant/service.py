@@ -152,6 +152,17 @@ def _build_local_reply(
             f"and estimated net profit ₹{d['estimated_profit_inr']:,.0f} (using {d['variety']}).{warn}"
         )
 
+    if intent == "decision_intelligence_query":
+        top_recs = d.get("top_recommendations", [])
+        top_txt = f" Top priority: {top_recs[0]}. {d.get('top_why', '')}" if top_recs else ""
+        if lang == "kn":
+            return f"ಕೇಂದ್ರೀಕೃತ ಕೃಷಿ ನಿರ್ಧಾರ ಸಾರಾಂಶ: {d.get('conflicts_count', 0)} ಸಂಘರ್ಷಗಳನ್ನು ಗುರುತಿಸಲಾಗಿದೆ.{top_txt} ವಿವರಗಳಿಗಾಗಿ /decision-intelligence ತೆರೆಯಿರಿ."
+        if lang == "hi":
+            return f"केंद्रीकृत कृषि निर्णय सारांश: {d.get('conflicts_count', 0)} संभावित टकराव पहचाने गए।{top_txt} विवरण के लिए /decision-intelligence खोलें।"
+        if lang == "te":
+            return f"కేంద్రీకృత నిర్ణయ సారాంశం: {d.get('conflicts_count', 0)} అంశాలు గుర్తించబడ్డాయి.{top_txt} వివరాల కోసం /decision-intelligence తెరవండి."
+        return f"{d.get('summary_text', '')}{top_txt} Open /decision-intelligence for full explainability and what-if simulation."
+
     if intent == "market_intelligence_query":
         comm = d.get("commodity", "Tomato")
         obs = d.get("latest_observations", [])
@@ -453,6 +464,7 @@ async def handle_assistant_chat(
         "post_harvest_query": ("get_post_harvest_intelligence", {"crop": classified.get("crop")}),
         "equipment_query": ("get_equipment_intelligence", {"crop": classified.get("crop")}),
         "market_intelligence_query": ("get_market_intelligence", {"crop": classified.get("crop")}),
+        "decision_intelligence_query": ("get_farm_decision_summary", {}),
         "schemes": ("find_government_schemes", {}),
         "crop_health": ("check_crop_health_adapter", {"crop": classified.get("crop")}),
     }

@@ -11,6 +11,7 @@ from backend.app.features.satellite import router as satellite_router
 from backend.app.features.post_harvest import router as post_harvest_router
 from backend.app.features.equipment import router as equipment_router
 from backend.app.features.market_intelligence import router as market_router
+from backend.app.features.decision_intelligence import router as decision_router
 
 api_router = APIRouter()
 
@@ -42,3 +43,4 @@ api_router.include_router(satellite_router.router)
 api_router.include_router(post_harvest_router.router)
 api_router.include_router(equipment_router.router)
 api_router.include_router(market_router.router)
+api_router.include_router(decision_router.router)
