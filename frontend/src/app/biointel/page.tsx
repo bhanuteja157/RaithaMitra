@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
 import { AdvancedBioIntelPanel } from '@/components/biointel/AdvancedBioIntelPanel';
 import { SeedInvestmentPlanner } from '@/components/biointel/SeedInvestmentPlanner';
+import { BioIntelNurseryFinder } from '@/components/biointel/BioIntelNurseryFinder';
 import {
   fetchBiotechResearch,
   fetchBiotechRecommendations,
@@ -70,6 +71,18 @@ export default function BioIntelPage() {
 
   // Selection states
   const [selectedCrop, setSelectedCrop] = useState<string>(currentFarm?.primary_crop || 'Tomato');
+  const [nurserySelection, setNurserySelection] = useState<{
+    crop: string;
+    varietyName: string;
+    requiredSeedKg: number;
+    budgetInr: number;
+  }>({
+    crop: currentFarm?.primary_crop || 'Tomato',
+    varietyName: '',
+    requiredSeedKg: 0.15,
+    budgetInr: currentFarm?.cultivation_budget_inr || 50000,
+  });
+  const [showScientificResearch, setShowScientificResearch] = useState<boolean>(false);
   const [selectedProblem, setSelectedProblem] = useState<string>('Bacterial Wilt (Ralstonia)');
   const [selectedCategory, setSelectedCategory] = useState<BiotechCategoryType | ''>('disease_resistant_varieties');
   const [customSearchQuery, setCustomSearchQuery] = useState<string>('');
@@ -214,11 +227,51 @@ export default function BioIntelPage() {
         </div>
       </div>
 
-      {/* AD-05 Unified Scientific & OR-Tools Procurement Intelligence */}
-      <AdvancedBioIntelPanel selectedCrop={selectedCrop} />
+      {/* Section 1 & 2: Plan My Crop + Compare Seed Varieties */}
+      <SeedInvestmentPlanner
+        selectedCrop={selectedCrop}
+        onSelectCrop={(c) => {
+          setSelectedCrop(c);
+          setNurserySelection((prev) => ({ ...prev, crop: c, varietyName: '' }));
+        }}
+        onVarietySelectedForNursery={(payload) => setNurserySelection(payload)}
+      />
 
-      {/* AD-07 / AD-10: Simplified Intelligent Seed Investment Planner */}
-      <SeedInvestmentPlanner selectedCrop={selectedCrop} onSelectCrop={setSelectedCrop} />
+      {/* Section 3: Find Seeds & Nurseries (auto-prefilled from selected variety) */}
+      <BioIntelNurseryFinder
+        crop={nurserySelection.crop || selectedCrop}
+        varietyName={nurserySelection.varietyName}
+        requiredSeedKg={nurserySelection.requiredSeedKg}
+        budgetInr={nurserySelection.budgetInr}
+      />
+
+      {/* Expandable Scientific & Biological Research (Optional) */}
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowScientificResearch((s) => !s)}
+          className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+        >
+          <div>
+            <div className="text-sm font-bold text-zinc-900 dark:text-white">
+              Biological &amp; Scientific Research (Optional)
+            </div>
+            <div className="text-xs text-zinc-500">
+              {showScientificResearch
+                ? 'Hide Europe PMC literature and procurement solver'
+                : 'Expand for peer-reviewed research papers, biofertilizer advisories, and OR-Tools optimization'}
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-emerald-700">
+            {showScientificResearch ? 'Hide' : 'Expand'}
+          </span>
+        </button>
+        {showScientificResearch && (
+          <div className="p-4 pt-0 space-y-5 border-t border-zinc-200 dark:border-zinc-800">
+            <AdvancedBioIntelPanel selectedCrop={selectedCrop} />
+          </div>
+        )}
+      </div>
 
       {/* Control Strip & Crop Context Selection */}
       <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-4">

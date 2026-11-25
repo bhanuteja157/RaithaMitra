@@ -119,65 +119,21 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       },
     ];
   } else {
-    // Farmer Dashboard & Full Agri Intelligence
+    // Simplified Farmer Navigation (AD-16: 10 clean farmer-friendly entries)
     navigationGroups = [
       {
-        title: "OVERVIEW",
+        title: "FARMER WORKSPACE",
         items: [
-          { name: "Farmer Dashboard", href: '/', icon: LayoutDashboard, status: 'role', badge: 'Farmer' },
-          { name: "Digital Farming Simulator", href: '/digital-farming', icon: Layers, status: 'flagship', badge: 'New' },
-        ],
-      },
-      {
-        title: "FLAGSHIP INNOVATIONS",
-        items: [
-          { name: "BioIntel Research", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Flagship' },
-          { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
-          { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
-          { name: "Smart Bidding", href: '/bidding', icon: Gavel, status: 'flagship', badge: 'Flagship' },
-          { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Flagship' },
-        ],
-      },
-      {
-        title: "ECONOMIC INTELLIGENCE",
-        items: [
-          { name: "Market Intelligence", href: '/market-intelligence', icon: LineChart, status: 'flagship', badge: 'New' },
-          { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
-          { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'operational' },
-        ],
-      },
-      {
-        title: "ROLE DASHBOARDS",
-        items: [
-          { name: "Farmer Dashboard", href: '/', icon: LayoutDashboard, status: 'role', badge: 'Farmer' },
-          { name: "Buyer Marketplace", href: '/dashboard/buyer', icon: ShoppingBag, status: 'role', badge: 'Buyer' },
-          { name: "Labour Portal", href: '/dashboard/labour', icon: HardHat, status: 'role', badge: 'Labour' },
-          { name: "Driver Console", href: '/dashboard/driver', icon: Truck, status: 'role', badge: 'Driver' },
-        ],
-      },
-      {
-        title: "SUPPORTING AGRI CAPABILITIES",
-        items: [
-          { name: t('climate'), href: '/climate', icon: CloudSun, status: 'operational' },
-          { name: t('satellite'), href: '/satellite', icon: Satellite, status: 'prototype' },
-          { name: t('digitalTwin'), href: '/farm-twin', icon: Layers, status: 'prototype' },
-          { name: t('irrigation'), href: '/irrigation', icon: Droplets, status: 'prototype' },
-          { name: t('diagnostics'), href: '/diagnostics', icon: Microscope, status: 'prototype' },
-          { name: t('soilNutrients'), href: '/soil-nutrients', icon: Sprout, status: 'prototype' },
-          { name: t('simulation'), href: '/simulation', icon: LineChart, status: 'prototype' },
-          { name: t('postHarvest'), href: '/post-harvest', icon: Warehouse, status: 'prototype' },
-          { name: t('resources'), href: '/resources', icon: Tractor, status: 'prototype' },
-          { name: t('surveillance'), href: '/surveillance', icon: Activity, status: 'prototype' },
-          { name: t('schemes'), href: '/schemes', icon: Award, status: 'operational' },
-          { name: t('assistant'), href: '/assistant', icon: BotMessageSquare, status: 'prototype' },
-          { name: t('decisionIntelligence'), href: '/decision-intelligence', icon: Compass, status: 'operational' },
-        ],
-      },
-      {
-        title: "SYSTEM PREFERENCES",
-        items: [
-          { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
-          { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
+          { name: "Home", href: '/', icon: LayoutDashboard, status: 'role' },
+          { name: "BioIntel", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Seeds' },
+          { name: "Digital Farm", href: '/digital-farming', icon: Layers, status: 'flagship', badge: 'Map & Twin' },
+          { name: "Farm Management", href: '/farm-management', icon: CloudSun, status: 'operational' },
+          { name: "Crop Health", href: '/crop-health', icon: Microscope, status: 'operational' },
+          { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Workers' },
+          { name: "Smart Bidding & Market", href: '/smart-market', icon: Gavel, status: 'flagship', badge: 'Sell' },
+          { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Transport' },
+          { name: "Finance & Benefits", href: '/finance-benefits', icon: Coins, status: 'operational' },
+          { name: "Profile & Settings", href: '/profile', icon: User, status: 'operational' },
         ],
       },
     ];
