@@ -217,8 +217,8 @@ export default function BioIntelPage() {
       {/* AD-05 Unified Scientific & OR-Tools Procurement Intelligence */}
       <AdvancedBioIntelPanel selectedCrop={selectedCrop} />
 
-      {/* AD-07: Intelligent Seed Investment Planner */}
-      <SeedInvestmentPlanner selectedCrop={selectedCrop} />
+      {/* AD-07 / AD-10: Simplified Intelligent Seed Investment Planner */}
+      <SeedInvestmentPlanner selectedCrop={selectedCrop} onSelectCrop={setSelectedCrop} />
 
       {/* Control Strip & Crop Context Selection */}
       <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-4">

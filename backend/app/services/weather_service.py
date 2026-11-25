@@ -6,7 +6,7 @@ and FAO-56 Penman-Monteith reference evapotranspiration (ET0).
 Includes graceful offline fallback cache when network is degraded.
 """
 import httpx
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 from typing import Dict, Any, Optional
 from backend.app.schemas.weather import WeatherResponse, CurrentWeather, DailyForecast, Provenance
 from backend.app.core.config import settings
@@ -131,14 +131,15 @@ class WeatherService:
         )
         daily_forecast = [
             DailyForecast(
-                date=today,
-                temp_max_c=31.5,
-                temp_min_c=19.8,
-                precipitation_sum_mm=0.0,
-                rain_probability_max_pct=10,
+                date=today + timedelta(days=i),
+                temp_max_c=31.5 + (i % 3) * 0.5,
+                temp_min_c=19.8 + (i % 2) * 0.4,
+                precipitation_sum_mm=0.0 if i != 2 else 2.5,
+                rain_probability_max_pct=10 if i != 2 else 35,
                 et0_fao56_mm=4.6,
-                condition_text="Mainly Clear"
+                condition_text="Mainly Clear" if i != 2 else "Passing Showers"
             )
+            for i in range(7)
         ]
         return WeatherResponse(
             latitude=lat,

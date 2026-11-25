@@ -1,7 +1,7 @@
 # RaithaMitra (ರೈತ ಮಿತ್ರ) — Implementation Status
 
 **Status Tracking Date:** November 2026  
-**Competition:** HackWarts 2026 — Second Judging Round (AD-02 / AD-06D / AD-07 / AD-08)  
+**Competition:** HackWarts 2026 — Second Judging Round (AD-02 / AD-06D / AD-07 / AD-08 / AD-10)  
 **Team:** Syntax Squad  
 
 ---
@@ -12,7 +12,7 @@ In accordance with judging instructions for Round 2, the platform elevates and i
 
 | Flagship # | Innovation | Description | Primary Route | Role Access | Scientific / Algorithmic Core | Backend Endpoint | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| **01** | **BioIntel & Seed Investment Planner** | Agri-Biotechnology, Genomics & Financial Seed Planning | `/biointel` | Farmer, All | Europe PMC open-access research query, crop genomic resilience takeaways, certified nursery locator, Seed Investment Planner (AD-07) | `/api/v1/biointel/research` | **Operational** |
+| **01** | **BioIntel & Simplified Seed Planner** | Agri-Biotechnology, Genomics & Simplified Seed Planning | `/biointel` | Farmer, All | Europe PMC open-access research query, crop genomic resilience takeaways, certified nursery locator, Simplified Intelligent Seed Investment Planner (AD-10) with 4-question input, 3-variety visual cards, collapsed advanced customization, and "Help Me Choose a Crop" | `/api/v1/biointel/research` | **Operational** |
 | **02** | **Labour Connect** | Fair Agricultural Workforce Network | `/labour` | Farmer, Labour | Location/skill worker matching, direct WhatsApp/call consent, wage escrow transparency | `/api/v1/labour/jobs` | **Operational** |
 | **03** | **Smart Bidding** | Farmer-First Competitive Produce Auctions | `/bidding` | Farmer, Buyer | Verified lot auctions, Bidding Intelligence offer evaluator, atomic sale PO generation | `/api/v1/bidding/listings` | **Operational** |
 | **04** | **Transport Connect** | Farm-to-Market Logistics & Pooling | `/transport` | Farmer, Driver | Payload-capacity matching, 6-stage milestone tracker, Google OR-Tools multi-stop pooling | `/api/v1/transport/drivers` | **Operational** |
