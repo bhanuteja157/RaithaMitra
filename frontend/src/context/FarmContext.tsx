@@ -14,7 +14,7 @@ interface FarmContextType {
   token: string | null;
   login: (credentials: { email: string; password: string; role?: UserRole }) => Promise<{ success: boolean; error?: string; redirect_url?: string }>;
   registerUser: (data: any) => Promise<{ success: boolean; error?: string; redirect_url?: string }>;
-  sendOtp: (phone: string, countryCode?: string) => Promise<{ success: boolean; masked_phone?: string; cooldown_seconds?: number; sms_configured?: boolean; error?: string }>;
+  sendOtp: (phone: string, countryCode?: string) => Promise<{ success: boolean; masked_phone?: string; cooldown_seconds?: number; sms_configured?: boolean; demo_mode?: boolean; notice?: string; error?: string }>;
   verifyOtp: (phone: string, otp: string, countryCode?: string) => Promise<{ success: boolean; status?: 'authenticated' | 'needs_registration'; verification_token?: string; masked_phone?: string; redirect_url?: string; error?: string }>;
   registerWithOtp: (payload: { verification_token: string; name: string; role: UserRole; preferred_language?: string }) => Promise<{ success: boolean; redirect_url?: string; error?: string }>;
   logout: () => Promise<void>;
@@ -221,6 +221,8 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         masked_phone: data.masked_phone,
         cooldown_seconds: data.cooldown_seconds,
         sms_configured: data.sms_configured,
+        demo_mode: data.demo_mode,
+        notice: data.notice,
       };
     } catch (err: any) {
       return { success: false, error: err.message || 'Network error connecting to OTP service' };

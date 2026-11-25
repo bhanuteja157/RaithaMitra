@@ -1,7 +1,7 @@
 # RaithaMitra (ರೈತ ಮಿತ್ರ) — Implementation Status
 
 **Status Tracking Date:** November 2026  
-**Competition:** HackWarts 2026 — Second Judging Round (AD-02 / AD-06D / AD-07 / AD-08 / AD-10 / AD-15)  
+**Competition:** HackWarts 2026 — Second Judging Round (AD-02 / AD-06D / AD-07 / AD-08 / AD-10 / AD-15 / AD-18)  
 **Team:** Syntax Squad  
 
 ---
@@ -65,7 +65,8 @@ In accordance with judging instructions for Round 2, the platform elevates and i
 
 - **Password Hashing:** NIST-compliant **PBKDF2-HMAC-SHA256 (100,000 iterations)** with 16-byte cryptographic salt.
 - **Legacy In-Place Migration:** Seamless automatic migration of legacy plaintext or salted SHA-256 hashes to PBKDF2-HMAC-SHA256 upon successful login.
-- **Mobile OTP Authentication (AD-15):** Secure phone-based OTP login and registration with E.164 / +91 normalization, per-phone unique role locks (`idx_users_phone_normalized_unique`), single-use HMAC-SHA256 hashed OTPs, 60-second dispatch cooldowns, and 10-minute expiry with 5-attempt brute-force protection.
+- **Mobile OTP Authentication (AD-15 & AD-18):** Secure phone-based OTP login and registration with E.164 / +91 normalization, per-phone unique role locks (`idx_users_phone_normalized_unique`), single-use HMAC-SHA256 hashed OTPs, 60-second dispatch cooldowns, and 10-minute expiry with 5-attempt brute-force protection.
+- **Zero-Cost Demo Mobile OTP (AD-18):** Configured via `DEMO_OTP_ENABLED=true` and `DEMO_OTP_CODE=280707` in backend `.env`. Strictly restricted to local development and allowlisted demo personas (Farmer `+919845012345`, Buyer `+919845067890`, Buyer 2 `+919845011223`, Labour `+919845044556`, Driver `+919845077889`). Never exposed in frontend source code. Displays honest `"Demo verification mode — no SMS sent."` notice. Strictly disabled and rejected in production environments.
 - **SMS Provider Resilience & Twilio Fallback:** Production-ready Twilio Verify integration with automatic, graceful fallback to secure local single-use OTP generation in development environments when Twilio credentials are missing or unreachable, ensuring zero disruption to testing and offline workflows.
 - **Access Control:** Multi-tier role-based access control (RBAC) across endpoints (`labour`, `bidding`, `transport`) validating caller tokens against SQLite user profiles.
 - **Entry Flow:** Clean authentication gate on `/login` presenting 4 distinct tabs: `Mobile OTP`, `Password`, `Register` (with 4 role cards: Farmer, Buyer, Labour, Driver), and 1-click `Demo` credentials for instant offline evaluation.
@@ -74,15 +75,15 @@ In accordance with judging instructions for Round 2, the platform elevates and i
 
 ## 6. Automated Verification & Testing Suite
 
-- **Backend Pytest Suite:** `59 passed, 0 failed` across 9 test suites:
+- **Backend Pytest Suite:** `66 passed, 0 failed` across 9 test suites:
   - `backend/tests/test_api.py` (7 tests): Core health, farms, live weather, recommendations, schemes.
   - `backend/tests/test_auth_rbac.py` (6 tests): PBKDF2-HMAC-SHA256 & salted SHA-256 hashing, multi-role registration, session tokens, logout invalidation, role mismatch rejection, RBAC privilege escalation rejection.
-  - `backend/tests/test_mobile_otp_auth.py` (3 tests): Phone number normalization variants (+91/E.164), invalid phone format rejection, OTP dispatch cooldown, cross-role phone locks, and full OTP registration and login.
+  - `backend/tests/test_mobile_otp_auth.py` (10 tests): Phone number normalization variants (+91/E.164), invalid phone format rejection, OTP dispatch cooldown, cross-role phone locks, full OTP registration and login, AD-18 demo OTP success for all 4 roles, incorrect OTP rejection, expired OTP rejection, replay protection, 5-attempt lockout, unauthorized account rejection, and production-mode rejection.
   - `backend/tests/test_flagship_api.py` (6 tests): Multi-role login, Labour Connect, Smart Bidding, Transport Connect, BioIntel workflows.
   - `backend/tests/test_biointel_advanced.py` (7 tests): GBIF taxonomy, NCBI/Ensembl parsing, Haversine fallback, Google OR-Tools MILP procurement.
   - `backend/tests/test_biointel_nursery.py` (11 tests): Europe PMC research caching, nursery discovery, inquiries, supplier comparisons.
   - `backend/tests/test_locations.py` (4 tests): Nominatim geocoding mock, coordinate validation, farm location patching.
   - `backend/tests/test_scientific_modules.py` (9 tests): FAO-56 irrigation, soil NPK analysis, Monte Carlo simulation, farm twin water balance, NDVI/NDWI/EVI calculations, diagnostics image validation.
   - `backend/tests/test_scientific_regression.py` (6 tests): Demonstration Scenarios A, B, C, D; multilingual Kannada/Hindi support; GBIF species precision.
-- **Frontend Production Build:** Next.js 14.2.18 with React 18, TypeScript strict validation (`tsc --noEmit` 0 errors), and **34/34 static pages prerendered** (including `/digital-farming` and `/market-intelligence`).
+- **Frontend Production Build:** Next.js 14.2.18 with React 18, TypeScript strict validation (`tsc --noEmit` 0 errors), and **38/38 static pages prerendered** (including all role dashboards, `/digital-farming`, and `/market-intelligence`).
 - **Database Engine:** Single unified SQLite database (`database/raithamitra.db`) with 12 interconnected tables (`users`, `farms`, `buyer_profiles`, `user_sessions`, `labour_profiles`, `labour_jobs`, `labour_applications`, `bidding_listings`, `bidding_bids`, `purchase_orders`, `transport_vehicles`, `transport_bookings`) and safe evaluation accounts.

@@ -122,6 +122,7 @@ export function MobileOtpFlow() {
   const [otp, setOtp] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [smsConfigured, setSmsConfigured] = useState<boolean>(true);
+  const [demoNotice, setDemoNotice] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState('');
 
   const [name, setName] = useState('');
@@ -162,8 +163,13 @@ export function MobileOtpFlow() {
       return;
     }
     setMaskedPhone(res.masked_phone || phone);
-    setCooldown(res.cooldown_seconds || 30);
+    setCooldown(res.cooldown_seconds || 60);
     setSmsConfigured(Boolean(res.sms_configured));
+    if (res.demo_mode || res.notice) {
+      setDemoNotice(res.notice || 'Demo verification mode — no SMS sent.');
+    } else {
+      setDemoNotice(null);
+    }
     setStep('otp');
   };
 
@@ -178,7 +184,7 @@ export function MobileOtpFlow() {
     verifyingRef.current = false;
 
     if (!res.success) {
-      setError(res.error || 'Invalid verification code.');
+      setError(res.error || 'Invalid OTP. Please try again.');
       return;
     }
 
@@ -279,11 +285,16 @@ export function MobileOtpFlow() {
             {t.otpSentTo} <strong>{maskedPhone}</strong>
           </div>
 
-          {!smsConfigured && (
-            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
-              Live SMS delivery is pending Twilio Verify credentials in <code>.env</code>. Backend OTP hashing &amp; verification workflow is active.
+          {demoNotice ? (
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200 font-medium flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>{demoNotice}</span>
             </div>
-          )}
+          ) : !smsConfigured ? (
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[11px] text-amber-900 dark:text-amber-300">
+              Demo verification mode — no SMS sent.
+            </div>
+          ) : null}
 
           <div>
             <input
@@ -329,6 +340,7 @@ export function MobileOtpFlow() {
                 setStep('phone');
                 setOtp('');
                 setError(null);
+                setDemoNotice(null);
               }}
               className="text-[#8D7357] hover:underline"
             >

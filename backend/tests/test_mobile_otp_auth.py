@@ -130,3 +130,139 @@ def test_otp_send_cooldown_and_full_registration_login_cross_role_lock():
         assert me_res.status_code == 401
     finally:
         _cleanup_phone(phone_norm)
+
+
+def _clear_otps_for_phone(phone_norm: str) -> None:
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM phone_otps WHERE phone_normalized = ?", (phone_norm,))
+    conn.commit()
+    conn.close()
+
+
+def test_demo_otp_success_all_roles():
+    init_db()
+    demo_cases = [
+        ("9845012345", "farmer", "/"),
+        ("9845067890", "buyer", "/dashboard/buyer"),
+        ("9845044556", "labour", "/dashboard/labour"),
+        ("9845077889", "driver", "/dashboard/driver"),
+    ]
+    for phone, role, redirect in demo_cases:
+        phone_norm = normalize_phone_e164(phone)
+        _clear_otps_for_phone(phone_norm)
+
+        send_res = client.post("/api/v1/auth/otp/send", json={"phone": phone, "country_code": "+91"})
+        assert send_res.status_code == 200
+        assert send_res.json()["sent"] is True
+        assert send_res.json()["demo_mode"] is True
+        assert send_res.json()["notice"] == "Demo verification mode — no SMS sent."
+        assert send_res.json()["cooldown_seconds"] == 60
+        assert send_res.json()["expires_in_seconds"] == 600
+
+        verify_res = client.post("/api/v1/auth/otp/verify", json={"phone": phone, "otp": "280707"})
+        assert verify_res.status_code == 200
+        assert verify_res.json()["status"] == "authenticated"
+        assert verify_res.json()["user"]["role"] == role
+        assert verify_res.json()["redirect_url"] == redirect
+
+
+def test_demo_otp_incorrect_code_rejected():
+    phone = "9845012345"
+    phone_norm = normalize_phone_e164(phone)
+    _clear_otps_for_phone(phone_norm)
+
+    send_res = client.post("/api/v1/auth/otp/send", json={"phone": phone})
+    assert send_res.status_code == 200
+
+    bad_res = client.post("/api/v1/auth/otp/verify", json={"phone": phone, "otp": "123456"})
+    assert bad_res.status_code == 400
+    assert bad_res.json()["detail"] == "Invalid OTP. Please try again."
+
+
+def test_demo_otp_expired_code_rejected():
+    phone = "9845012345"
+    phone_norm = normalize_phone_e164(phone)
+    _clear_otps_for_phone(phone_norm)
+
+    send_res = client.post("/api/v1/auth/otp/send", json={"phone": phone})
+    assert send_res.status_code == 200
+
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE phone_otps SET expires_at = '2020-01-01T00:00:00+00:00' WHERE phone_normalized = ?",
+        (phone_norm,),
+    )
+    conn.commit()
+    conn.close()
+
+    res = client.post("/api/v1/auth/otp/verify", json={"phone": phone, "otp": "280707"})
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Verification code expired. Please request a new OTP."
+
+
+def test_demo_otp_replay_rejected():
+    phone = "9845012345"
+    phone_norm = normalize_phone_e164(phone)
+    _clear_otps_for_phone(phone_norm)
+
+    send_res = client.post("/api/v1/auth/otp/send", json={"phone": phone})
+    assert send_res.status_code == 200
+
+    res1 = client.post("/api/v1/auth/otp/verify", json={"phone": phone, "otp": "280707"})
+    assert res1.status_code == 200
+
+    res2 = client.post("/api/v1/auth/otp/verify", json={"phone": phone, "otp": "280707"})
+    assert res2.status_code == 400
+    assert res2.json()["detail"] == "This verification code has already been used. Request a new OTP."
+
+
+def test_demo_otp_repeated_attempts_lockout():
+    phone = "9845012345"
+    phone_norm = normalize_phone_e164(phone)
+    _clear_otps_for_phone(phone_norm)
+
+    send_res = client.post("/api/v1/auth/otp/send", json={"phone": phone})
+    assert send_res.status_code == 200
+
+    for i in range(5):
+        bad = client.post("/api/v1/auth/otp/verify", json={"phone": phone, "otp": f"90000{i}"})
+        assert bad.status_code == 400
+        assert bad.json()["detail"] == "Invalid OTP. Please try again."
+
+    lockout = client.post("/api/v1/auth/otp/verify", json={"phone": phone, "otp": "280707"})
+    assert lockout.status_code == 429
+    assert lockout.json()["detail"] == "Maximum verification attempts exceeded. Request a new OTP."
+
+
+def test_demo_otp_unauthorized_account_rejection():
+    unauth_phone = "9999900000"
+    unauth_norm = normalize_phone_e164(unauth_phone)
+    _cleanup_phone(unauth_norm)
+
+    try:
+        send_res = client.post("/api/v1/auth/otp/send", json={"phone": unauth_phone})
+        assert send_res.status_code == 200
+        assert send_res.json().get("demo_mode") is False
+
+        verify_res = client.post("/api/v1/auth/otp/verify", json={"phone": unauth_phone, "otp": "280707"})
+        assert verify_res.status_code == 400
+        assert verify_res.json()["detail"] == "Invalid OTP. Please try again."
+    finally:
+        _cleanup_phone(unauth_norm)
+
+
+def test_demo_otp_production_mode_rejection(monkeypatch):
+    from backend.app.features.auth.otp_service import is_demo_otp_active
+
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("DEMO_OTP_ENABLED", "true")
+    assert is_demo_otp_active() is False
+
+    phone = "9845012345"
+    phone_norm = normalize_phone_e164(phone)
+    _clear_otps_for_phone(phone_norm)
+
+    prod_send = client.post("/api/v1/auth/otp/send", json={"phone": phone})
+    # In production without Twilio configured, must reject with 503 and never activate demo OTP
+    assert prod_send.status_code in (502, 503)
