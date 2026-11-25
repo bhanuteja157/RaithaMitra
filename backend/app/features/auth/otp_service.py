@@ -128,11 +128,21 @@ async def dispatch_otp(cursor, phone_normalized: str) -> dict:
         )
 
     if use_twilio:
-        ok = await send_twilio_verify_otp(phone_normalized)
-        if not ok:
+        try:
+            ok = await send_twilio_verify_otp(phone_normalized)
+        except Exception:
+            ok = False
+
+        if ok:
+            otp_hash = "twilio_verify_managed"
+            provider_label = "twilio_verify"
+        elif env_mode == "development":
+            raw_otp = f"{secrets.randbelow(900000) + 100000}"
+            otp_hash = hash_otp(phone_normalized, raw_otp)
+            provider_label = "local_dev_pending_sms_provider"
+            use_twilio = False
+        else:
             raise HTTPException(status_code=502, detail="Failed to dispatch SMS OTP via Twilio Verify.")
-        otp_hash = "twilio_verify_managed"
-        provider_label = "twilio_verify"
     else:
         raw_otp = f"{secrets.randbelow(900000) + 100000}"
         otp_hash = hash_otp(phone_normalized, raw_otp)

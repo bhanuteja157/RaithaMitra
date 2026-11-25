@@ -303,12 +303,31 @@ def init_db():
     for u_row in cursor.fetchall():
         try:
             norm = normalize_phone_e164(u_row["phone"])
-            cursor.execute(
-                "UPDATE users SET phone_normalized = ? WHERE id = ?",
+            existing = cursor.execute(
+                "SELECT id FROM users WHERE phone_normalized = ? AND id != ?",
                 (norm, u_row["id"]),
-            )
+            ).fetchone()
+            if not existing:
+                cursor.execute(
+                    "UPDATE users SET phone_normalized = ? WHERE id = ?",
+                    (norm, u_row["id"]),
+                )
         except (ValueError, sqlite3.IntegrityError):
             pass
+
+    # Clean up any historical duplicate phone_normalized values before creating unique index
+    cursor.execute("""
+    SELECT phone_normalized, min(created_at) as min_created
+    FROM users
+    WHERE phone_normalized IS NOT NULL AND phone_normalized != ''
+    GROUP BY phone_normalized
+    HAVING count(*) > 1
+    """)
+    for dup in cursor.fetchall():
+        cursor.execute(
+            "UPDATE users SET phone_normalized = NULL WHERE phone_normalized = ? AND created_at != ?",
+            (dup["phone_normalized"], dup["min_created"]),
+        )
 
     cursor.execute("""
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_normalized_unique
@@ -347,10 +366,15 @@ def init_db():
     for u_row in cursor.fetchall():
         try:
             norm = normalize_phone_e164(u_row["phone"])
-            cursor.execute(
-                "UPDATE users SET phone_normalized = ? WHERE id = ?",
+            existing = cursor.execute(
+                "SELECT id FROM users WHERE phone_normalized = ? AND id != ?",
                 (norm, u_row["id"]),
-            )
+            ).fetchone()
+            if not existing:
+                cursor.execute(
+                    "UPDATE users SET phone_normalized = ? WHERE id = ?",
+                    (norm, u_row["id"]),
+                )
         except (ValueError, sqlite3.IntegrityError):
             pass
     conn.commit()

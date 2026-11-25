@@ -1,7 +1,7 @@
 # RaithaMitra (ರೈತ ಮಿತ್ರ) — Implementation Status
 
 **Status Tracking Date:** November 2026  
-**Competition:** HackWarts 2026 — Second Judging Round (AD-02 / AD-06D / AD-07 / AD-08 / AD-10)  
+**Competition:** HackWarts 2026 — Second Judging Round (AD-02 / AD-06D / AD-07 / AD-08 / AD-10 / AD-15)  
 **Team:** Syntax Squad  
 
 ---
@@ -56,7 +56,7 @@ In accordance with judging instructions for Round 2, the platform elevates and i
 | **11** | **Resource Optimization** | `/resources` | Operational Prototype | `/api/v1/resources/machinery` | Tractor/harvester rental sharing, drip scheduling, labour pools |
 | **12** | **Community Disease Surveillance** | `/surveillance` | Operational Prototype | `/api/v1/surveillance/hotspots` | Regional pathogen outbreak radar, cluster alerts, spore wind drift |
 | **13** | **Government Schemes & Knowledge Hub** | `/schemes` | Operational | `/api/v1/schemes` | PM-KISAN, PMFBY, Soil Health Card, PMKSY eligibility & links |
-| **14** | **Multilingual AI Farm Assistant** | `/assistant` | Operational Prototype | `/api/v1/assistant/chat` | Multilingual conversational advisor with grounded evidence citations |
+| **14** | **Multilingual AI Farm Assistant** | `/assistant` | Operational Voice Navigation | `/api/v1/assistant/chat` | Multilingual conversational advisor with grounded evidence citations and persistent hands-free spoken voice navigation (`PersistentVoiceAssistant`) across English, Kannada, Hindi, and Telugu. **Note:** Voice spoken navigation to application routes is fully operational; voice form-filling and automated agricultural task execution are pending future phases. |
 | **15** | **Centralized Decision Intelligence** | `/decision-intelligence` | Operational | `/api/v1/recommendations` | Multi-objective ranking, conflict resolution, daily action plan |
 
 ---
@@ -65,16 +65,19 @@ In accordance with judging instructions for Round 2, the platform elevates and i
 
 - **Password Hashing:** NIST-compliant **PBKDF2-HMAC-SHA256 (100,000 iterations)** with 16-byte cryptographic salt.
 - **Legacy In-Place Migration:** Seamless automatic migration of legacy plaintext or salted SHA-256 hashes to PBKDF2-HMAC-SHA256 upon successful login.
+- **Mobile OTP Authentication (AD-15):** Secure phone-based OTP login and registration with E.164 / +91 normalization, per-phone unique role locks (`idx_users_phone_normalized_unique`), single-use HMAC-SHA256 hashed OTPs, 60-second dispatch cooldowns, and 10-minute expiry with 5-attempt brute-force protection.
+- **SMS Provider Resilience & Twilio Fallback:** Production-ready Twilio Verify integration with automatic, graceful fallback to secure local single-use OTP generation in development environments when Twilio credentials are missing or unreachable, ensuring zero disruption to testing and offline workflows.
 - **Access Control:** Multi-tier role-based access control (RBAC) across endpoints (`labour`, `bidding`, `transport`) validating caller tokens against SQLite user profiles.
-- **Entry Flow:** Clean authentication gate on `/login` presenting 4 role cards (`Farmer`, `Buyer`, `Labour`, `Driver`) with registration specifications (e.g. Driver vehicle tonnage and rates) and 1-click Demo credentials.
+- **Entry Flow:** Clean authentication gate on `/login` presenting 4 distinct tabs: `Mobile OTP`, `Password`, `Register` (with 4 role cards: Farmer, Buyer, Labour, Driver), and 1-click `Demo` credentials for instant offline evaluation.
 
 ---
 
 ## 6. Automated Verification & Testing Suite
 
-- **Backend Pytest Suite:** `56 passed, 0 failed` across 8 test suites:
+- **Backend Pytest Suite:** `59 passed, 0 failed` across 9 test suites:
   - `backend/tests/test_api.py` (7 tests): Core health, farms, live weather, recommendations, schemes.
   - `backend/tests/test_auth_rbac.py` (6 tests): PBKDF2-HMAC-SHA256 & salted SHA-256 hashing, multi-role registration, session tokens, logout invalidation, role mismatch rejection, RBAC privilege escalation rejection.
+  - `backend/tests/test_mobile_otp_auth.py` (3 tests): Phone number normalization variants (+91/E.164), invalid phone format rejection, OTP dispatch cooldown, cross-role phone locks, and full OTP registration and login.
   - `backend/tests/test_flagship_api.py` (6 tests): Multi-role login, Labour Connect, Smart Bidding, Transport Connect, BioIntel workflows.
   - `backend/tests/test_biointel_advanced.py` (7 tests): GBIF taxonomy, NCBI/Ensembl parsing, Haversine fallback, Google OR-Tools MILP procurement.
   - `backend/tests/test_biointel_nursery.py` (11 tests): Europe PMC research caching, nursery discovery, inquiries, supplier comparisons.
