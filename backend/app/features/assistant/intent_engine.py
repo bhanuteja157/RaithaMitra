@@ -220,6 +220,10 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
     if any(w in q for w in ("what should i do", "daily action", "action plan", "biggest risk", "farm risk", "explain decision", "why did you recommend", "decision summary", "ನನ್ನ ಜಮೀನಿನಲ್ಲಿ ಇಂದು", "आज खेत में", "ఈ రోజు పొలంలో")):
         return {"intent": "decision_intelligence_query"}
 
+    # 4g. Seed-to-Sale Crop Journey (AD-32)
+    if any(w in q for w in ("crop journey", "seed to sale", "seed-to-sale", "farming journey", "tomato journey", "what stage am i", "current stage", "what should i do next", "ಬಿತ್ತನೆಯಿಂದ ಮಾರಾಟ", "ಹಂತ", "बीज से बिक्री", "విత్తనం నుండి అమ్మకం")):
+        return {"intent": "crop_journey_query", "crop": crop}
+
     # 5. Irrigation & Weather
     if any(w in q for w in ("irrigate", "irrigation", "water today", "water my", "rain", "weather", "forecast", "climate", "ನೀರಾವರಿ", "ಹವಾಮಾನ", "ಮಳೆ", "सिंचाई", "मौसम", "बारिश", "నీటిపారుదల", "వాతావరణం")):
         return {"intent": "irrigation_weather"}

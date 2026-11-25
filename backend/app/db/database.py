@@ -957,6 +957,82 @@ def init_db():
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_sync_receipts_user ON sync_operation_receipts(user_id, created_at DESC)")
 
+    # 22. Unified Seed-to-Sale Agricultural Lifecycle Journeys (AD-32)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS crop_journeys (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        crop_name TEXT NOT NULL,
+        crop_variety TEXT,
+        season TEXT NOT NULL DEFAULT 'Kharif 2026',
+        cultivated_area_acres REAL NOT NULL,
+        cultivation_budget_inr REAL NOT NULL DEFAULT 50000.0,
+        planned_sowing_date TEXT NOT NULL,
+        actual_sowing_date TEXT,
+        expected_harvest_date TEXT NOT NULL,
+        actual_harvest_date TEXT,
+        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'completed', 'archived')),
+        is_demonstration INTEGER NOT NULL DEFAULT 0,
+        seed_plan_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS crop_journey_stages (
+        id TEXT PRIMARY KEY,
+        journey_id TEXT NOT NULL,
+        stage_key TEXT NOT NULL,
+        stage_order INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'not_started' CHECK(status IN ('not_started', 'planning', 'in_progress', 'completed', 'needs_attention', 'blocked', 'not_applicable')),
+        completed_at TEXT,
+        notes TEXT,
+        updated_at TEXT NOT NULL,
+        UNIQUE(journey_id, stage_key),
+        FOREIGN KEY (journey_id) REFERENCES crop_journeys(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS crop_journey_activities (
+        id TEXT PRIMARY KEY,
+        journey_id TEXT NOT NULL,
+        farmer_id TEXT NOT NULL,
+        stage_key TEXT NOT NULL,
+        activity_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        notes TEXT,
+        recorded_date TEXT NOT NULL,
+        quantity_value REAL,
+        quantity_unit TEXT,
+        cost_inr REAL DEFAULT 0.0,
+        idempotency_key TEXT UNIQUE,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (journey_id) REFERENCES crop_journeys(id) ON DELETE CASCADE,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS crop_journey_module_links (
+        id TEXT PRIMARY KEY,
+        journey_id TEXT NOT NULL,
+        farmer_id TEXT NOT NULL,
+        stage_key TEXT NOT NULL,
+        source_module TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        summary_label TEXT,
+        created_at TEXT NOT NULL,
+        UNIQUE(journey_id, source_module, record_id),
+        FOREIGN KEY (journey_id) REFERENCES crop_journeys(id) ON DELETE CASCADE,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_journeys_farmer ON crop_journeys(farmer_id, farm_id, status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_journey_acts_jrn ON crop_journey_activities(journey_id, recorded_date DESC)")
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts

@@ -1,0 +1,100 @@
+"""
+AD-32: Canonical Nine-Stage Seed-to-Sale Lifecycle Registry.
+Defines stage metadata, prerequisites, module routes, and completion rules.
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List
+
+NINE_STAGES: List[Dict[str, Any]] = [
+    {
+        "stage_key": "crop_seed_selection",
+        "order": 1,
+        "title": "Crop & Seed Selection",
+        "kannada": "ಬೆಳೆ ಮತ್ತು ಬೀಜ ಆಯ್ಕೆ",
+        "primary_module": "BioIntel",
+        "route": "/biointel",
+        "secondary_routes": ["/nursery-marketplace", "/schemes"],
+        "completion_rule": "Explicit cultivation & seed plan selected and saved.",
+    },
+    {
+        "stage_key": "land_prep_sowing",
+        "order": 2,
+        "title": "Land Preparation & Sowing",
+        "kannada": "ಭೂಮಿ ಸಿದ್ಧತೆ ಮತ್ತು ಬಿತ್ತನೆ",
+        "primary_module": "Equipment & Soil",
+        "route": "/resources",
+        "secondary_routes": ["/soil-nutrients", "/labour", "/irrigation"],
+        "completion_rule": "Actual sowing date or sowing activity recorded by farmer.",
+    },
+    {
+        "stage_key": "crop_growth_monitoring",
+        "order": 3,
+        "title": "Crop Growth & Monitoring",
+        "kannada": "ಬೆಳೆ ಬೆಳವಣಿಗೆ ಮತ್ತು ಮೇಲ್ವಿಚಾರಣೆ",
+        "primary_module": "Digital Farming",
+        "route": "/digital-farming",
+        "secondary_routes": ["/satellite", "/climate", "/irrigation"],
+        "completion_rule": "Ongoing monitoring via weather, irrigation, and satellite observations.",
+    },
+    {
+        "stage_key": "crop_health_protection",
+        "order": 4,
+        "title": "Crop Health & Protection",
+        "kannada": "ಬೆಳೆ ಆರೋಗ್ಯ ಮತ್ತು ರಕ್ಷಣೆ",
+        "primary_module": "Crop Health",
+        "route": "/crop-health",
+        "secondary_routes": ["/surveillance", "/satellite"],
+        "completion_rule": "Ongoing scouting/protection; healthy crops do not require disease diagnosis.",
+    },
+    {
+        "stage_key": "harvest_planning",
+        "order": 5,
+        "title": "Harvest Planning",
+        "kannada": "ಕೊಯ್ಲು ಯೋಜನೆ",
+        "primary_module": "Decision & Harvest",
+        "route": "/post-harvest",
+        "secondary_routes": ["/resources", "/labour", "/decision-intelligence"],
+        "completion_rule": "Linked harvest record created or actual harvest date confirmed.",
+    },
+    {
+        "stage_key": "post_harvest_storage",
+        "order": 6,
+        "title": "Post-Harvest & Storage",
+        "kannada": "ಕೊಯ್ಲೋತ್ತರ ಮತ್ತು ಸಂಗ್ರಹಣೆ",
+        "primary_module": "Post-Harvest",
+        "route": "/post-harvest",
+        "secondary_routes": [],
+        "completion_rule": "Inventory lot recorded/stored, or marked Not Applicable for direct sale.",
+    },
+    {
+        "stage_key": "market_selling",
+        "order": 7,
+        "title": "Market Intelligence & Selling",
+        "kannada": "ಮಾರುಕಟ್ಟೆ ಮತ್ತು ಮಾರಾಟ",
+        "primary_module": "Market & Bidding",
+        "route": "/market-intelligence",
+        "secondary_routes": ["/bidding", "/smart-market"],
+        "completion_rule": "Market comparison reviewed and produce sold or confirmed order linked.",
+    },
+    {
+        "stage_key": "transport_delivery",
+        "order": 8,
+        "title": "Transportation & Delivery",
+        "kannada": "ಸಾರಿಗೆ ಮತ್ತು ವಿತರಣೆ",
+        "primary_module": "Transport Connect",
+        "route": "/transport",
+        "secondary_routes": [],
+        "completion_rule": "Transport booking delivered or buyer pickup recorded.",
+    },
+    {
+        "stage_key": "income_profit_outcome",
+        "order": 9,
+        "title": "Income, Profit & Outcome",
+        "kannada": "ಆದಾಯ, ಲಾಭ ಮತ್ತು ಫಲಿತಾಂಶ",
+        "primary_module": "Finance",
+        "route": "/finance",
+        "secondary_routes": ["/finance-benefits"],
+        "completion_rule": "Payments settled and lifecycle financial outcome reconciled.",
+    },
+]

@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { CinematicHero } from '@/components/dashboard/CinematicHero';
+import { HomepageJourneyCard } from '@/components/journey/HomepageJourneyCard';
 import { FlagshipHub } from '@/components/dashboard/FlagshipHub';
 import { OverviewCards } from '@/components/dashboard/OverviewCards';
 import { ActionPlan } from '@/components/dashboard/ActionPlan';
@@ -17,6 +18,9 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* 0. Cinematic Farmland Hero (AD-10 / AD-18) */}
       <CinematicHero />
+
+      {/* 0b. AD-32 Unified Seed-to-Sale Journey */}
+      <HomepageJourneyCard />
 
       {/* 1. Flagship Innovations Showcase */}
       <FlagshipHub />

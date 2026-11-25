@@ -13,6 +13,7 @@ from backend.app.features.equipment import router as equipment_router
 from backend.app.features.market_intelligence import router as market_router
 from backend.app.features.decision_intelligence import router as decision_router
 from backend.app.features.synchronization import router as sync_router
+from backend.app.features.journey import router as journey_router
 
 api_router = APIRouter()
 
@@ -46,3 +47,4 @@ api_router.include_router(equipment_router.router)
 api_router.include_router(market_router.router)
 api_router.include_router(decision_router.router)
 api_router.include_router(sync_router.router)
+api_router.include_router(journey_router.router)

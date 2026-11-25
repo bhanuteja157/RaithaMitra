@@ -199,6 +199,12 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "classification": "read_only",
         "provenance": "AD-30 Centralized Agricultural Decision Intelligence",
     },
+    "get_active_crop_journey": {
+        "description": "Retrieve farmer's active Seed-to-Sale crop journey, current stage progress, and next recommended activity.",
+        "allowed_roles": ["farmer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-32 Unified Seed-to-Sale Journey",
+    },
     "find_government_schemes": {
         "description": "Retrieve verified Indian government agricultural schemes and official links.",
         "allowed_roles": ["farmer", "buyer", "labour", "driver", "admin"],
@@ -1047,6 +1053,64 @@ async def execute_tool(
                 "top_recommendations": [r["title"] for r in top_recs],
                 "top_why": top_recs[0]["explanation"]["why"] if top_recs else None,
                 "conflicts_count": len(conflicts),
+            },
+            "cards": cards,
+            "sources": sources,
+            "provenance": meta["provenance"],
+        }
+
+    if tool_name == "get_active_crop_journey":
+        from backend.app.features.journey.service import get_journey_detail, list_journeys
+
+        journeys = list_journeys(user["user_id"], user["role"], farm["id"] if farm else None)
+        crop_filter = params.get("crop")
+        chosen = None
+        if crop_filter:
+            chosen = next((j for j in journeys if crop_filter.lower() in j["crop_name"].lower()), None)
+        if not chosen and journeys:
+            chosen = journeys[0]
+
+        if not chosen:
+            cards.append(
+                StructuredCard(
+                    card_type="crop_journey",
+                    title="Your Seed-to-Sale Journey",
+                    metrics={"Active Journeys": 0, "Next Step": "Open /journey to start a new crop journey"},
+                    highlights=["Create a crop journey or initialize the Jury Tomato Demo on /journey."],
+                )
+            )
+            return {"authorized": True, "data": {"has_journey": False}, "cards": cards, "sources": sources, "provenance": meta["provenance"]}
+
+        detail = await get_journey_detail(user["user_id"], user["role"], chosen["id"])
+        prog = detail["progress"]
+        next_act = detail["recommended_next_actions"][0] if detail["recommended_next_actions"] else None
+        cards.append(
+            StructuredCard(
+                card_type="crop_journey",
+                title=f"Seed-to-Sale Journey — {chosen['crop_name']} ({chosen['season']})",
+                metrics={
+                    "Current Stage": prog.get("current_stage_title") or "Completed",
+                    "Progress": f"{prog['progress_pct']}% ({prog['completed_stages']}/{prog['applicable_stages']} stages)",
+                    "Expected Harvest": chosen["expected_harvest_date"],
+                    "Budget": f"₹{chosen['cultivation_budget_inr']:,.0f}",
+                },
+                highlights=[
+                    prog["calculation_explanation"],
+                    f"Next action: {next_act['title']}" if next_act else "Open /journey to continue.",
+                ],
+            )
+        )
+        sources.append(SourceReference(title="AD-32 Seed-to-Sale Journey Ledger", source="RaithaMitra Lifecycle Engine", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": {
+                "has_journey": True,
+                "journey_id": chosen["id"],
+                "crop_name": chosen["crop_name"],
+                "current_stage": prog.get("current_stage_title"),
+                "progress_pct": prog["progress_pct"],
+                "expected_harvest_date": chosen["expected_harvest_date"],
+                "next_action": next_act["title"] if next_act else None,
             },
             "cards": cards,
             "sources": sources,

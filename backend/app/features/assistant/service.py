@@ -152,6 +152,18 @@ def _build_local_reply(
             f"and estimated net profit ₹{d['estimated_profit_inr']:,.0f} (using {d['variety']}).{warn}"
         )
 
+    if intent == "crop_journey_query":
+        if not d.get("has_journey"):
+            return "You do not have an active Seed-to-Sale crop journey yet. Open /journey to start a new crop journey."
+        nxt = f" Next recommended action: {d['next_action']}." if d.get("next_action") else ""
+        if lang == "kn":
+            return f"ನಿಮ್ಮ {d['crop_name']} ಪ್ರಯಾಣ: ಪ್ರಸ್ತುತ ಹಂತ '{d.get('current_stage')}', ಪ್ರಗತಿ {d['progress_pct']}%, ನಿರೀಕ್ಷಿತ ಕೊಯ್ಲು {d['expected_harvest_date']}.{nxt}"
+        if lang == "hi":
+            return f"आपकी {d['crop_name']} यात्रा: वर्तमान चरण '{d['current_stage']}', प्रगति {d['progress_pct']}%, अपेक्षित कटाई {d['expected_harvest_date']}।{nxt}"
+        if lang == "te":
+            return f"మీ {d['crop_name']} ప్రయాణం: ప్రస్తుత దశ '{d['current_stage']}', పురోగతి {d['progress_pct']}%, అంచనా కోత {d['expected_harvest_date']}.{nxt}"
+        return f"Your {d['crop_name']} Seed-to-Sale journey is at stage '{d.get('current_stage')}' ({d['progress_pct']}% complete, expected harvest {d['expected_harvest_date']}).{nxt}"
+
     if intent == "decision_intelligence_query":
         top_recs = d.get("top_recommendations", [])
         top_txt = f" Top priority: {top_recs[0]}. {d.get('top_why', '')}" if top_recs else ""
@@ -465,6 +477,7 @@ async def handle_assistant_chat(
         "equipment_query": ("get_equipment_intelligence", {"crop": classified.get("crop")}),
         "market_intelligence_query": ("get_market_intelligence", {"crop": classified.get("crop")}),
         "decision_intelligence_query": ("get_farm_decision_summary", {}),
+        "crop_journey_query": ("get_active_crop_journey", {"crop": classified.get("crop")}),
         "schemes": ("find_government_schemes", {}),
         "crop_health": ("check_crop_health_adapter", {"crop": classified.get("crop")}),
     }

@@ -125,6 +125,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         title: "FARMER WORKSPACE",
         items: [
           { name: "Home", href: '/', icon: LayoutDashboard, status: 'role' },
+          { name: "Seed-to-Sale Journey", href: '/journey', icon: Compass, status: 'flagship', badge: 'Lifecycle' },
           { name: "BioIntel", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Seeds' },
           { name: "Digital Farm", href: '/digital-farming', icon: Layers, status: 'flagship', badge: 'Map & Twin' },
           { name: "Farm Management", href: '/farm-management', icon: CloudSun, status: 'operational' },
