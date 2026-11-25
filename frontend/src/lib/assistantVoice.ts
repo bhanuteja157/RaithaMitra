@@ -393,6 +393,10 @@ export type AgenticTaskCommand =
       subAction: 'find_vehicles' | 'prepare_booking';
       cargoWeightKg?: number;
       crop?: string;
+    }
+  | {
+      type: 'finance_query';
+      metric: 'expenditure' | 'profit' | 'remaining_budget' | 'labour_expenses' | 'outstanding_payments';
     };
 
 const CROP_ALIASES: Array<{ canonical: string; terms: string[] }> = [
@@ -594,7 +598,24 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
     };
   }
 
-  // 5. BioIntel seed/crop planning
+  // 5. Financial Intelligence live queries (AD-24)
+  if (/(outstanding|unpaid|due).*(buyer|payment|payments|order)/i.test(q)) {
+    return { type: 'finance_query', metric: 'outstanding_payments' };
+  }
+  if (/(labour|labor)\s*(expense|expenses|cost|spending|wages)/i.test(q)) {
+    return { type: 'finance_query', metric: 'labour_expenses' };
+  }
+  if (/(remaining|left|available)\s*(budget|balance)/i.test(q)) {
+    return { type: 'finance_query', metric: 'remaining_budget' };
+  }
+  if (/(total\s*(expenditure|expense|expenses|spent|spending)|how much.*spent)/i.test(q)) {
+    return { type: 'finance_query', metric: 'expenditure' };
+  }
+  if (/(how much\s*profit|net\s*profit|profit.*earned|my\s*profit)/i.test(q)) {
+    return { type: 'finance_query', metric: 'profit' };
+  }
+
+  // 6. BioIntel seed/crop planning
   const crop = extractCropFromText(q);
   const areaAcres = extractAreaAcres(q);
   const budgetInr = extractBudgetInr(q);

@@ -39,7 +39,7 @@ interface PendingConfirmation {
 export function PersistentVoiceAssistant() {
   const router = useRouter();
   const pathname = usePathname();
-  const { currentUser, currentFarm, language } = useFarm();
+  const { currentUser, currentFarm, language, token } = useFarm();
 
   const [open, setOpen] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -414,6 +414,52 @@ export function PersistentVoiceAssistant() {
           );
         } catch {
           speakAndSet('Unable to reach Transport Connect right now.');
+        }
+        return;
+      }
+
+      if (task.type === 'finance_query') {
+        if (currentUser.role !== 'farmer' && currentUser.role !== 'admin') {
+          speakAndSet('Financial intelligence queries are available only for Farmer accounts.');
+          return;
+        }
+        try {
+          const farmId = currentFarm?.id || 'farm_001';
+          const res = await fetch(
+            `${backendUrl}/finance/summary?farm_id=${encodeURIComponent(farmId)}`,
+            {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            }
+          );
+          if (!res.ok) {
+            speakAndSet('Could not load your verified financial records right now.');
+            return;
+          }
+          const fin = await res.json();
+          if (task.metric === 'expenditure') {
+            speakAndSet(
+              `Your total recorded expenditure is ₹${Number(fin.actual_recorded_expenses_inr || 0).toLocaleString('en-IN')}, plus ₹${Number(fin.committed_expenses_inr || 0).toLocaleString('en-IN')} in committed expenses.`
+            );
+          } else if (task.metric === 'profit') {
+            speakAndSet(
+              `Your realized net profit is ₹${Number(fin.realized_net_profit_inr || 0).toLocaleString('en-IN')}, and estimated profit from confirmed orders is ₹${Number(fin.estimated_net_profit_inr || 0).toLocaleString('en-IN')}.`
+            );
+          } else if (task.metric === 'remaining_budget') {
+            speakAndSet(
+              `Your remaining budget is ₹${Number(fin.remaining_budget_inr || 0).toLocaleString('en-IN')} out of ₹${Number(fin.allocated_budget_inr || 0).toLocaleString('en-IN')} allocated.`
+            );
+          } else if (task.metric === 'labour_expenses') {
+            const lab = (fin.expense_breakdown || []).find((e: any) => e.category === 'labour')?.amount_inr || 0;
+            speakAndSet(`Your recorded and committed labour expenses total ₹${Number(lab).toLocaleString('en-IN')}.`);
+            if (pathname !== '/finance') router.push('/finance');
+          } else if (task.metric === 'outstanding_payments') {
+            speakAndSet(
+              `You have ₹${Number(fin.outstanding_payments_inr || 0).toLocaleString('en-IN')} in outstanding buyer payments across ₹${Number(fin.confirmed_sales_value_inr || 0).toLocaleString('en-IN')} in confirmed sales.`
+            );
+            if (pathname !== '/finance') router.push('/finance');
+          }
+        } catch {
+          speakAndSet('Unable to reach the Financial Intelligence service right now.');
         }
         return;
       }

@@ -359,6 +359,41 @@ def init_db():
     )
     """)
 
+    # 14. Persistent Farm Financial Transaction Ledger (AD-24)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS financial_transactions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        crop_season_id TEXT,
+        category TEXT NOT NULL,
+        tx_type TEXT NOT NULL CHECK(tx_type IN ('income', 'expense')),
+        amount_inr REAL NOT NULL CHECK(amount_inr >= 0),
+        tx_date TEXT NOT NULL,
+        description TEXT NOT NULL,
+        source_module TEXT NOT NULL,
+        related_id TEXT,
+        status TEXT NOT NULL CHECK(status IN ('estimated', 'committed', 'recorded', 'settled', 'cancelled')),
+        provenance TEXT NOT NULL,
+        payment_reference TEXT,
+        sync_key TEXT,
+        is_manual INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_fin_tx_sync_key
+    ON financial_transactions(sync_key)
+    WHERE sync_key IS NOT NULL
+    """)
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_fin_tx_user_farm
+    ON financial_transactions(user_id, farm_id, tx_date)
+    """)
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts
