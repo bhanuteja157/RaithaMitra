@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Next.js Build Output
+.next/
+out/
+build/
+dist/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Hackathon Reference Repositories (Strictly Excluded from Tracking and Deployment)
+references/
+
+# Large Local ML Model Weights and Cache (Downloadable or Stored Externally)
+*.onnx.large
+*.pt
+*.pth
+*.h5
+*.keras
