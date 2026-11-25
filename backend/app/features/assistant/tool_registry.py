@@ -187,6 +187,12 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "classification": "read_only",
         "provenance": "AD-28 Equipment Connect & OR-Tools Scheduler",
     },
+    "get_market_intelligence": {
+        "description": "Retrieve agricultural market prices, historical trends, statistical forecasts, and market comparison guidance.",
+        "allowed_roles": ["farmer", "buyer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-29 Live Market Intelligence & Forecasting",
+    },
     "find_government_schemes": {
         "description": "Retrieve verified Indian government agricultural schemes and official links.",
         "allowed_roles": ["farmer", "buyer", "labour", "driver", "admin"],
@@ -931,6 +937,59 @@ async def execute_tool(
                 "top_listings": listings[:3],
                 "bookings_count": len(bookings),
                 "financial_summary": fin_sum,
+            },
+            "cards": cards,
+            "sources": sources,
+            "provenance": meta["provenance"],
+        }
+
+    if tool_name == "get_market_intelligence":
+        from backend.app.features.market_intelligence.cache import query_market_observations
+        from backend.app.features.market_intelligence.normalization import normalize_commodity_name
+        from backend.app.features.market_intelligence.service import (
+            get_historical_and_forecast,
+            get_provider_status,
+        )
+
+        crop = normalize_commodity_name(params.get("crop") or (farm["primary_crop"] if farm else "Tomato"))
+        status_info = get_provider_status()
+        obs = query_market_observations(commodity=crop, limit=10)
+        hist_fc = get_historical_and_forecast(commodity=crop, horizon_days=7)
+        fc = hist_fc.get("forecast", {})
+
+        metrics: Dict[str, Any] = {
+            "Commodity": crop,
+            "AGMARKNET API": "Configured" if status_info["official_api_configured"] else "Unconfigured (Manual/CSV/Cache)",
+            "Persisted Observations": len(obs),
+        }
+        if obs:
+            top = obs[0]
+            metrics["Latest Modal Price"] = f"₹{top['modal_price_per_kg']}/kg (₹{top['modal_price_per_quintal']}/qtl)"
+            metrics["Market / Date"] = f"{top['market']} ({top['observation_date']})"
+        if fc.get("available"):
+            metrics["7-Day Forecast"] = f"₹{fc['forecast'][-1]['predicted_modal_per_kg']}/kg ({fc['selected_method']})"
+
+        highlights = [
+            status_info["message"],
+            "Open /market-intelligence to compare transportation-adjusted net returns across markets or import historical CSVs.",
+        ]
+        cards.append(
+            StructuredCard(
+                card_type="market_intelligence",
+                title=f"Market Intelligence — {crop}",
+                metrics=metrics,
+                highlights=highlights,
+            )
+        )
+        sources.append(SourceReference(title="AD-29 Market Intelligence & AGMARKNET Cache", source="RaithaMitra Market Engine", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": {
+                "commodity": crop,
+                "official_api_configured": status_info["official_api_configured"],
+                "latest_observations": obs[:3],
+                "forecast_available": fc.get("available", False),
+                "forecast": fc,
             },
             "cards": cards,
             "sources": sources,

@@ -1,972 +1,698 @@
 // frontend/src/components/market-intelligence/MarketIntelligenceWorkspace.tsx
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useFarm } from '@/context/FarmContext';
 import {
-  LineChart,
-  Line,
-  BarChart,
+  addManualMarketPrice,
+  compareBuyerOffer,
+  compareMarkets,
+  createMarketAlertPreference,
+  fetchHistoryAndForecast,
+  fetchLiveAgmarknet,
+  fetchMarketAlerts,
+  fetchMarketObservations,
+  fetchMarketStatus,
+  HistoryAndForecastResponse,
+  importMarketCsv,
+  MarketComparisonResponse,
+  MarketObservation,
+  MarketStatusResponse,
+} from '@/lib/marketApi';
+import {
+  AlertTriangle,
+  BarChart3,
+  Bell,
+  CheckCircle2,
+  Database,
+  Gavel,
+  LineChart as LineChartIcon,
+  Plus,
+  RefreshCw,
+  Scale,
+  Store,
+  Truck,
+  Upload,
+  Volume2,
+} from 'lucide-react';
+import {
   Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
 } from 'recharts';
-import { loadHarvestTransferPayload, HarvestToMarketPayload } from '@/lib/digital-farming/geo';
-import {
-  DEMO_MARKET_PRICES,
-  MarketPriceRecord,
-  MarketComparisonInput,
-  PriceHistoryPoint,
-  SellStrategyInputs,
-  BuyerOfferInput,
-  TransportOptionInput,
-  evaluateMarkets,
-  analyzePriceTrends,
-  parseCsvPriceHistory,
-  simulateSellStrategy,
-  evaluateBuyerOffers,
-  evaluateTransportOption,
-} from '@/lib/market-intelligence/market';
-import {
-  Store,
-  TrendingUp,
-  Clock,
-  Users,
-  Truck,
-  AlertTriangle,
-  CheckCircle2,
-  Printer,
-  Sprout,
-} from 'lucide-react';
 
-type MarketTab = 'prices' | 'compare' | 'trends' | 'sell_timing' | 'offers' | 'transport';
+const MKT_LABELS: Record<string, { title: string; subtitle: string }> = {
+  en: {
+    title: 'RaithaMitra Live Market Intelligence & Price Prediction',
+    subtitle: 'AGMARKNET / Data.gov.in integration, Karnataka mandi discovery, transport-adjusted net return ranking, and walk-forward statistical forecasting.',
+  },
+  kn: {
+    title: 'ರೈತ ಮಿತ್ರ ಮಾರುಕಟ್ಟೆ ಬುದ್ಧಿಮತ್ತೆ ಮತ್ತು ಬೆಲೆ ಮುನ್ಸೂಚನೆ',
+    subtitle: 'ಮಾರುಕಟ್ಟೆ ದರ ಹೋಲಿಕೆ, ಸಾರಿಗೆ ವೆಚ್ಚದ ನಂತರ ನಿವ್ವಳ ಆದಾಯ ಮತ್ತು ಅಂಕಿಅಂಶ ಆಧಾರಿತ ಬೆಲೆ ಮುನ್ಸೂಚನೆ.',
+  },
+  hi: {
+    title: 'रैतमित्र लाइव बाजार बुद्धिमत्ता और मूल्य पूर्वानुमान',
+    subtitle: 'एगमार्कनेट बाजार भाव, परिवहन-समायोजित शुद्ध रिटर्न तुलना और सांख्यिकीय मूल्य पूर्वानुमान।',
+  },
+  te: {
+    title: 'రైతమిత్ర మార్కెట్ ఇంటెలిజెన్స్ మరియు ధరల అంచనా',
+    subtitle: 'మార్కెట్ ధరల పోలిక, రవాణా ఖర్చు తర్వాత నికర ఆదాయం మరియు గణాంక ధర అంచనా.',
+  },
+};
+
+type MarketTab = 'compare' | 'overview' | 'forecast' | 'offers' | 'alerts';
 
 export function MarketIntelligenceWorkspace() {
-  const [activeTab, setActiveTab] = useState<MarketTab>('prices');
-  const [harvestPayload, setHarvestPayload] = useState<HarvestToMarketPayload | null>(null);
+  const { currentFarm, token, language } = useFarm();
+  const labels = MKT_LABELS[String(language)] || MKT_LABELS.en;
 
-  // Common produce state
-  const [cropName, setCropName] = useState<string>('Tomato');
-  const [quantityKg, setQuantityKg] = useState<number>(18000);
-  const [cultivationExpensesInr, setCultivationExpensesInr] = useState<number>(65000);
+  const [tab, setTab] = useState<MarketTab>('compare');
+  const [status, setStatus] = useState<MarketStatusResponse | null>(null);
+  const [observations, setObservations] = useState<MarketObservation[]>([]);
+  const [histFc, setHistFc] = useState<HistoryAndForecastResponse | null>(null);
 
-  // Phase 12: Prices + Manual Entry
-  const [cropFilter, setCropFilter] = useState<string>('');
-  const [locationFilter, setLocationFilter] = useState<string>('');
-  const [customPrices, setCustomPrices] = useState<MarketPriceRecord[]>([]);
-  const [manualMarketName, setManualMarketName] = useState<string>('');
-  const [manualPricePerKg, setManualPricePerKg] = useState<number>(20);
+  const [commodityFilter, setCommodityFilter] = useState(currentFarm?.primary_crop || 'Tomato');
+  const [districtFilter, setDistrictFilter] = useState('');
+  const [horizonDays, setHorizonDays] = useState(7);
 
-  // Phase 13: Multi-market comparison
-  const [markets, setMarkets] = useState<MarketComparisonInput[]>([
-    {
-      id: 'mk1',
-      marketName: 'Local Tumakuru APMC (Demo)',
-      sellingPricePerKg: 17.5,
-      quantityKg: 18000,
-      transportExpenseInr: 4500,
-      loadingExpenseInr: 1200,
-      unloadingExpenseInr: 1000,
-      packagingExpenseInr: 2500,
-      commissionPct: 2,
-      otherSellingExpenseInr: 500,
-      spoilagePct: 2,
-    },
-    {
-      id: 'mk2',
-      marketName: 'Bengaluru Yeshwanthpur (Demo)',
-      sellingPricePerKg: 21.5,
-      quantityKg: 18000,
-      transportExpenseInr: 14000,
-      loadingExpenseInr: 1500,
-      unloadingExpenseInr: 1500,
-      packagingExpenseInr: 3500,
-      commissionPct: 4,
-      otherSellingExpenseInr: 1200,
-      spoilagePct: 6,
-    },
-    {
-      id: 'mk3',
-      marketName: 'Kolar APMC (Demo)',
-      sellingPricePerKg: 18.5,
-      quantityKg: 18000,
-      transportExpenseInr: 12500,
-      loadingExpenseInr: 1400,
-      unloadingExpenseInr: 1200,
-      packagingExpenseInr: 3000,
-      commissionPct: 3,
-      otherSellingExpenseInr: 800,
-      spoilagePct: 4,
-    },
-  ]);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Phase 14: Price Trends (clearly labelled illustrative demo + CSV import)
-  const [trendRange, setTrendRange] = useState<'7d' | '30d' | '90d'>('7d');
-  const [csvInput, setCsvInput] = useState<string>('');
-  const [customTrend, setCustomTrend] = useState<PriceHistoryPoint[] | null>(null);
+  // Market Net Return Comparison (Jury Demo defaults, editable)
+  const [qtyKg, setQtyKg] = useState(2000);
+  const [marketAName, setMarketAName] = useState('Market A — Bengaluru Yeshwanthpur');
+  const [marketAPrice, setMarketAPrice] = useState(25);
+  const [marketATransport, setMarketATransport] = useState(8000);
+  const [marketBName, setMarketBName] = useState('Market B — Mandya APMC');
+  const [marketBPrice, setMarketBPrice] = useState(23);
+  const [marketBTransport, setMarketBTransport] = useState(2000);
+  const [cmpResult, setCmpResult] = useState<MarketComparisonResponse | null>(null);
 
-  // Phase 15: Sell Now vs Later
-  const [sellInputs, setSellInputs] = useState<SellStrategyInputs>({
-    currentPricePerKg: 17.5,
-    expectedFuturePricePerKg: 22.0,
-    quantityKg: 18000,
-    storageDays: 7,
-    dailyStorageCostPerKg: 0.25,
-    spoilagePct: 8,
-    transportExpenseInr: 4500,
-    storageCapacityKg: 12000,
-    splitImmediatePct: 50,
-  });
+  // Manual price form
+  const [manMarket, setManMarket] = useState('Mandya APMC');
+  const [manDistrict, setManDistrict] = useState('Mandya');
+  const [manPriceKg, setManPriceKg] = useState(23);
 
-  // Phase 16: Buyer Offers (independent of Smart Bidding)
-  const [offers, setOffers] = useState<BuyerOfferInput[]>([
-    {
-      id: 'b1',
-      buyerName: 'Trader A (Farmgate Pickup)',
-      offeredPricePerKg: 16.5,
-      requiredQuantityKg: 18000,
-      transportResponsibility: 'Buyer Pickup',
-      transportExpenseInr: 0,
-      paymentDelayDays: 0,
-      additionalSellingExpenseInr: 500,
-    },
-    {
-      id: 'b2',
-      buyerName: 'Wholesaler B (Mandi Delivery)',
-      offeredPricePerKg: 18.5,
-      requiredQuantityKg: 18000,
-      transportResponsibility: 'Farmer Delivery',
-      transportExpenseInr: 12000,
-      paymentDelayDays: 14,
-      additionalSellingExpenseInr: 2500,
-    },
-  ]);
+  // CSV Import
+  const [csvText, setCsvText] = useState('');
 
-  // Phase 17: Transport Cost Optimizer (independent of Transport Connect)
-  const [transportOptions, setTransportOptions] = useState<TransportOptionInput[]>([
-    {
-      mode: 'Individual Vehicle',
-      distanceKm: 75,
-      vehicleCapacityKg: 10000,
-      quotedCostInr: 9500,
-      participatingFarmers: 1,
-      myProduceWeightKg: 6000,
-      otherFarmersWeightKg: 0,
-    },
-    {
-      mode: 'Shared Vehicle',
-      distanceKm: 75,
-      vehicleCapacityKg: 10000,
-      quotedCostInr: 9500,
-      participatingFarmers: 2,
-      myProduceWeightKg: 6000,
-      otherFarmersWeightKg: 3500,
-    },
-  ]);
+  // Buyer offer compare
+  const [offerPriceKg, setOfferPriceKg] = useState(24);
+  const [offerTransport, setOfferTransport] = useState(1500);
+  const [offerResult, setOfferResult] = useState<Record<string, unknown> | null>(null);
 
-  // Load transferred harvest data from Digital Farming if present
-  useEffect(() => {
-    const payload = loadHarvestTransferPayload();
-    if (payload) {
-      setHarvestPayload(payload);
-      setCropName(payload.cropName);
-      setCropFilter(payload.cropName);
-      setQuantityKg(payload.harvestQuantityKg);
-      setCultivationExpensesInr(payload.cultivationExpensesInr);
-      setMarkets((prev) =>
-        prev.map((m) => ({
-          ...m,
-          quantityKg: payload.harvestQuantityKg,
-          sellingPricePerKg: m.id === 'mk1' ? payload.expectedSellingPricePerKg : m.sellingPricePerKg,
-        }))
-      );
-      setSellInputs((prev) => ({
-        ...prev,
-        quantityKg: payload.harvestQuantityKg,
-        currentPricePerKg: payload.expectedSellingPricePerKg,
-      }));
+  // Alerts
+  const [alertTargetPrice, setAlertTargetPrice] = useState(25);
+  const [alertData, setAlertData] = useState<{
+    preferences: Array<Record<string, unknown>>;
+    alerts: Array<Record<string, unknown>>;
+    delivery_mode: string;
+  } | null>(null);
+
+  const refreshAll = useCallback(async () => {
+    try {
+      const [st, obs, hf] = await Promise.all([
+        fetchMarketStatus(),
+        fetchMarketObservations({ commodity: commodityFilter, district: districtFilter || undefined }),
+        fetchHistoryAndForecast(commodityFilter, horizonDays),
+      ]);
+      setStatus(st);
+      setObservations(obs.observations);
+      setHistFc(hf);
+    } catch {
+      // non-fatal
     }
-  }, []);
+    if (token) {
+      try {
+        const al = await fetchMarketAlerts(token);
+        setAlertData(al);
+      } catch {
+        // non-fatal
+      }
+    }
+  }, [commodityFilter, districtFilter, horizonDays, token]);
 
-  const allPrices = useMemo(() => [...customPrices, ...DEMO_MARKET_PRICES], [customPrices]);
-  const filteredPrices = useMemo(
-    () =>
-      allPrices.filter(
-        (p) =>
-          (!cropFilter || p.crop.toLowerCase().includes(cropFilter.toLowerCase())) &&
-          (!locationFilter ||
-            p.district.toLowerCase().includes(locationFilter.toLowerCase()) ||
-            p.market.toLowerCase().includes(locationFilter.toLowerCase()) ||
-            p.state.toLowerCase().includes(locationFilter.toLowerCase()))
-      ),
-    [allPrices, cropFilter, locationFilter]
-  );
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
 
-  const marketResults = useMemo(
-    () => evaluateMarkets(markets, cultivationExpensesInr),
-    [markets, cultivationExpensesInr]
-  );
+  const runMarketComparison = useCallback(async () => {
+    if (!token) return;
+    setErrorMsg(null);
+    try {
+      const res = await compareMarkets(
+        {
+          commodity: commodityFilter,
+          available_quantity_kg: qtyKg,
+          markets: [
+            {
+              market_name: marketAName,
+              selling_price_per_kg: marketAPrice,
+              transport_cost_inr: marketATransport,
+              price_source_label: 'Editable Scenario / Manual',
+            },
+            {
+              market_name: marketBName,
+              selling_price_per_kg: marketBPrice,
+              transport_cost_inr: marketBTransport,
+              price_source_label: 'Editable Scenario / Manual',
+            },
+          ],
+        },
+        token
+      );
+      setCmpResult(res);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Market comparison failed.');
+    }
+  }, [token, commodityFilter, qtyKg, marketAName, marketAPrice, marketATransport, marketBName, marketBPrice, marketBTransport]);
 
-  const highestGrossMarket = useMemo(() => {
-    if (marketResults.length === 0) return null;
-    return [...marketResults].sort((a, b) => b.sellingPricePerKg - a.sellingPricePerKg)[0];
-  }, [marketResults]);
+  useEffect(() => {
+    if (token) runMarketComparison();
+  }, [token, runMarketComparison]);
 
-  const demoTrendSeries = useMemo<PriceHistoryPoint[]>(() => {
-    const base = cropName.toLowerCase() === 'chilli' ? 56 : cropName.toLowerCase() === 'maize' ? 21 : 17;
-    const count = trendRange === '7d' ? 7 : trendRange === '30d' ? 12 : 16;
-    return Array.from({ length: count }).map((_, i) => ({
-      date: `Day ${i + 1}`,
-      pricePerKg: Number((base + Math.sin(i * 0.7) * 2.2 + i * 0.25).toFixed(2)),
-    }));
-  }, [cropName, trendRange]);
-
-  const trendStats = useMemo(
-    () => analyzePriceTrends(customTrend && customTrend.length > 0 ? customTrend : demoTrendSeries),
-    [customTrend, demoTrendSeries]
-  );
-
-  const sellSim = useMemo(() => simulateSellStrategy(sellInputs), [sellInputs]);
-  const evaluatedOffers = useMemo(
-    () => evaluateBuyerOffers(offers, cultivationExpensesInr),
-    [offers, cultivationExpensesInr]
-  );
-  const transportEvaluations = useMemo(
-    () => transportOptions.map((t) => ({ input: t, eval: evaluateTransportOption(t) })),
-    [transportOptions]
-  );
-
-  const handleAddManualPrice = () => {
-    if (!manualMarketName.trim() || manualPricePerKg <= 0) return;
-    setCustomPrices((prev) => [
-      {
-        id: `custom_${Date.now()}`,
-        crop: cropName,
-        variety: 'Farmer Entered',
-        state: 'User Entry',
-        district: 'Local',
-        market: manualMarketName.trim(),
-        minPricePerQuintal: Math.round(manualPricePerKg * 95),
-        maxPricePerQuintal: Math.round(manualPricePerKg * 105),
-        modalPricePerQuintal: Math.round(manualPricePerKg * 100),
-        pricePerKg: manualPricePerKg,
-        priceDate: new Date().toISOString().slice(0, 10),
-        source: 'Manual Farmer Entry',
-        isDemo: false,
-      },
-      ...prev,
-    ]);
-    setManualMarketName('');
+  const speakSummary = (text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    const l = String(language);
+    utt.lang = l === 'kn' ? 'kn-IN' : l === 'hi' ? 'hi-IN' : l === 'te' ? 'te-IN' : 'en-IN';
+    window.speechSynthesis.speak(utt);
   };
 
+  const handleFetchLive = async () => {
+    if (!token) return;
+    setErrorMsg(null);
+    setStatusMsg(null);
+    try {
+      const res = await fetchLiveAgmarknet(
+        { commodity: commodityFilter, state: 'Karnataka', district: districtFilter || undefined },
+        token
+      );
+      if (res.is_live) {
+        setStatusMsg('Retrieved live official AGMARKNET observations.');
+      } else {
+        setStatusMsg(String(res.error || 'Official API key not configured; showing cached/manual records only.'));
+      }
+      refreshAll();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'AGMARKNET request failed.');
+    }
+  };
+
+  const handleAddManual = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setErrorMsg(null);
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      await addManualMarketPrice(
+        {
+          commodity: commodityFilter,
+          state: 'Karnataka',
+          district: manDistrict,
+          market: manMarket,
+          observation_date: today,
+          modal_price: manPriceKg,
+          unit: 'INR/kg',
+        },
+        token
+      );
+      setStatusMsg(`Saved farmer-entered price ₹${manPriceKg}/kg for ${commodityFilter} at ${manMarket}.`);
+      refreshAll();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save manual price.');
+    }
+  };
+
+  const handleImportCsv = async () => {
+    if (!token || !csvText.trim()) return;
+    setErrorMsg(null);
+    try {
+      const res = await importMarketCsv({ filename: 'farmer_upload.csv', csv_text: csvText }, token);
+      setStatusMsg(`Imported ${res.inserted} records (${res.skipped} skipped/duplicate out of ${res.total_rows}).`);
+      setCsvText('');
+      refreshAll();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'CSV import failed.');
+    }
+  };
+
+  const handleCompareOffer = async () => {
+    if (!token) return;
+    try {
+      const res = await compareBuyerOffer(
+        {
+          commodity: commodityFilter,
+          quantity_kg: qtyKg,
+          buyer_offer_per_kg: offerPriceKg,
+          buyer_transport_cost_inr: offerTransport,
+          benchmark_market_name: cmpResult?.recommended_market || marketBName,
+          benchmark_price_per_kg: cmpResult?.ranked_markets?.[0]?.selling_price_per_kg || marketBPrice,
+          benchmark_transport_cost_inr: cmpResult?.ranked_markets?.[0]?.transport_cost_inr || marketBTransport,
+        },
+        token
+      );
+      setOfferResult(res);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Offer comparison failed.');
+    }
+  };
+
+  const handleAddAlert = async () => {
+    if (!token) return;
+    try {
+      await createMarketAlertPreference(
+        { commodity: commodityFilter, target_price_per_kg: alertTargetPrice },
+        token
+      );
+      setStatusMsg(`Saved target price alert (₹${alertTargetPrice}/kg for ${commodityFilter}).`);
+      refreshAll();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save alert.');
+    }
+  };
+
+  const cmpChartData = cmpResult
+    ? cmpResult.ranked_markets.map((m) => ({
+        name: m.market_name.split('—')[0].trim(),
+        Gross: m.gross_revenue_inr,
+        NetReturn: m.net_selling_return_inr,
+        Transport: m.transport_cost_inr,
+      }))
+    : [];
+
+  const combinedTrendData = useMemo(() => {
+    const histPts = (histFc?.history?.series || []).map((s) => ({
+      date: s.date,
+      Actual: s.modal_price_per_kg,
+      Forecast: null as number | null,
+    }));
+    const fcPts = (histFc?.forecast?.forecast || []).map((f) => ({
+      date: f.date,
+      Actual: null as number | null,
+      Forecast: f.predicted_modal_per_kg,
+    }));
+    return [...histPts, ...fcPts];
+  }, [histFc]);
+
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 space-y-5">
-      {/* Header */}
-      <div className="rounded-2xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-800 text-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="inline-flex items-center gap-2 text-xs font-semibold bg-white/15 px-2.5 py-1 rounded-full mb-2">
-              <Store className="w-3.5 h-3.5" />
-              RaithaMitra · Independent Agricultural Market Intelligence
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-3 rounded-xl bg-emerald-100 text-emerald-700">
+              <Store className="w-6 h-6" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold">Market Profit, Price Trends & Transport Optimizer</h1>
-            <p className="text-xs sm:text-sm text-emerald-100 mt-1">
-              Compare mandis, analyze sell timing, evaluate buyer offers, and optimize shared transport costs.
-            </p>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                AD-29 Market Intelligence &amp; Forecasting
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900">{labels.title}</h1>
+              <p className="text-xs text-slate-600 mt-0.5">{labels.subtitle}</p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-emerald-900 text-xs font-semibold print:hidden"
-          >
-            <Printer className="w-3.5 h-3.5" /> Print Strategy
-          </button>
-        </div>
-
-        {harvestPayload && (
-          <div className="mt-4 pt-3 border-t border-white/20 flex flex-wrap items-center gap-3 text-xs text-emerald-50">
-            <span className="inline-flex items-center gap-1 font-semibold">
-              <Sprout className="w-3.5 h-3.5" /> Imported from Digital Harvest:
-            </span>
-            <span>{harvestPayload.farmName} ({harvestPayload.areaAcres} ac)</span>
-            <span>Crop: <strong>{harvestPayload.cropName}</strong></span>
-            <span>Harvest: <strong>{harvestPayload.harvestQuantityKg.toLocaleString('en-IN')} kg</strong></span>
-            <span>Cultivation Cost: <strong>₹{harvestPayload.cultivationExpensesInr.toLocaleString('en-IN')}</strong></span>
-          </div>
-        )}
-      </div>
-
-      {/* Shared Produce Bar */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-        <div>
-          <label className="block text-zinc-500 mb-1 font-semibold">Crop</label>
-          <input
-            type="text"
-            value={cropName}
-            onChange={(e) => setCropName(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-          />
-        </div>
-        <div>
-          <label className="block text-zinc-500 mb-1 font-semibold">Available Produce Quantity (kg)</label>
-          <input
-            type="number"
-            min="0"
-            value={quantityKg}
-            onChange={(e) => {
-              const q = Math.max(0, Number(e.target.value) || 0);
-              setQuantityKg(q);
-              setMarkets((prev) => prev.map((m) => ({ ...m, quantityKg: q })));
-              setSellInputs((prev) => ({ ...prev, quantityKg: q }));
-            }}
-            className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-          />
-        </div>
-        <div>
-          <label className="block text-zinc-500 mb-1 font-semibold">Total Cultivation Expenses (₹)</label>
-          <input
-            type="number"
-            min="0"
-            value={cultivationExpensesInr}
-            onChange={(e) => setCultivationExpensesInr(Math.max(0, Number(e.target.value) || 0))}
-            className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-          />
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 print:hidden">
-        {(
-          [
-            { id: 'prices', label: 'Mandi Prices', icon: Store },
-            { id: 'compare', label: 'Market Profit', icon: TrendingUp },
-            { id: 'trends', label: 'Price Trends', icon: TrendingUp },
-            { id: 'sell_timing', label: 'Sell Now vs Later', icon: Clock },
-            { id: 'offers', label: 'Buyer Offers', icon: Users },
-            { id: 'transport', label: 'Transport Cost', icon: Truck },
-          ] as { id: MarketTab; label: string; icon: any }[]
-        ).map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold border ${
-                activeTab === tab.id
-                  ? 'bg-emerald-700 text-white border-emerald-700'
-                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                status?.official_api_configured
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-amber-100 text-amber-800'
               }`}
             >
-              <Icon className="w-3.5 h-3.5 shrink-0" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* TAB 1: MANDI PRICES */}
-      {activeTab === 'prices' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950">
-            <strong>Data Transparency:</strong> Live AGMARKNET / Data.gov.in API keys are not configured in this client environment. Sample records below are clearly labelled <em>Fictional Demonstration Datasets</em>; you can add real local mandi prices manually below.
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-            <input
-              type="text"
-              value={cropFilter}
-              onChange={(e) => setCropFilter(e.target.value)}
-              placeholder="Filter by crop (e.g., Tomato)"
-              className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-            />
-            <input
-              type="text"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              placeholder="Filter by state, district, or market"
-              className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-            />
-            <input
-              type="text"
-              value={manualMarketName}
-              onChange={(e) => setManualMarketName(e.target.value)}
-              placeholder="Manual market name"
-              className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-            />
-            <div className="flex gap-2">
-              <input
-                type="number"
-                step="0.5"
-                value={manualPricePerKg}
-                onChange={(e) => setManualPricePerKg(Number(e.target.value) || 0)}
-                placeholder="₹/kg"
-                className="w-24 px-2.5 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-              />
+              {status?.official_api_configured ? 'AGMARKNET API Configured' : 'AGMARKNET Key Unconfigured (Manual/CSV/Cache)'}
+            </span>
+            {cmpResult && (
               <button
-                type="button"
-                onClick={handleAddManualPrice}
-                className="flex-1 px-3 py-2 rounded-xl bg-emerald-700 text-white font-semibold"
+                onClick={() => speakSummary(cmpResult.reasoning)}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center gap-1.5"
               >
-                Add Price
+                <Volume2 className="w-4 h-4 text-emerald-700" />
+                Speak Advice
               </button>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500">
-                  <th className="py-2 pr-3">Crop</th>
-                  <th className="py-2 pr-3">Market & District</th>
-                  <th className="py-2 pr-3">Min / Max (₹/qtl)</th>
-                  <th className="py-2 pr-3">Modal (₹/qtl)</th>
-                  <th className="py-2 pr-3">Normalized (₹/kg)</th>
-                  <th className="py-2 pr-3">Date</th>
-                  <th className="py-2">Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPrices.map((p) => (
-                  <tr key={p.id} className="border-b border-zinc-100 dark:border-zinc-800">
-                    <td className="py-2 pr-3 font-semibold">{p.crop} ({p.variety})</td>
-                    <td className="py-2 pr-3">{p.market}, {p.district}</td>
-                    <td className="py-2 pr-3">₹{p.minPricePerQuintal} – ₹{p.maxPricePerQuintal}</td>
-                    <td className="py-2 pr-3 font-semibold">₹{p.modalPricePerQuintal}</td>
-                    <td className="py-2 pr-3 text-emerald-700 font-bold">₹{p.pricePerKg}/kg</td>
-                    <td className="py-2 pr-3">{p.priceDate}</td>
-                    <td className="py-2 text-[11px] text-zinc-500">{p.source}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            )}
           </div>
         </div>
-      )}
 
-      {/* TAB 2: MARKET PROFIT OPTIMIZATION */}
-      {activeTab === 'compare' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <h2 className="text-base font-bold">Market Profit Optimization (Net Return After Transport, Commission & Spoilage)</h2>
-          {marketResults.length > 0 && highestGrossMarket && marketResults[0].id !== highestGrossMarket.id && (
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950">
-              <strong>Key Insight:</strong> <strong>{highestGrossMarket.marketName}</strong> offers the highest selling price (₹{highestGrossMarket.sellingPricePerKg}/kg), but <strong>{marketResults[0].marketName}</strong> yields higher net profit (₹{marketResults[0].netProfitAfterCultivationInr.toLocaleString('en-IN')}) due to lower transport, commission, and spoilage losses.
-            </div>
-          )}
+        {statusMsg && (
+          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{statusMsg}</span>
+          </div>
+        )}
+        {errorMsg && (
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-medium flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {markets.map((m, idx) => (
-              <div key={m.id} className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-2">
-                <input
-                  type="text"
-                  value={m.marketName}
-                  onChange={(e) => {
-                    const next = [...markets];
-                    next[idx] = { ...m, marketName: e.target.value };
-                    setMarkets(next);
-                  }}
-                  className="w-full font-bold px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <label>
-                    Price (₹/kg)
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={m.sellingPricePerKg}
-                      onChange={(e) => {
-                        const next = [...markets];
-                        next[idx] = { ...m, sellingPricePerKg: Number(e.target.value) || 0 };
-                        setMarkets(next);
-                      }}
-                      className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                    />
-                  </label>
-                  <label>
-                    Transport (₹)
-                    <input
-                      type="number"
-                      value={m.transportExpenseInr}
-                      onChange={(e) => {
-                        const next = [...markets];
-                        next[idx] = { ...m, transportExpenseInr: Number(e.target.value) || 0 };
-                        setMarkets(next);
-                      }}
-                      className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                    />
-                  </label>
-                  <label>
-                    Commission (%)
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={m.commissionPct}
-                      onChange={(e) => {
-                        const next = [...markets];
-                        next[idx] = { ...m, commissionPct: Number(e.target.value) || 0 };
-                        setMarkets(next);
-                      }}
-                      className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                    />
-                  </label>
-                  <label>
-                    Spoilage (%)
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={m.spoilagePct}
-                      onChange={(e) => {
-                        const next = [...markets];
-                        next[idx] = { ...m, spoilagePct: Number(e.target.value) || 0 };
-                        setMarkets(next);
-                      }}
-                      className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                    />
-                  </label>
-                </div>
-              </div>
+        {/* Global Filters & Quick Actions */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-center text-xs">
+          <select
+            value={commodityFilter}
+            onChange={(e) => setCommodityFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-slate-300 font-semibold"
+          >
+            {(status?.supported_commodities || ['Tomato', 'Onion', 'Potato', 'Paddy', 'Wheat', 'Maize', 'Ragi']).map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500">
-                  <th className="py-2 pr-3">Rank & Market</th>
-                  <th className="py-2 pr-3">Price/kg</th>
-                  <th className="py-2 pr-3">Gross Revenue</th>
-                  <th className="py-2 pr-3">Spoilage Loss</th>
-                  <th className="py-2 pr-3">Selling + Transport</th>
-                  <th className="py-2 pr-3">Net Sale Revenue</th>
-                  <th className="py-2">Net Profit After Cultivation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {marketResults.map((r, i) => (
-                  <tr key={r.id} className={`border-b border-zinc-100 dark:border-zinc-800 ${i === 0 ? 'bg-emerald-50/60 font-semibold' : ''}`}>
-                    <td className="py-2 pr-3">#{i + 1} {r.marketName}</td>
-                    <td className="py-2 pr-3">₹{r.sellingPricePerKg}/kg</td>
-                    <td className="py-2 pr-3">₹{r.grossSaleRevenueInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3 text-amber-700">₹{r.spoilageLossInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">₹{r.totalSellingExpensesInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">₹{r.netSaleRevenueInr.toLocaleString('en-IN')}</td>
-                    <td className={`py-2 font-bold ${r.netProfitAfterCultivationInr >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                      ₹{r.netProfitAfterCultivationInr.toLocaleString('en-IN')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={marketResults}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="marketName" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="grossSaleRevenueInr" name="Gross Sale (₹)" fill="#94a3b8" />
-                <Bar dataKey="netProfitAfterCultivationInr" name="Net Profit (₹)" fill="#15803d" />
-              </BarChart>
-            </ResponsiveContainer>
+          </select>
+          <select
+            value={districtFilter}
+            onChange={(e) => setDistrictFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-slate-300"
+          >
+            <option value="">All Karnataka Districts</option>
+            {(status?.karnataka_priority_districts || []).map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleFetchLive}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Fetch Official AGMARKNET
+          </button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Link href="/bidding" className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold flex items-center gap-1">
+              <Gavel className="w-3.5 h-3.5" /> Smart Bidding
+            </Link>
+            <Link href="/transport" className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold flex items-center gap-1">
+              <Truck className="w-3.5 h-3.5" /> Transport
+            </Link>
+            <Link href="/post-harvest" className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold flex items-center gap-1">
+              <Scale className="w-3.5 h-3.5" /> Sell vs Store
+            </Link>
           </div>
         </div>
-      )}
 
-      {/* TAB 3: PRICE TRENDS */}
-      {activeTab === 'trends' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base font-bold">Price Trend Intelligence & Moving Average ({cropName})</h2>
-              <p className="text-xs text-zinc-500">
-                {customTrend ? 'Using imported CSV historical prices' : 'Using clearly labelled illustrative demonstration series (paste CSV below to analyze real prices)'}
-              </p>
-            </div>
-            <div className="flex gap-1.5 text-xs">
-              {(['7d', '30d', '90d'] as const).map((r) => (
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+          {[
+            { id: 'compare', label: 'Market Comparison (Net Return)', icon: BarChart3 },
+            { id: 'overview', label: 'Prices, Manual Entry & CSV Import', icon: Database },
+            { id: 'forecast', label: 'Historical Trends & Forecasting', icon: LineChartIcon },
+            { id: 'offers', label: 'Buyer Offer Benchmark', icon: Gavel },
+            { id: 'alerts', label: 'Market Targets & Alerts', icon: Bell },
+          ].map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id as MarketTab)}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors ${
+                  tab === t.id ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* TAB 1: MARKET NET RETURN COMPARISON */}
+        {tab === 'compare' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-slate-900">Transport-Adjusted Net Return</h2>
                 <button
-                  key={r}
                   type="button"
                   onClick={() => {
-                    setCustomTrend(null);
-                    setTrendRange(r);
+                    setCommodityFilter('Tomato');
+                    setQtyKg(2000);
+                    setMarketAName('Market A (Higher Headline Price)');
+                    setMarketAPrice(25);
+                    setMarketATransport(8000);
+                    setMarketBName('Market B (Lower Transport Cost)');
+                    setMarketBPrice(23);
+                    setMarketBTransport(2000);
                   }}
-                  className={`px-3 py-1.5 rounded-lg font-semibold ${
-                    trendRange === r && !customTrend ? 'bg-emerald-700 text-white' : 'bg-zinc-100 dark:bg-zinc-800'
-                  }`}
+                  className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200"
                 >
-                  {r.toUpperCase()} Demo
+                  Jury Demo Scenario
                 </button>
+              </div>
+              <div>
+                <label className="font-semibold text-slate-600">Available Produce Quantity (kg)</label>
+                <input
+                  type="number"
+                  value={qtyKg}
+                  onChange={(e) => setQtyKg(Number(e.target.value))}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"
+                />
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="font-bold text-slate-800">Market Option A</div>
+                <input value={marketAName} onChange={(e) => setMarketAName(e.target.value)} className="w-full px-2.5 py-1.5 rounded border border-slate-300" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" value={marketAPrice} onChange={(e) => setMarketAPrice(Number(e.target.value))} placeholder="Price ₹/kg" className="px-2.5 py-1.5 rounded border border-slate-300" />
+                  <input type="number" value={marketATransport} onChange={(e) => setMarketATransport(Number(e.target.value))} placeholder="Transport ₹" className="px-2.5 py-1.5 rounded border border-slate-300" />
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="font-bold text-slate-800">Market Option B</div>
+                <input value={marketBName} onChange={(e) => setMarketBName(e.target.value)} className="w-full px-2.5 py-1.5 rounded border border-slate-300" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" value={marketBPrice} onChange={(e) => setMarketBPrice(Number(e.target.value))} placeholder="Price ₹/kg" className="px-2.5 py-1.5 rounded border border-slate-300" />
+                  <input type="number" value={marketBTransport} onChange={(e) => setMarketBTransport(Number(e.target.value))} placeholder="Transport ₹" className="px-2.5 py-1.5 rounded border border-slate-300" />
+                </div>
+              </div>
+              <button onClick={runMarketComparison} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-semibold">
+                Rank Markets by Net Return
+              </button>
+            </div>
+
+            <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              {cmpResult ? (
+                <>
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs space-y-1">
+                    <div className="font-bold text-emerald-900 uppercase">
+                      Recommended: {cmpResult.recommended_market}
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900">{cmpResult.reasoning}</p>
+                  </div>
+                  <div className="h-56 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cmpChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="Gross" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="NetReturn" fill="#059669" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-slate-500">Sign in to compare transport-adjusted net market returns.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: OBSERVATIONS, MANUAL ENTRY & CSV IMPORT */}
+        {tab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 space-y-4">
+              <form onSubmit={handleAddManual} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3 text-xs">
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-emerald-600" />
+                  Record Farmer-Observed Market Price
+                </h2>
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={manMarket} onChange={(e) => setManMarket(e.target.value)} placeholder="Mandi / Market" className="px-3 py-2 rounded-lg border border-slate-300" />
+                  <input value={manDistrict} onChange={(e) => setManDistrict(e.target.value)} placeholder="District" className="px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-600">Modal Price (₹/kg)</label>
+                  <input type="number" step="0.5" value={manPriceKg} onChange={(e) => setManPriceKg(Number(e.target.value))} className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <button type="submit" className="w-full py-2 rounded-xl bg-emerald-600 text-white font-semibold">
+                  Save Market Observation
+                </button>
+              </form>
+
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3 text-xs">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-sky-600" />
+                  Import Historical CSV (Safe Sanitized)
+                </h3>
+                <textarea
+                  rows={4}
+                  value={csvText}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  placeholder="commodity,state,district,market,observation_date,modal_price,unit&#10;Tomato,Karnataka,Mandya,Mandya APMC,2026-11-20,2400,INR/Quintal"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-[11px]"
+                />
+                <button onClick={handleImportCsv} className="w-full py-2 rounded-xl bg-sky-600 text-white font-semibold">
+                  Import CSV Observations
+                </button>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <h2 className="text-base font-bold text-slate-900">
+                Persisted Market Observations ({observations.length})
+              </h2>
+              <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-96">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-600 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2">Date</th>
+                      <th className="px-3 py-2">Market</th>
+                      <th className="px-3 py-2">Modal ₹/kg</th>
+                      <th className="px-3 py-2">Modal ₹/Qtl</th>
+                      <th className="px-3 py-2">Provenance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {observations.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
+                          No observations persisted for {commodityFilter} yet. Enter a price, import a CSV, or configure DATA_GOV_IN_API_KEY.
+                        </td>
+                      </tr>
+                    ) : (
+                      observations.map((o) => (
+                        <tr key={o.id}>
+                          <td className="px-3 py-2">{o.observation_date}</td>
+                          <td className="px-3 py-2 font-semibold">{o.market} ({o.district})</td>
+                          <td className="px-3 py-2 font-bold text-emerald-700">₹{o.modal_price_per_kg}</td>
+                          <td className="px-3 py-2">₹{o.modal_price_per_quintal}</td>
+                          <td className="px-3 py-2 text-[11px] text-slate-500">{o.provenance_label}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: HISTORICAL TRENDS & STATISTICAL FORECASTING */}
+        {tab === 'forecast' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-bold text-slate-900">
+                Historical Price Trend &amp; Walk-Forward Forecast ({commodityFilter})
+              </h2>
+              <select
+                value={horizonDays}
+                onChange={(e) => setHorizonDays(Number(e.target.value))}
+                className="px-3 py-1.5 rounded-lg border border-slate-300"
+              >
+                <option value={7}>7-Day Horizon</option>
+                <option value={15}>15-Day Horizon</option>
+                <option value={30}>30-Day Horizon</option>
+              </select>
+            </div>
+
+            {histFc?.forecast?.available ? (
+              <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-900">
+                <strong>Model:</strong> {histFc.forecast.selected_method} • <strong>Training Obs:</strong>{' '}
+                {histFc.forecast.training_observation_count} • <strong>Validation MAE:</strong> ₹
+                {histFc.forecast.validation_metrics?.mae_per_kg}/kg • <strong>RMSE:</strong> ₹
+                {histFc.forecast.validation_metrics?.rmse_per_kg}/kg
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
+                {histFc?.forecast?.reason || 'Insufficient historical observations for statistical forecasting.'}
+              </div>
+            )}
+
+            <div className="h-64 w-full">
+              {combinedTrendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={combinedTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="Actual" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Forecast" stroke="#0284c7" strokeDasharray="5 5" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full border border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-500">
+                  Import or record historical prices to visualize trends and unlock walk-forward forecasting.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: BUYER OFFER BENCHMARK */}
+        {tab === 'offers' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+            <h2 className="text-base font-bold text-slate-900">Compare Buyer Offer vs Benchmark Market</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="font-semibold text-slate-600">Buyer Offer (₹/kg)</label>
+                <input type="number" value={offerPriceKg} onChange={(e) => setOfferPriceKg(Number(e.target.value))} className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-600">Buyer Pickup / Transport Cost (₹)</label>
+                <input type="number" value={offerTransport} onChange={(e) => setOfferTransport(Number(e.target.value))} className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" />
+              </div>
+              <div className="flex items-end">
+                <button onClick={handleCompareOffer} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-semibold">
+                  Evaluate Offer
+                </button>
+              </div>
+            </div>
+            {offerResult && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900">Net Offer Return: ₹{Number(offerResult.offer_net_return_inr).toLocaleString()}</div>
+                <p className="text-slate-700">{String(offerResult.verdict)}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 5: ALERTS */}
+        {tab === 'alerts' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+            <div className="flex flex-wrap gap-3 items-end">
+              <div>
+                <label className="font-semibold text-slate-600">Target Selling Price (₹/kg) for {commodityFilter}</label>
+                <input type="number" value={alertTargetPrice} onChange={(e) => setAlertTargetPrice(Number(e.target.value))} className="w-48 mt-1 px-3 py-2 rounded-lg border border-slate-300 block" />
+              </div>
+              <button onClick={handleAddAlert} className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold">
+                Save In-App Alert Target
+              </button>
+            </div>
+            <p className="text-slate-500">{alertData?.delivery_mode || 'In-app evaluation only.'}</p>
+            <div className="space-y-2">
+              {(alertData?.alerts || []).map((a) => (
+                <div key={String(a.id)} className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-medium">
+                  {String(a.message)}
+                </div>
               ))}
             </div>
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Average Price</span>
-              <strong>₹{trendStats.avgPrice}/kg</strong>
-            </div>
-            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Minimum</span>
-              <strong>₹{trendStats.minPrice}/kg</strong>
-            </div>
-            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Maximum</span>
-              <strong>₹{trendStats.maxPrice}/kg</strong>
-            </div>
-            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Volatility</span>
-              <strong>{trendStats.volatilityPct}%</strong>
-            </div>
-            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-              <span className="text-zinc-500 block">Direction</span>
-              <strong>{trendStats.direction} ({trendStats.changePct}%)</strong>
-            </div>
-          </div>
-
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendStats.series}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="pricePerKg" name="Price (₹/kg)" stroke="#15803d" strokeWidth={2} />
-                <Line type="monotone" dataKey="movingAvg" name="3-Period Moving Avg" stroke="#f59e0b" strokeDasharray="5 5" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="text-xs space-y-2">
-            <label className="font-semibold block">Import Observed Price History CSV (format: date,pricePerKg per line):</label>
-            <textarea
-              rows={3}
-              value={csvInput}
-              onChange={(e) => setCsvInput(e.target.value)}
-              placeholder={'2026-11-18,16.5\n2026-11-19,17.0\n2026-11-20,18.2'}
-              className="w-full p-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 font-mono"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const parsed = parseCsvPriceHistory(csvInput);
-                if (parsed.length > 0) setCustomTrend(parsed);
-              }}
-              className="px-4 py-1.5 rounded-lg bg-emerald-700 text-white font-semibold"
-            >
-              Analyze CSV History
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: SELL NOW VS SELL LATER */}
-      {activeTab === 'sell_timing' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <h2 className="text-base font-bold">Sell Now vs Sell Later Strategy Simulator</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            {(
-              [
-                ['currentPricePerKg', 'Current Price (₹/kg)'],
-                ['expectedFuturePricePerKg', 'Expected Future Price (₹/kg)'],
-                ['storageDays', 'Storage Duration (days)'],
-                ['dailyStorageCostPerKg', 'Daily Storage Cost (₹/kg/day)'],
-                ['spoilagePct', 'Est. Spoilage (%)'],
-                ['storageCapacityKg', 'Storage Capacity (kg)'],
-                ['splitImmediatePct', 'Split: Sell Immediately (%)'],
-                ['transportExpenseInr', 'Transport Cost (₹)'],
-              ] as [keyof SellStrategyInputs, string][]
-            ).map(([k, label]) => (
-              <label key={k}>
-                <span className="text-zinc-500 block mb-1">{label}</span>
-                <input
-                  type="number"
-                  step="any"
-                  value={sellInputs[k]}
-                  onChange={(e) => setSellInputs({ ...sellInputs, [k]: Number(e.target.value) || 0 })}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-                />
-              </label>
-            ))}
-          </div>
-
-          {sellSim.capacityExceeded && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600" />
-              Available produce ({sellInputs.quantityKg} kg) exceeds storage capacity ({sellInputs.storageCapacityKg} kg). Excess produce is modeled as sold immediately; never store perishable produce without proper cold/dry ventilation.
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <div className="font-bold text-sm">1. Sell Immediately</div>
-              <div className="text-lg font-bold text-emerald-700 mt-1">
-                ₹{sellSim.immediateRevenue.toLocaleString('en-IN')}
-              </div>
-              <p className="text-zinc-500 mt-1">Zero storage cost and zero post-harvest spoilage risk.</p>
-            </div>
-            <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <div className="font-bold text-sm">2. Store & Sell Later</div>
-              <div className="text-lg font-bold text-emerald-700 mt-1">
-                ₹{sellSim.laterRevenue.toLocaleString('en-IN')}
-              </div>
-              <p className="text-zinc-500 mt-1">
-                Storage: ₹{sellSim.storageCost.toLocaleString('en-IN')} · Spoilage loss: ₹{sellSim.spoilageLossInr.toLocaleString('en-IN')} · Break-even future price: ₹{sellSim.breakEvenFuturePrice}/kg
-              </p>
-            </div>
-            <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <div className="font-bold text-sm">3. Split Strategy ({sellInputs.splitImmediatePct}% Now)</div>
-              <div className="text-lg font-bold text-emerald-700 mt-1">
-                ₹{sellSim.splitNetRevenue.toLocaleString('en-IN')}
-              </div>
-              <p className="text-zinc-500 mt-1">Balances immediate cash flow with upside if prices rise.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: BUYER OFFER INTELLIGENCE */}
-      {activeTab === 'offers' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">Buyer Offer Intelligence (Independent Calculator — No Real Orders Created)</h2>
-            <button
-              type="button"
-              onClick={() =>
-                setOffers((p) => [
-                  ...p,
-                  {
-                    id: `b_${Date.now()}`,
-                    buyerName: `Buyer ${p.length + 1}`,
-                    offeredPricePerKg: 18,
-                    requiredQuantityKg: quantityKg,
-                    transportResponsibility: 'Farmer Delivery',
-                    transportExpenseInr: 6000,
-                    paymentDelayDays: 7,
-                    additionalSellingExpenseInr: 1000,
-                  },
-                ])
-              }
-              className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold"
-            >
-              + Add Offer
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            {offers.map((o, idx) => (
-              <div key={o.id} className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-700 grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  value={o.buyerName}
-                  onChange={(e) => {
-                    const next = [...offers];
-                    next[idx] = { ...o, buyerName: e.target.value };
-                    setOffers(next);
-                  }}
-                  className="col-span-2 font-bold px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                />
-                <label>
-                  Offered Price (₹/kg)
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={o.offeredPricePerKg}
-                    onChange={(e) => {
-                      const next = [...offers];
-                      next[idx] = { ...o, offeredPricePerKg: Number(e.target.value) || 0 };
-                      setOffers(next);
-                    }}
-                    className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                  />
-                </label>
-                <label>
-                  Transport Responsibility
-                  <select
-                    value={o.transportResponsibility}
-                    onChange={(e) => {
-                      const next = [...offers];
-                      next[idx] = { ...o, transportResponsibility: e.target.value as any };
-                      setOffers(next);
-                    }}
-                    className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                  >
-                    <option value="Buyer Pickup">Buyer Pickup</option>
-                    <option value="Farmer Delivery">Farmer Delivery</option>
-                  </select>
-                </label>
-                <label>
-                  Transport Cost (₹)
-                  <input
-                    type="number"
-                    value={o.transportExpenseInr}
-                    onChange={(e) => {
-                      const next = [...offers];
-                      next[idx] = { ...o, transportExpenseInr: Number(e.target.value) || 0 };
-                      setOffers(next);
-                    }}
-                    className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                  />
-                </label>
-                <label>
-                  Payment Delay (days)
-                  <input
-                    type="number"
-                    value={o.paymentDelayDays}
-                    onChange={(e) => {
-                      const next = [...offers];
-                      next[idx] = { ...o, paymentDelayDays: Number(e.target.value) || 0 };
-                      setOffers(next);
-                    }}
-                    className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                  />
-                </label>
-              </div>
-            ))}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500">
-                  <th className="py-2 pr-3">Buyer</th>
-                  <th className="py-2 pr-3">Offered Price</th>
-                  <th className="py-2 pr-3">Gross Offer</th>
-                  <th className="py-2 pr-3">Farmer Transport</th>
-                  <th className="py-2 pr-3">Payment Delay</th>
-                  <th className="py-2 pr-3">Net Sale Revenue</th>
-                  <th className="py-2">Est. Profit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {evaluatedOffers.map((ev, i) => (
-                  <tr key={ev.id} className={`border-b border-zinc-100 dark:border-zinc-800 ${i === 0 ? 'bg-emerald-50/60 font-semibold' : ''}`}>
-                    <td className="py-2 pr-3">{ev.buyerName}</td>
-                    <td className="py-2 pr-3">₹{ev.offeredPricePerKg}/kg</td>
-                    <td className="py-2 pr-3">₹{ev.grossValue.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">₹{ev.effectiveTransportInr.toLocaleString('en-IN')}</td>
-                    <td className="py-2 pr-3">{ev.paymentDelayDays} days</td>
-                    <td className="py-2 pr-3 text-emerald-700">₹{ev.netRevenue.toLocaleString('en-IN')}</td>
-                    <td className="py-2">₹{ev.estimatedProfit.toLocaleString('en-IN')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 6: TRANSPORTATION COST OPTIMIZER */}
-      {activeTab === 'transport' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
-          <h2 className="text-base font-bold">Transportation Cost Optimization (Independent Calculator — No Fake Driver Availability)</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            {transportOptions.map((opt, idx) => {
-              const ev = transportEvaluations[idx].eval;
-              return (
-                <div key={idx} className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <select
-                      value={opt.mode}
-                      onChange={(e) => {
-                        const next = [...transportOptions];
-                        next[idx] = { ...opt, mode: e.target.value as any };
-                        setTransportOptions(next);
-                      }}
-                      className="font-bold px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-                    >
-                      <option value="Individual Vehicle">Individual Vehicle</option>
-                      <option value="Shared Vehicle">Shared Vehicle</option>
-                      <option value="Buyer Pickup">Buyer-Arranged Pickup</option>
-                      <option value="Farmer Delivery">Farmer-Arranged Delivery</option>
-                    </select>
-                    {ev.valid ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> {ev.utilizationPct}% load
-                      </span>
-                    ) : (
-                      <span className="text-red-600 font-semibold">Capacity Exceeded</span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <label>
-                      Vehicle Capacity (kg)
-                      <input
-                        type="number"
-                        value={opt.vehicleCapacityKg}
-                        onChange={(e) => {
-                          const next = [...transportOptions];
-                          next[idx] = { ...opt, vehicleCapacityKg: Number(e.target.value) || 0 };
-                          setTransportOptions(next);
-                        }}
-                        className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                      />
-                    </label>
-                    <label>
-                      Quoted Vehicle Cost (₹)
-                      <input
-                        type="number"
-                        value={opt.quotedCostInr}
-                        onChange={(e) => {
-                          const next = [...transportOptions];
-                          next[idx] = { ...opt, quotedCostInr: Number(e.target.value) || 0 };
-                          setTransportOptions(next);
-                        }}
-                        className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                      />
-                    </label>
-                    <label>
-                      My Produce Weight (kg)
-                      <input
-                        type="number"
-                        value={opt.myProduceWeightKg}
-                        onChange={(e) => {
-                          const next = [...transportOptions];
-                          next[idx] = { ...opt, myProduceWeightKg: Number(e.target.value) || 0 };
-                          setTransportOptions(next);
-                        }}
-                        className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                      />
-                    </label>
-                    {opt.mode === 'Shared Vehicle' && (
-                      <label>
-                        Co-Farmers Weight (kg)
-                        <input
-                          type="number"
-                          value={opt.otherFarmersWeightKg}
-                          onChange={(e) => {
-                            const next = [...transportOptions];
-                            next[idx] = { ...opt, otherFarmersWeightKg: Number(e.target.value) || 0 };
-                            setTransportOptions(next);
-                          }}
-                          className="w-full px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700"
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                  {!ev.valid ? (
-                    <p className="text-red-600 bg-red-50 p-2 rounded-lg">{ev.error}</p>
-                  ) : (
-                    <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 space-y-1">
-                      <div>Total Combined Load: <strong>{ev.totalWeightKg.toLocaleString('en-IN')} kg</strong></div>
-                      <div>Your Weight-Proportional Share: <strong className="text-emerald-700">₹{ev.farmerShareInr.toLocaleString('en-IN')}</strong> (₹{ev.costPerKg}/kg)</div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

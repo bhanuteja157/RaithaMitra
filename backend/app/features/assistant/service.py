@@ -152,6 +152,22 @@ def _build_local_reply(
             f"and estimated net profit ₹{d['estimated_profit_inr']:,.0f} (using {d['variety']}).{warn}"
         )
 
+    if intent == "market_intelligence_query":
+        comm = d.get("commodity", "Tomato")
+        obs = d.get("latest_observations", [])
+        if obs:
+            top = obs[0]
+            price_txt = f"Latest persisted price for {comm}: ₹{top['modal_price_per_kg']}/kg at {top['market']} on {top['observation_date']} ({top['provenance_label']})."
+        else:
+            price_txt = f"No persisted official or CSV market observations found for {comm} yet."
+        if lang == "kn":
+            return f"{comm} ಮಾರುಕಟ್ಟೆ ಮಾಹಿತಿ: {price_txt} ಸಾರಿಗೆ ವೆಚ್ಚದ ನಂತರದ ನಿವ್ವಳ ಆದಾಯ ಹೋಲಿಸಲು /market-intelligence ತೆರೆಯಿರಿ."
+        if lang == "hi":
+            return f"{comm} बाजार जानकारी: {price_txt} परिवहन खर्च के बाद शुद्ध लाभ की तुलना के लिए /market-intelligence खोलें।"
+        if lang == "te":
+            return f"{comm} మార్కెట్ సమాచారం: {price_txt} రవాణా ఖర్చు తర్వాత నికర ఆదాయాన్ని పోల్చడానికి /market-intelligence తెరవండి."
+        return f"{price_txt} Open /market-intelligence to compare transportation-adjusted net returns across markets or import AGMARKNET CSV data."
+
     if intent == "equipment_query":
         cnt = d.get("available_count", 0)
         b_cnt = d.get("bookings_count", 0)
@@ -436,6 +452,7 @@ async def handle_assistant_chat(
         "satellite_intelligence": ("get_satellite_intelligence", {}),
         "post_harvest_query": ("get_post_harvest_intelligence", {"crop": classified.get("crop")}),
         "equipment_query": ("get_equipment_intelligence", {"crop": classified.get("crop")}),
+        "market_intelligence_query": ("get_market_intelligence", {"crop": classified.get("crop")}),
         "schemes": ("find_government_schemes", {}),
         "crop_health": ("check_crop_health_adapter", {"crop": classified.get("crop")}),
     }

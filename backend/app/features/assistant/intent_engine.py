@@ -212,6 +212,10 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
     if any(w in q for w in ("tractor", "rotavator", "harvester", "thresher", "sprayer", "drone", "seed drill", "transplanter", "machinery", "equipment", "share a tractor", "shared rental", "ಟ್ರ್ಯಾಕ್ಟರ್", "ಯಂತ್ರ", "ट्रैक्टर", "मशीन", "ట్రాక్టర్", "యంత్రం")):
         return {"intent": "equipment_query", "crop": crop}
 
+    # 4e. Market Intelligence & Price Prediction (AD-29)
+    if any(w in q for w in ("market price", "mandi", "agmarknet", "modal price", "price forecast", "next week", "where should i sell", "best market", "best price", "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ", "ಮಂಡಿ", "मंडी भाव", "बाजार भाव", "మార్కెట్ ధర", "మండి")):
+        return {"intent": "market_intelligence_query", "crop": crop}
+
     # 5. Irrigation & Weather
     if any(w in q for w in ("irrigate", "irrigation", "water today", "water my", "rain", "weather", "forecast", "climate", "ನೀರಾವರಿ", "ಹವಾಮಾನ", "ಮಳೆ", "सिंचाई", "मौसम", "बारिश", "నీటిపారుదల", "వాతావరణం")):
         return {"intent": "irrigation_weather"}

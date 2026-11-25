@@ -740,6 +740,100 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_eq_bookings_equip_time ON equipment_bookings(equipment_id, start_datetime, end_datetime)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_eq_listings_cat ON equipment_listings(category, is_active)")
 
+    # 19. Live Agricultural Market Intelligence & Price Prediction (AD-29)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS market_price_observations (
+        id TEXT PRIMARY KEY,
+        commodity TEXT NOT NULL,
+        variety TEXT NOT NULL DEFAULT 'FAQ',
+        grade TEXT NOT NULL DEFAULT 'FAQ',
+        state TEXT NOT NULL,
+        district TEXT NOT NULL,
+        market TEXT NOT NULL,
+        observation_date TEXT NOT NULL,
+        min_price_per_quintal REAL NOT NULL CHECK(min_price_per_quintal >= 0),
+        max_price_per_quintal REAL NOT NULL CHECK(max_price_per_quintal >= 0),
+        modal_price_per_quintal REAL NOT NULL CHECK(modal_price_per_quintal > 0),
+        modal_price_per_kg REAL NOT NULL CHECK(modal_price_per_kg > 0),
+        original_unit TEXT NOT NULL DEFAULT 'INR/Quintal',
+        source_type TEXT NOT NULL CHECK(source_type IN ('official_agmarknet', 'imported_csv', 'manual_farmer', 'demonstration')),
+        source_name TEXT NOT NULL,
+        provenance_label TEXT NOT NULL,
+        retrieved_at TEXT NOT NULL,
+        user_id TEXT,
+        UNIQUE(commodity, variety, grade, state, district, market, observation_date, source_type)
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS market_metadata (
+        id TEXT PRIMARY KEY,
+        market_name TEXT NOT NULL,
+        district TEXT NOT NULL,
+        state TEXT NOT NULL,
+        latitude REAL,
+        longitude REAL,
+        source TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(market_name, district, state)
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS market_provider_logs (
+        id TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        query_params_json TEXT,
+        status TEXT NOT NULL,
+        records_fetched INTEGER NOT NULL DEFAULT 0,
+        error_message TEXT,
+        retrieved_at TEXT NOT NULL
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS market_alert_preferences (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        commodity TEXT NOT NULL,
+        preferred_market TEXT,
+        target_price_per_kg REAL CHECK(target_price_per_kg IS NULL OR target_price_per_kg > 0),
+        max_transport_cost_inr REAL CHECK(max_transport_cost_inr IS NULL OR max_transport_cost_inr >= 0),
+        min_net_return_inr REAL CHECK(min_net_return_inr IS NULL OR min_net_return_inr >= 0),
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS market_alerts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        preference_id TEXT,
+        alert_type TEXT NOT NULL,
+        commodity TEXT NOT NULL,
+        market TEXT,
+        observed_price_per_kg REAL,
+        message TEXT NOT NULL,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS market_imported_datasets (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        row_count INTEGER NOT NULL,
+        imported_count INTEGER NOT NULL,
+        skipped_count INTEGER NOT NULL,
+        source_label TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_mkt_obs_comm_date ON market_price_observations(commodity, observation_date DESC)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_mkt_obs_state_dist ON market_price_observations(state, district, market)")
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts
