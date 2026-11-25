@@ -62,6 +62,9 @@ references/
 *.h5
 *.keras
 
+# TypeScript Build Info
+*.tsbuildinfo
+
 # Databases & Runtime State (Preserve local DB without git tracking)
 database/*.db
 database/*.sqlite

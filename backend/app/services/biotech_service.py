@@ -107,8 +107,8 @@ class BiotechService:
                 "resultType": "core",
                 "pageSize": min(page_size, 15)
             }
-            # Timeout set to 5.0 seconds for responsive hackathon UX
-            response = requests.get(self.europe_pmc_url, params=params, timeout=5.0)
+            # Timeout set to 10.0 seconds for reliable Europe PMC core abstract retrieval
+            response = requests.get(self.europe_pmc_url, params=params, timeout=10.0)
             
             if response.status_code == 200:
                 data = response.json()
