@@ -2,11 +2,21 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
-import { BotMessageSquare, Send, Sparkles, Database } from 'lucide-react';
+import {
+  AssistantLanguage,
+  buildPreNavigationMessage,
+  buildUnauthorizedMessage,
+  matchNavigationIntent,
+  speakWithDeviceVoice,
+} from '@/lib/assistantVoice';
+import { BotMessageSquare, Send, Database, Volume2, VolumeX } from 'lucide-react';
 
 export default function AssistantPage() {
-  const { currentFarm, language } = useFarm();
+  const router = useRouter();
+  const { currentFarm, currentUser, language } = useFarm();
+  const [muted, setMuted] = useState(false);
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
@@ -23,13 +33,40 @@ export default function AssistantPage() {
     if (!input.trim()) return;
 
     const userText = input;
+    const lang = (language || 'en') as AssistantLanguage;
     setInput('');
+
+    const intent = matchNavigationIntent(userText);
+    if (intent) {
+      if (!intent.allowedRoles.includes(currentUser.role)) {
+        const denied = buildUnauthorizedMessage(intent, currentUser.role, lang);
+        speakWithDeviceVoice(denied, lang, muted);
+        setMessages((prev) => [
+          ...prev,
+          { sender: 'user', text: userText, provenance: '' },
+          { sender: 'bot', text: denied, provenance: 'RBAC role authorization check' },
+        ]);
+        return;
+      }
+      const preMsg = buildPreNavigationMessage(intent, lang);
+      speakWithDeviceVoice(preMsg, lang, muted);
+      setMessages((prev) => [
+        ...prev,
+        { sender: 'user', text: userText, provenance: '' },
+        { sender: 'bot', text: preMsg, provenance: `Navigating to ${intent.route}` },
+      ]);
+      window.setTimeout(() => router.push(intent.route), 450);
+      return;
+    }
+
+    const reply = `Based on your farm in ${currentFarm?.district} with ${currentFarm?.primary_crop} (${currentFarm?.crop_stage} stage), current root-zone moisture is optimal. Drip irrigation is scheduled for tomorrow at 06:00 AM.`;
+    speakWithDeviceVoice(reply, lang, muted);
     setMessages(prev => [
       ...prev,
       { sender: 'user', text: userText, provenance: '' },
       {
         sender: 'bot',
-        text: `Based on your farm in ${currentFarm?.district} with ${currentFarm?.primary_crop} (${currentFarm?.crop_stage} stage), current root-zone moisture is optimal. Drip irrigation is scheduled for tomorrow at 06:00 AM.`,
+        text: reply,
         provenance: "Data source: Open-Meteo live feed + FAO-56 moisture balance (Uncertainty ±5%)."
       }
     ]);
@@ -56,6 +93,14 @@ export default function AssistantPage() {
             </p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setMuted((m) => !m)}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold"
+        >
+          {muted ? <VolumeX className="w-4 h-4 text-amber-600" /> : <Volume2 className="w-4 h-4 text-emerald-700" />}
+          {muted ? 'Unmute Voice' : 'Voice Enabled'}
+        </button>
       </div>
 
       <div className="p-6 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm flex flex-col h-[520px]">
