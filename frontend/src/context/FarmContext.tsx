@@ -2,10 +2,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Farm, FarmSummary, WeatherResponse, RecommendationResponse, Language, Theme, FarmCreate } from '@/types';
+import { Farm, FarmSummary, WeatherResponse, RecommendationResponse, Language, Theme, FarmCreate, User, UserRole } from '@/types';
 import { TRANSLATIONS } from '@/lib/translations';
 
 interface FarmContextType {
+  currentUser: User;
+  setCurrentUser: (user: User) => void;
+  role: UserRole;
+  switchDemoUser: (role: UserRole) => Promise<void>;
   farms: Farm[];
   currentFarm: Farm | null;
   setCurrentFarmId: (id: string) => void;
@@ -24,8 +28,22 @@ interface FarmContextType {
   createFarm: (data: FarmCreate) => Promise<boolean>;
 }
 
+const DEFAULT_USER: User = {
+  id: "usr_farmer",
+  email: "farmer@raithamitra.in",
+  name: "Suresh Gowda",
+  phone: "+91 98450 12345",
+  role: "farmer",
+  preferred_language: "kn",
+  village: "Mandya Rural",
+  district: "Mandya",
+  state: "Karnataka",
+  created_at: "2026-11-01T04:00:00Z"
+};
+
 const DEFAULT_FARM: Farm = {
   id: "farm_001",
+  farmer_id: "usr_farmer",
   farmer_name: "Suresh Gowda",
   preferred_language: "kn",
   farm_name: "Cauvery Valley Organic Farm",
@@ -51,6 +69,7 @@ const DEFAULT_FARM: Farm = {
 const FarmContext = createContext<FarmContextType | undefined>(undefined);
 
 export function FarmProvider({ children }: { children: ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
   const [farms, setFarms] = useState<Farm[]>([DEFAULT_FARM]);
   const [currentFarmId, setCurrentFarmId] = useState<string>("farm_001");
   const [summary, setSummary] = useState<FarmSummary | null>(null);
@@ -75,6 +94,12 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       } else {
         document.documentElement.classList.remove('dark');
       }
+    }
+    const savedUser = localStorage.getItem('rm_user');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {}
     }
   }, []);
 
@@ -150,8 +175,8 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         last_updated: "2026-11-25T09:30:00Z"
       });
       setWeather({
-        latitude: activeFarm.latitude,
-        longitude: activeFarm.longitude,
+        latitude: 12.5234,
+        longitude: 76.8976,
         elevation_m: 680,
         timezone: "Asia/Kolkata",
         current: {
@@ -183,7 +208,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         }
       });
       setRecommendations({
-        farm_id: activeFarm.id,
+        farm_id: "farm_001",
         generated_at: "2026-11-25T09:35:00Z",
         overall_risk_level: "low",
         active_advisories_count: 3,
@@ -193,7 +218,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
             category: "irrigation",
             priority: "high",
             action: "Schedule 2.5 hours drip cycle at 06:00 tomorrow",
-            reason: `Mid-season ${activeFarm.primary_crop} daily water demand is 5.29mm/day. Root zone moisture is currently 18.5% in ${activeFarm.soil_type}.`,
+            reason: "Mid-season Tomato daily water demand is 5.29mm/day. Root zone moisture is currently 18.5% in Red Sandy Loam.",
             supporting_data: {
               key_metrics: { et0_mm: 4.6, crop_water_demand_mm: 5.29, soil_moisture_pct: 18.5 },
               source: "FAO-56 Penman-Monteith Model & In-situ Calibration",
@@ -202,35 +227,6 @@ export function FarmProvider({ children }: { children: ReactNode }) {
               uncertainty: "±5%"
             },
             alternative_action: "If canal water supply arrives tonight, decrease duration to 1.5 hours."
-          },
-          {
-            id: "rec_002",
-            category: "crop_protection",
-            priority: "medium",
-            action: "Inspect lower leaves for early fungal blight spotting",
-            reason: "Forecast shows rain likelihood rising to 70% in 72 hours with warm temperatures. High humidity risk window.",
-            supporting_data: {
-              key_metrics: { rain_prob_72h_pct: 70, temperature_c: 28.4 },
-              source: "Agrometeorological Pathology Matrix",
-              timestamp: "2026-11-25T09:30:00Z",
-              data_quality: "live",
-              uncertainty: "±6%"
-            },
-            alternative_action: "Apply preventative organic bio-fungicide (Trichoderma) spray prior to rain."
-          },
-          {
-            id: "rec_003",
-            category: "market",
-            priority: "low",
-            action: `Check APMC Mandi price trends for ${activeFarm.primary_crop} in ${activeFarm.district}`,
-            reason: "Regional wholesale prices have gained 8.4% this week. Harvest window opening in 18 days.",
-            supporting_data: {
-              key_metrics: { "7_day_price_gain_pct": 8.4, mandi: `${activeFarm.district} APMC` },
-              source: "AGMARKNET Market Price Feed",
-              timestamp: "2026-11-25T09:30:00Z",
-              data_quality: "live",
-              uncertainty: "±4%"
-            }
           }
         ]
       });
@@ -242,6 +238,33 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchBackendData();
   }, [currentFarmId]);
+
+  const switchDemoUser = async (targetRole: UserRole) => {
+    const demoMap: Record<UserRole, { email: string; pass: string }> = {
+      farmer: { email: "farmer@raithamitra.in", pass: "farmer123" },
+      buyer: { email: "buyer1@raithamitra.in", pass: "buyer123" },
+      labour: { email: "labour@raithamitra.in", pass: "labour123" },
+      driver: { email: "driver@raithamitra.in", pass: "driver123" },
+      admin: { email: "farmer@raithamitra.in", pass: "farmer123" }
+    };
+    const creds = demoMap[targetRole];
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const res = await fetch(`${backendUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: creds.email, password: creds.pass })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        localStorage.setItem('rm_user', JSON.stringify(data.user));
+        return;
+      }
+    } catch (e) {
+      console.warn("Backend login failed, using local demo user:", e);
+    }
+  };
 
   const createFarm = async (data: FarmCreate): Promise<boolean> => {
     try {
@@ -260,7 +283,6 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.warn("Backend unavailable, storing in local session:", err);
     }
-    // Prototype local creation
     const newFarm: Farm = {
       id: `farm_${Date.now().toString(36)}`,
       created_at: new Date().toISOString(),
@@ -275,6 +297,10 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   return (
     <FarmContext.Provider
       value={{
+        currentUser,
+        setCurrentUser,
+        role: currentUser.role,
+        switchDemoUser,
         farms,
         currentFarm,
         setCurrentFarmId,

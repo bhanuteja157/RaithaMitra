@@ -8,6 +8,12 @@ import { useFarm } from '@/context/FarmContext';
 import {
   LayoutDashboard,
   Layers,
+  Dna,
+  Users2,
+  Gavel,
+  Truck,
+  ShoppingBag,
+  HardHat,
   Satellite,
   CloudSun,
   Droplets,
@@ -15,68 +21,65 @@ import {
   Sprout,
   Coins,
   LineChart,
-  ShoppingBag,
-  Warehouse,
-  Tractor,
-  Activity,
   Award,
   BotMessageSquare,
   Compass,
   Settings,
   User,
-  ExternalLink,
-  CheckCircle2,
-  Clock
+  Sparkles
 } from 'lucide-react';
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: any;
+  status: string;
+  badge?: string;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const { t } = useFarm();
+  const { t, currentUser } = useFarm();
 
-  const navigationGroups = [
+  const navigationGroups: NavGroup[] = [
     {
-      title: t('overview'),
+      title: "FLAGSHIP INNOVATIONS",
       items: [
-        { name: t('dashboard'), href: '/', icon: LayoutDashboard, status: 'operational' },
-        { name: t('digitalTwin'), href: '/farm-twin', icon: Layers, status: 'prototype' },
+        { name: "BioIntel Research", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Flagship' },
+        { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
+        { name: "Smart Bidding", href: '/bidding', icon: Gavel, status: 'flagship', badge: 'Flagship' },
+        { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Flagship' },
       ],
     },
     {
-      title: t('precisionAg'),
+      title: "ROLE DASHBOARDS",
       items: [
-        { name: t('satellite'), href: '/satellite', icon: Satellite, status: 'prototype' },
+        { name: "Farmer Dashboard", href: '/', icon: LayoutDashboard, status: 'role', badge: 'Farmer' },
+        { name: "Buyer Marketplace", href: '/dashboard/buyer', icon: ShoppingBag, status: 'role', badge: 'Buyer' },
+        { name: "Labour Portal", href: '/dashboard/labour', icon: HardHat, status: 'role', badge: 'Labour' },
+        { name: "Driver Console", href: '/dashboard/driver', icon: Truck, status: 'role', badge: 'Driver' },
+      ],
+    },
+    {
+      title: "SUPPORTING AGRI CAPABILITIES",
+      items: [
         { name: t('climate'), href: '/climate', icon: CloudSun, status: 'operational' },
+        { name: t('satellite'), href: '/satellite', icon: Satellite, status: 'prototype' },
+        { name: t('digitalTwin'), href: '/farm-twin', icon: Layers, status: 'prototype' },
         { name: t('irrigation'), href: '/irrigation', icon: Droplets, status: 'prototype' },
         { name: t('diagnostics'), href: '/diagnostics', icon: Microscope, status: 'prototype' },
         { name: t('soilNutrients'), href: '/soil-nutrients', icon: Sprout, status: 'prototype' },
-      ],
-    },
-    {
-      title: t('economicIntel'),
-      items: [
-        { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
-        { name: t('simulation'), href: '/simulation', icon: LineChart, status: 'prototype' },
-        { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'prototype' },
-        { name: t('postHarvest'), href: '/post-harvest', icon: Warehouse, status: 'prototype' },
-      ],
-    },
-    {
-      title: t('community'),
-      items: [
-        { name: t('resources'), href: '/resources', icon: Tractor, status: 'prototype' },
-        { name: t('surveillance'), href: '/surveillance', icon: Activity, status: 'prototype' },
         { name: t('schemes'), href: '/schemes', icon: Award, status: 'operational' },
-      ],
-    },
-    {
-      title: t('aiIntel'),
-      items: [
-        { name: t('assistant'), href: '/assistant', icon: BotMessageSquare, status: 'prototype' },
         { name: t('decisionIntelligence'), href: '/decision-intelligence', icon: Compass, status: 'operational' },
       ],
     },
     {
-      title: "PREFERENCES",
+      title: "SYSTEM PREFERENCES",
       items: [
         { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
         { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
@@ -101,7 +104,6 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       >
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
-          {/* Custom SVG Agricultural Technology Logo */}
           <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-rm-primary to-rm-dark text-white shadow-md">
             <svg
               className="w-7 h-7 text-rm-accent"
@@ -128,7 +130,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               </span>
             </div>
             <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-              Syntax Squad • HackWarts
+              Syntax Squad • HackWarts 2026
             </span>
           </div>
         </div>
@@ -137,13 +139,17 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto scrollbar-thin">
           {navigationGroups.map((group) => (
             <div key={group.title} className="space-y-1">
-              <h3 className="px-3 text-[11px] font-bold tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">
-                {group.title}
+              <h3 className="px-3 text-[11px] font-bold tracking-wider text-zinc-400 dark:text-zinc-500 uppercase flex items-center justify-between">
+                <span>{group.title}</span>
+                {group.title.includes("FLAGSHIP") && (
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                )}
               </h3>
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
+                  const isFlagship = item.status === 'flagship';
                   return (
                     <Link
                       key={item.href}
@@ -152,32 +158,32 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                       className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                         isActive
                           ? 'bg-rm-primary text-white shadow-sm'
+                          : isFlagship
+                          ? 'text-zinc-900 dark:text-zinc-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold'
                           : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-zinc-500 dark:text-zinc-400'}`} />
+                        <Icon className={`w-4 h-4 ${
+                          isActive
+                            ? 'text-white'
+                            : isFlagship
+                            ? 'text-rm-primary dark:text-rm-accent'
+                            : 'text-zinc-500 dark:text-zinc-400'
+                        }`} />
                         <span>{item.name}</span>
                       </div>
-                      {item.status === 'operational' ? (
+                      {item.badge && (
                         <span
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                             isActive
                               ? 'bg-white/20 text-white'
-                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                              : isFlagship
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
+                              : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                           }`}
                         >
-                          Live
-                        </span>
-                      ) : (
-                        <span
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                            isActive
-                              ? 'bg-white/20 text-white'
-                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
-                          }`}
-                        >
-                          Proto
+                          {item.badge}
                         </span>
                       )}
                     </Link>
@@ -188,13 +194,15 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           ))}
         </nav>
 
-        {/* Sidebar Footer info */}
+        {/* Active Role Indicator */}
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40">
           <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Unified Platform v1.0</span>
+            <span className="capitalize font-semibold text-zinc-800 dark:text-zinc-200">
+              Role: {currentUser.role}
+            </span>
             <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Connected
+              SQLite DB Sync
             </span>
           </div>
         </div>

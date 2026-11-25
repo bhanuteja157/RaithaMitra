@@ -1,8 +1,16 @@
-# backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
 from backend.app.core.config import settings
 from backend.app.api.api import api_router
+from backend.app.db.database import init_db
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize SQLite database and seed demo data on startup
+    init_db()
+    yield
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -11,6 +19,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
+    lifespan=lifespan,
 )
 
 # CORS configuration for Next.js frontend
@@ -29,5 +38,6 @@ def root():
     return {
         "message": "Welcome to RaithaMitra API",
         "docs_url": f"{settings.API_V1_STR}/docs",
-        "health_check": f"{settings.API_V1_STR}/health"
+        "health_check": f"{settings.API_V1_STR}/health",
+        "flagship_features": ["Labour Connect", "Smart Bidding", "Transport Connect", "BioIntel"]
     }
