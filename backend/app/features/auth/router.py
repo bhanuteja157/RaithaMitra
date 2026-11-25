@@ -10,9 +10,17 @@ import uuid
 import hashlib
 import secrets
 import json
+import sqlite3
 from datetime import datetime, timezone
 
-from backend.app.db.database import get_db_connection
+from backend.app.db.database import get_db_connection, normalize_phone_e164
+from backend.app.features.auth.otp_service import (
+    consume_verification_token,
+    dispatch_otp,
+    issue_verification_token,
+    mask_phone,
+    verify_submitted_otp,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
@@ -353,3 +361,313 @@ def get_demo_accounts():
             "redirect_url": "/dashboard/driver"
         },
     ]
+
+
+# ==============================================================================
+# AD-14: SECURE MOBILE NUMBER & OTP AUTHENTICATION (ONE PHONE = ONE ACCOUNT/ROLE)
+# ==============================================================================
+
+class OtpSendRequest(BaseModel):
+    phone: str = Field(..., description="Mobile number")
+    country_code: str = Field(default="+91", description="Country code, defaults to +91")
+
+
+class OtpVerifyRequest(BaseModel):
+    phone: str
+    country_code: str = "+91"
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
+class OtpRegisterRequest(BaseModel):
+    verification_token: str = Field(..., min_length=10)
+    name: str = Field(..., min_length=2, max_length=80)
+    role: Literal["farmer", "buyer", "labour", "driver"]
+    preferred_language: Literal["en", "kn", "hi", "te"] = "en"
+    village: Optional[str] = "Mandya Rural"
+    district: Optional[str] = "Mandya"
+    state: Optional[str] = "Karnataka"
+    buyer_type: Optional[Literal["individual", "business"]] = "individual"
+    business_name: Optional[str] = None
+    delivery_address: Optional[str] = None
+    skills: Optional[List[str]] = None
+    daily_wage_rate: Optional[float] = None
+    vehicle_type: Optional[str] = None
+    vehicle_reg_number: Optional[str] = None
+    capacity_kg: Optional[float] = None
+    base_fare_per_km: Optional[float] = None
+
+
+class OtpLinkPhoneRequest(BaseModel):
+    verification_token: str = Field(..., min_length=10)
+
+
+def _redirect_for_role(role: str) -> str:
+    return "/" if role == "farmer" else f"/dashboard/{role}"
+
+
+def _build_user_response(row) -> dict:
+    d = dict(row)
+    d["phone_verified"] = bool(d.get("phone_verified", 0))
+    d["is_demo"] = (
+        d["id"].startswith("usr_farmer")
+        or d["id"].startswith("usr_buyer")
+        or d["id"].startswith("usr_labour")
+        or d["id"].startswith("usr_driver")
+    )
+    return d
+
+
+@router.post("/otp/send")
+async def send_otp(payload: OtpSendRequest):
+    try:
+        phone_norm = normalize_phone_e164(payload.phone, payload.country_code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        result = await dispatch_otp(cursor, phone_norm)
+        conn.commit()
+        return result
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/otp/verify")
+async def verify_otp(payload: OtpVerifyRequest):
+    try:
+        phone_norm = normalize_phone_e164(payload.phone, payload.country_code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        await verify_submitted_otp(cursor, phone_norm, payload.otp)
+
+        existing = cursor.execute(
+            """
+            SELECT id, email, name, phone, phone_normalized, phone_verified, role,
+                   preferred_language, village, district, state, created_at
+            FROM users WHERE phone_normalized = ?
+            """,
+            (phone_norm,),
+        ).fetchone()
+
+        if existing:
+            now = datetime.now(timezone.utc).isoformat()
+            if not existing["phone_verified"]:
+                cursor.execute(
+                    "UPDATE users SET phone_verified = 1 WHERE id = ?",
+                    (existing["id"],),
+                )
+            session_token = f"rm_token_{existing['id']}_{secrets.token_hex(12)}"
+            cursor.execute(
+                "INSERT INTO user_sessions (token, user_id, role, created_at) VALUES (?, ?, ?, ?)",
+                (session_token, existing["id"], existing["role"], now),
+            )
+            conn.commit()
+            refreshed = cursor.execute(
+                """
+                SELECT id, email, name, phone, phone_normalized, phone_verified, role,
+                       preferred_language, village, district, state, created_at
+                FROM users WHERE id = ?
+                """,
+                (existing["id"],),
+            ).fetchone()
+            return {
+                "status": "authenticated",
+                "access_token": session_token,
+                "token_type": "bearer",
+                "user": _build_user_response(refreshed),
+                "redirect_url": _redirect_for_role(existing["role"]),
+            }
+
+        # New phone number: issue single-use server-verified proof token
+        verification_token = issue_verification_token(cursor, phone_norm)
+        conn.commit()
+        return {
+            "status": "needs_registration",
+            "verification_token": verification_token,
+            "masked_phone": mask_phone(phone_norm),
+        }
+    except HTTPException:
+        conn.commit()  # persist failed attempt count / consumed timestamp
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/otp/register", status_code=status.HTTP_201_CREATED)
+def register_with_otp(payload: OtpRegisterRequest):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("BEGIN IMMEDIATE")
+        phone_norm = consume_verification_token(cursor, payload.verification_token)
+
+        existing = cursor.execute(
+            "SELECT id FROM users WHERE phone_normalized = ?",
+            (phone_norm,),
+        ).fetchone()
+        if existing:
+            conn.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="This mobile number is already registered with RaithaMitra. Please continue using your existing account.",
+            )
+
+        user_id = f"usr_{uuid.uuid4().hex[:8]}"
+        now = datetime.now(timezone.utc).isoformat()
+        synthetic_email = f"{phone_norm.replace('+', '')}@mobile.raithamitra.in"
+        random_pwd_hash = hash_password(secrets.token_urlsafe(24))
+
+        cursor.execute(
+            """
+            INSERT INTO users (
+                id, email, password_hash, name, phone, phone_normalized,
+                phone_verified, role, preferred_language, village, district, state, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                synthetic_email,
+                random_pwd_hash,
+                payload.name.strip(),
+                phone_norm,
+                phone_norm,
+                payload.role,
+                payload.preferred_language,
+                payload.village,
+                payload.district,
+                payload.state,
+                now,
+            ),
+        )
+
+        if payload.role == "buyer":
+            cursor.execute(
+                """
+                INSERT INTO buyer_profiles (id, user_id, buyer_type, business_name, delivery_address, authorized_for_nursery)
+                VALUES (?, ?, ?, ?, ?, 0)
+                """,
+                (
+                    f"buyer_{uuid.uuid4().hex[:6]}",
+                    user_id,
+                    payload.buyer_type or "individual",
+                    payload.business_name or payload.name.strip(),
+                    payload.delivery_address or f"{payload.village or ''}, {payload.district or 'Karnataka'}",
+                ),
+            )
+        elif payload.role == "labour":
+            skills_json = json.dumps(payload.skills or ["Harvesting", "Transplantation", "Weeding"])
+            wage = float(payload.daily_wage_rate) if payload.daily_wage_rate and payload.daily_wage_rate > 0 else 550.0
+            loc = f"{payload.village or ''}, {payload.district or 'Karnataka'}".strip(", ")
+            cursor.execute(
+                """
+                INSERT INTO labour_profiles (id, user_id, name, phone, skills_json, daily_wage_rate, availability_status, location, rating, total_jobs_completed, total_earnings)
+                VALUES (?, ?, ?, ?, ?, ?, 'available', ?, 5.0, 0, 0.0)
+                """,
+                (f"labour_{uuid.uuid4().hex[:6]}", user_id, payload.name.strip(), phone_norm, skills_json, wage, loc),
+            )
+        elif payload.role == "driver":
+            cursor.execute(
+                """
+                INSERT INTO transport_vehicles (id, driver_id, driver_name, driver_phone, vehicle_type, vehicle_reg_number, capacity_kg, base_fare_per_km, service_area, availability_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
+                """,
+                (
+                    f"veh_{uuid.uuid4().hex[:6]}",
+                    user_id,
+                    payload.name.strip(),
+                    phone_norm,
+                    payload.vehicle_type or "Tata Ace",
+                    payload.vehicle_reg_number or f"KA-{secrets.randbelow(89)+10}-TR-{secrets.randbelow(8999)+1000}",
+                    float(payload.capacity_kg) if payload.capacity_kg and payload.capacity_kg > 0 else 1500.0,
+                    float(payload.base_fare_per_km) if payload.base_fare_per_km and payload.base_fare_per_km > 0 else 30.0,
+                    f"{payload.district or 'Karnataka'}, State Highway routes",
+                ),
+            )
+
+        session_token = f"rm_token_{user_id}_{secrets.token_hex(12)}"
+        cursor.execute(
+            "INSERT INTO user_sessions (token, user_id, role, created_at) VALUES (?, ?, ?, ?)",
+            (session_token, user_id, payload.role, now),
+        )
+        conn.commit()
+
+        row = cursor.execute(
+            """
+            SELECT id, email, name, phone, phone_normalized, phone_verified, role,
+                   preferred_language, village, district, state, created_at
+            FROM users WHERE id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+        return {
+            "access_token": session_token,
+            "token_type": "bearer",
+            "user": _build_user_response(row),
+            "redirect_url": _redirect_for_role(payload.role),
+        }
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="This mobile number is already registered with RaithaMitra. Please continue using your existing account.",
+        )
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/otp/link-phone")
+def link_verified_phone(payload: OtpLinkPhoneRequest, authorization: Optional[str] = Header(None)):
+    """Safely links a verified phone number to an existing password-authenticated account."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
+    token = authorization.replace("Bearer ", "").strip()
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("BEGIN IMMEDIATE")
+        session = cursor.execute("SELECT user_id FROM user_sessions WHERE token = ?", (token,)).fetchone()
+        if not session:
+            raise HTTPException(status_code=401, detail="Invalid or expired session token")
+
+        phone_norm = consume_verification_token(cursor, payload.verification_token)
+        owner = cursor.execute(
+            "SELECT id FROM users WHERE phone_normalized = ? AND id != ?",
+            (phone_norm, session["user_id"]),
+        ).fetchone()
+        if owner:
+            raise HTTPException(
+                status_code=409,
+                detail="This mobile number is already registered with RaithaMitra. Please continue using your existing account.",
+            )
+
+        cursor.execute(
+            "UPDATE users SET phone = ?, phone_normalized = ?, phone_verified = 1 WHERE id = ?",
+            (phone_norm, phone_norm, session["user_id"]),
+        )
+        conn.commit()
+        return {"linked": True, "phone_normalized": phone_norm}
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="This mobile number is already registered with RaithaMitra. Please continue using your existing account.",
+        )
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
