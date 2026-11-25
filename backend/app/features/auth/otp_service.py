@@ -6,14 +6,17 @@ Never stores or logs raw OTP codes and never returns OTP codes in API responses.
 """
 import hashlib
 import hmac
+import json
 import os
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Dict, Optional
 
 import httpx
 from fastapi import HTTPException
+
+from backend.app.db.database import normalize_phone_e164
 
 OTP_TTL_SECONDS = 600
 RESEND_COOLDOWN_SECONDS = 60
@@ -22,22 +25,13 @@ RATE_LIMIT_MAX_REQUESTS = 5
 MAX_VERIFY_ATTEMPTS = 5
 VERIFICATION_TOKEN_TTL_SECONDS = 600
 
-# Explicit allowlisted demo phone numbers matching demo users in database.py
-ALLOWLISTED_DEMO_PHONES = {
-    "+919845012345",  # Farmer (Suresh Gowda, usr_farmer)
-    "+919845067890",  # Buyer (Bengaluru Fresh Foods Co, usr_buyer1)
-    "+919845011223",  # Buyer (Mysuru Organic Retail Ltd, usr_buyer2)
-    "+919845044556",  # Labour (Basavaraj Koravara, usr_labour)
-    "+919845077889",  # Driver (Manjunath Transport, usr_driver)
-}
-
 
 def is_demo_otp_active() -> bool:
     """
     Determines if local demo OTP is active.
-    STRICT SECURITY RULE (AD-18):
+    STRICT SECURITY RULE (AD-19B):
     Never enable demo OTP in production environment!
-    Only allowed when ENVIRONMENT is 'development' (or 'test') AND DEMO_OTP_ENABLED is true.
+    Only allowed when ENVIRONMENT is not 'production' AND DEMO_OTP_ENABLED is true.
     """
     env_mode = os.getenv("ENVIRONMENT", "development").strip().lower()
     if env_mode == "production":
@@ -46,38 +40,83 @@ def is_demo_otp_active() -> bool:
     return enabled
 
 
-def get_demo_otp_code() -> str:
+def parse_demo_otp_accounts() -> Dict[str, Dict[str, str]]:
     """
-    Returns the configured 6-digit demo OTP code (defaults to '280707').
-    Only accessible in development/test environments when demo OTP is active.
+    Parse private per-account demo OTP mappings from environment configuration.
+    Supports:
+      - DEMO_OTP_MAP: comma-separated 'user_id:phone:otp' entries
+      - DEMO_OTP_ACCOUNTS: JSON object mapping user_id -> {"phone": ..., "otp": ...}
+    Returns dict keyed by normalized E.164 phone -> {"user_id": str, "otp": str}.
     """
     if not is_demo_otp_active():
-        return ""
-    code = os.getenv("DEMO_OTP_CODE", "280707").strip()
-    if len(code) == 6 and code.isdigit():
-        return code
-    return "280707"
+        return {}
+
+    registry: Dict[str, Dict[str, str]] = {}
+
+    raw_json = os.getenv("DEMO_OTP_ACCOUNTS", "").strip()
+    if raw_json:
+        try:
+            parsed = json.loads(raw_json)
+            if isinstance(parsed, dict):
+                for uid, cfg in parsed.items():
+                    if not isinstance(cfg, dict):
+                        continue
+                    phone_raw = str(cfg.get("phone", "")).strip()
+                    otp_code = str(cfg.get("otp", "")).strip()
+                    if len(otp_code) == 6 and otp_code.isdigit():
+                        try:
+                            phone_norm = normalize_phone_e164(phone_raw)
+                            registry[phone_norm] = {"user_id": str(uid).strip(), "otp": otp_code}
+                        except ValueError:
+                            continue
+        except json.JSONDecodeError:
+            pass
+
+    raw_map = os.getenv("DEMO_OTP_MAP", "").strip()
+    if raw_map:
+        for item in raw_map.split(","):
+            part = item.strip()
+            if not part:
+                continue
+            pieces = part.split(":")
+            if len(pieces) != 3:
+                continue
+            uid, phone_raw, otp_code = [p.strip() for p in pieces]
+            if not uid or len(otp_code) != 6 or not otp_code.isdigit():
+                continue
+            try:
+                phone_norm = normalize_phone_e164(phone_raw)
+                registry[phone_norm] = {"user_id": uid, "otp": otp_code}
+            except ValueError:
+                continue
+
+    return registry
 
 
-def is_allowlisted_demo_account(cursor, phone_normalized: str) -> bool:
+def resolve_demo_account_for_phone(cursor, phone_normalized: str) -> Optional[Dict[str, str]]:
     """
-    Check if a normalized phone number belongs to an explicitly allowlisted demo account.
-    Checks both the predefined ALLOWLISTED_DEMO_PHONES and existing demo user records in the DB.
+    Resolve an explicitly configured demo account for a normalized phone number.
+    Returns {"user_id": str, "role": str, "otp": str} only when:
+      1. Local demo OTP mode is active (non-production + DEMO_OTP_ENABLED=true).
+      2. The phone is present in the configured per-account demo OTP mapping.
+      3. The matching user ID and phone_normalized exist and are active in SQLite.
     """
-    if phone_normalized in ALLOWLISTED_DEMO_PHONES:
-        return True
+    if not is_demo_otp_active():
+        return None
+    registry = parse_demo_otp_accounts()
+    entry = registry.get(phone_normalized)
+    if not entry:
+        return None
+
     row = cursor.execute(
-        "SELECT id, role FROM users WHERE phone_normalized = ?",
-        (phone_normalized,),
+        "SELECT id, role, account_status FROM users WHERE id = ? AND phone_normalized = ?",
+        (entry["user_id"], phone_normalized),
     ).fetchone()
-    if row and (
-        row["id"].startswith("usr_farmer")
-        or row["id"].startswith("usr_buyer")
-        or row["id"].startswith("usr_labour")
-        or row["id"].startswith("usr_driver")
-    ):
-        return True
-    return False
+    if not row:
+        return None
+    if row["account_status"] and row["account_status"] != "active":
+        return None
+    return {"user_id": row["id"], "role": row["role"], "otp": entry["otp"]}
 
 
 def _otp_pepper() -> str:
@@ -176,16 +215,15 @@ async def dispatch_otp(cursor, phone_normalized: str) -> dict:
     enforce_send_rate_limit(cursor, phone_normalized, now)
 
     env_mode = os.getenv("ENVIRONMENT", "development").lower()
-    is_demo_eligible = is_demo_otp_active() and is_allowlisted_demo_account(cursor, phone_normalized)
+    demo_entry = resolve_demo_account_for_phone(cursor, phone_normalized)
 
-    if is_demo_eligible:
-        # Zero-Cost Demo Mobile OTP verification mode (AD-18)
-        demo_code = get_demo_otp_code()
-        otp_hash = hash_otp(phone_normalized, demo_code)
+    if demo_entry is not None:
+        # Zero-Cost Per-Account Demo Mobile OTP verification mode (AD-19B)
+        otp_hash = hash_otp(phone_normalized, demo_entry["otp"])
         provider_label = "demo_local_otp"
         use_twilio = False
         is_demo_mode = True
-        notice_text = "Demo verification mode — no SMS sent."
+        notice_text = "Demo verification mode — no SMS sent"
     else:
         is_demo_mode = False
         notice_text = None

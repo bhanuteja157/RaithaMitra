@@ -377,18 +377,120 @@ def init_db():
                 )
         except (ValueError, sqlite3.IntegrityError):
             pass
+
+    sync_demo_otp_phones(cursor)
     conn.commit()
     conn.close()
+
+
+DEMO_ACCOUNT_IDS = {"usr_farmer", "usr_buyer1", "usr_buyer2", "usr_labour", "usr_driver"}
+
+
+def sync_single_demo_phone(cursor, user_id: str, phone_raw: str) -> bool:
+    """
+    Idempotently update a seeded demo user's phone number using its stable user_id.
+    Validates phone uniqueness and rejects conflicts with existing non-demo accounts
+    instead of overwriting them. Preserves name, email, password_hash, role, and related records.
+    Returns True if updated or already in sync, False if user_id does not exist.
+    """
+    phone_norm = normalize_phone_e164(phone_raw)
+    target = cursor.execute(
+        "SELECT id, phone, phone_normalized, phone_verified FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if not target:
+        return False
+
+    conflict = cursor.execute(
+        "SELECT id, role FROM users WHERE phone_normalized = ? AND id != ?",
+        (phone_norm, user_id),
+    ).fetchone()
+    if conflict:
+        if conflict["id"] not in DEMO_ACCOUNT_IDS:
+            raise ValueError(
+                f"Phone number {phone_norm} conflicts with existing non-demo account ({conflict['id']})."
+            )
+        # Clear previous demo holder's phone_normalized only if swapping between demo accounts
+        cursor.execute(
+            "UPDATE users SET phone_normalized = NULL WHERE id = ?",
+            (conflict["id"],),
+        )
+
+    if (
+        target["phone"] != phone_norm
+        or target["phone_normalized"] != phone_norm
+        or not target["phone_verified"]
+    ):
+        cursor.execute(
+            "UPDATE users SET phone = ?, phone_normalized = ?, phone_verified = 1 WHERE id = ?",
+            (phone_norm, phone_norm, user_id),
+        )
+
+    if user_id == "usr_labour":
+        cursor.execute(
+            "UPDATE labour_profiles SET phone = ? WHERE user_id = ? AND phone != ?",
+            (phone_norm, user_id, phone_norm),
+        )
+    elif user_id == "usr_driver":
+        cursor.execute(
+            "UPDATE transport_vehicles SET driver_phone = ? WHERE driver_id = ? AND driver_phone != ?",
+            (phone_norm, user_id, phone_norm),
+        )
+    return True
+
+
+def sync_demo_otp_phones(cursor) -> None:
+    """
+    Idempotently synchronize local demo account mobile numbers from private .env configuration
+    when running in non-production environments with DEMO_OTP_ENABLED=true.
+    """
+    env_mode = os.getenv("ENVIRONMENT", "development").strip().lower()
+    if env_mode == "production":
+        return
+    enabled = os.getenv("DEMO_OTP_ENABLED", "false").strip().lower() in ("true", "1", "yes")
+    if not enabled:
+        return
+
+    pairs = []
+    raw_json = os.getenv("DEMO_OTP_ACCOUNTS", "").strip()
+    if raw_json:
+        try:
+            parsed = json.loads(raw_json)
+            if isinstance(parsed, dict):
+                for uid, cfg in parsed.items():
+                    if isinstance(cfg, dict) and cfg.get("phone"):
+                        pairs.append((str(uid).strip(), str(cfg["phone"]).strip()))
+        except json.JSONDecodeError:
+            pass
+
+    raw_map = os.getenv("DEMO_OTP_MAP", "").strip()
+    if raw_map:
+        for item in raw_map.split(","):
+            part = item.strip()
+            if not part:
+                continue
+            pieces = part.split(":")
+            if len(pieces) == 3:
+                pairs.append((pieces[0].strip(), pieces[1].strip()))
+
+    for uid, phone_raw in pairs:
+        if uid not in DEMO_ACCOUNT_IDS:
+            continue
+        try:
+            sync_single_demo_phone(cursor, uid, phone_raw)
+        except ValueError as exc:
+            print(f"[WARN] Demo phone sync skipped for {uid}: {exc}")
+
 
 def seed_demo_accounts(cursor):
     now = datetime.now(timezone.utc).isoformat()
 
     demo_users = [
-        ("usr_farmer", "farmer@raithamitra.in", "farmer123", "Suresh Gowda", "+91 98450 12345", "farmer", "kn", "Mandya Rural", "Mandya", "Karnataka", now),
-        ("usr_buyer1", "buyer1@raithamitra.in", "buyer123", "Bengaluru Fresh Foods Co", "+91 98450 67890", "buyer", "en", "Yeshwanthpur APMC", "Bengaluru Urban", "Karnataka", now),
-        ("usr_buyer2", "buyer2@raithamitra.in", "buyer123", "Mysuru Organic Retail Ltd", "+91 98450 11223", "buyer", "en", "Bandipalya Mandi", "Mysuru", "Karnataka", now),
-        ("usr_labour", "labour@raithamitra.in", "labour123", "Basavaraj Koravara", "+91 98450 44556", "labour", "kn", "Maddur", "Mandya", "Karnataka", now),
-        ("usr_driver", "driver@raithamitra.in", "driver123", "Manjunath Transport", "+91 98450 77889", "driver", "kn", "Mandya Town", "Mandya", "Karnataka", now),
+        ("usr_farmer", "farmer@raithamitra.in", "farmer123", "Suresh Gowda", "+91 90000 00001", "farmer", "kn", "Mandya Rural", "Mandya", "Karnataka", now),
+        ("usr_buyer1", "buyer1@raithamitra.in", "buyer123", "Bengaluru Fresh Foods Co", "+91 90000 00002", "buyer", "en", "Yeshwanthpur APMC", "Bengaluru Urban", "Karnataka", now),
+        ("usr_buyer2", "buyer2@raithamitra.in", "buyer123", "Mysuru Organic Retail Ltd", "+91 90000 00003", "buyer", "en", "Bandipalya Mandi", "Mysuru", "Karnataka", now),
+        ("usr_labour", "labour@raithamitra.in", "labour123", "Basavaraj Koravara", "+91 90000 00004", "labour", "kn", "Maddur", "Mandya", "Karnataka", now),
+        ("usr_driver", "driver@raithamitra.in", "driver123", "Manjunath Transport", "+91 90000 00005", "driver", "kn", "Mandya Town", "Mandya", "Karnataka", now),
     ]
 
     for u in demo_users:
@@ -432,7 +534,7 @@ def seed_demo_accounts(cursor):
     INSERT OR IGNORE INTO labour_profiles (
         id, user_id, name, phone, skills_json, daily_wage_rate, availability_status, location, rating, total_jobs_completed, total_earnings
     ) VALUES (
-        'labour_001', 'usr_labour', 'Basavaraj Koravara', '+91 98450 44556', ?, 600.0, 'available', 'Mandya Rural', 4.9, 14, 8400.0
+        'labour_001', 'usr_labour', 'Basavaraj Koravara', '+91 90000 00004', ?, 600.0, 'available', 'Mandya Rural', 4.9, 14, 8400.0
     )
     """, (skills,))
 
@@ -450,7 +552,7 @@ def seed_demo_accounts(cursor):
     INSERT OR IGNORE INTO transport_vehicles (
         id, driver_id, driver_name, driver_phone, vehicle_type, vehicle_reg_number, capacity_kg, base_fare_per_km, service_area, availability_status
     ) VALUES (
-        'veh_001', 'usr_driver', 'Manjunath Transport', '+91 98450 77889', 'Tata Ace', 'KA-11-EA-4521', 1500.0, 32.0, 'Mandya, Mysuru, Ramanagara, Bengaluru Rural', 'available'
+        'veh_001', 'usr_driver', 'Manjunath Transport', '+91 90000 00005', 'Tata Ace', 'KA-11-EA-4521', 1500.0, 32.0, 'Mandya, Mysuru, Ramanagara, Bengaluru Rural', 'available'
     )
     """)
 

@@ -48,7 +48,7 @@ const DEFAULT_USER: User = {
   id: "usr_farmer",
   email: "farmer@raithamitra.in",
   name: "Suresh Gowda",
-  phone: "+91 98450 12345",
+  phone: "",
   role: "farmer",
   preferred_language: "kn",
   village: "Mandya Rural",
@@ -323,10 +323,10 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         const found = accounts.find((a: any) => a.role === role);
         if (found) {
           const demoUser: User = {
-            id: `usr_${found.role}`,
+            id: found.id || (found.role === 'buyer' ? 'usr_buyer1' : `usr_${found.role}`),
             email: found.email,
             name: found.name,
-            phone: found.role === 'farmer' ? "+91 98450 12345" : found.role === 'buyer' ? "+91 98450 67890" : found.role === 'labour' ? "+91 98450 44556" : "+91 98450 77889",
+            phone: found.phone || "",
             role: found.role,
             preferred_language: found.role === 'buyer' ? 'en' : 'kn',
             village: found.role === 'farmer' ? "Mandya Rural" : found.role === 'labour' ? "Maddur" : "Mandya",

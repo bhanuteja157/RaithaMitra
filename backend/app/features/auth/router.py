@@ -319,44 +319,64 @@ def logout(authorization: Optional[str] = Header(None)):
 @router.get("/demo-accounts")
 def get_demo_accounts():
     """Returns safe demonstration accounts for 1-click judging evaluation."""
+    conn = get_db_connection()
+    phone_by_id = {}
+    try:
+        rows = conn.execute(
+            "SELECT id, phone FROM users WHERE id IN ('usr_farmer', 'usr_buyer1', 'usr_buyer2', 'usr_labour', 'usr_driver')"
+        ).fetchall()
+        phone_by_id = {r["id"]: r["phone"] for r in rows}
+    finally:
+        conn.close()
+
     return [
         {
+            "id": "usr_farmer",
             "role": "farmer",
             "name": "Suresh Gowda",
             "email": "farmer@raithamitra.in",
             "password": "farmer123",
+            "phone": phone_by_id.get("usr_farmer", ""),
             "description": "Mandya Organic Farmer (Tomato, Drip, 2.5 ha)",
             "redirect_url": "/"
         },
         {
+            "id": "usr_buyer1",
             "role": "buyer",
             "name": "Bengaluru Fresh Foods Co",
             "email": "buyer1@raithamitra.in",
             "password": "buyer123",
+            "phone": phone_by_id.get("usr_buyer1", ""),
             "description": "APMC Licensed Wholesale Buyer A",
             "redirect_url": "/dashboard/buyer"
         },
         {
+            "id": "usr_buyer2",
             "role": "buyer",
             "name": "Mysuru Organic Retail Ltd",
             "email": "buyer2@raithamitra.in",
             "password": "buyer123",
+            "phone": phone_by_id.get("usr_buyer2", ""),
             "description": "Retail Supermarket Chain Buyer B",
             "redirect_url": "/dashboard/buyer"
         },
         {
+            "id": "usr_labour",
             "role": "labour",
             "name": "Basavaraj Koravara",
             "email": "labour@raithamitra.in",
             "password": "labour123",
+            "phone": phone_by_id.get("usr_labour", ""),
             "description": "Skilled Agricultural Worker (Harvesting, Sowing)",
             "redirect_url": "/dashboard/labour"
         },
         {
+            "id": "usr_driver",
             "role": "driver",
             "name": "Manjunath Transport",
             "email": "driver@raithamitra.in",
             "password": "driver123",
+            "phone": phone_by_id.get("usr_driver", ""),
             "description": "Local Goods Carrier (Tata Ace, 1500kg Capacity)",
             "redirect_url": "/dashboard/driver"
         },

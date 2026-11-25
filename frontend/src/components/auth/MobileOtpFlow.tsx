@@ -165,8 +165,10 @@ export function MobileOtpFlow() {
     setMaskedPhone(res.masked_phone || phone);
     setCooldown(res.cooldown_seconds || 60);
     setSmsConfigured(Boolean(res.sms_configured));
-    if (res.demo_mode || res.notice) {
-      setDemoNotice(res.notice || 'Demo verification mode — no SMS sent.');
+    if (res.demo_mode && res.notice) {
+      setDemoNotice(res.notice);
+    } else if (res.demo_mode) {
+      setDemoNotice('Demo verification mode — no SMS sent');
     } else {
       setDemoNotice(null);
     }
@@ -259,7 +261,7 @@ export function MobileOtpFlow() {
                   autoComplete="tel-national"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="98450 12345"
+                  placeholder="90000 00000"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#DCD8CA] dark:border-zinc-700 bg-[#F7F5ED] dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#36784D]"
                 />
               </div>
@@ -291,8 +293,8 @@ export function MobileOtpFlow() {
               <span>{demoNotice}</span>
             </div>
           ) : !smsConfigured ? (
-            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[11px] text-amber-900 dark:text-amber-300">
-              Demo verification mode — no SMS sent.
+            <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-300">
+              SMS provider is not configured in this local environment.
             </div>
           ) : null}
 
