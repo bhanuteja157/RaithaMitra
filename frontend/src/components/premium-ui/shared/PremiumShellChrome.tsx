@@ -262,11 +262,12 @@ export function PremiumTopBar({
           value={language}
           onChange={(e) => onLanguageChange?.(e.target.value as PremiumLang)}
           aria-label="Select Language"
-          className="px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+          className="px-2.5 py-1.5 rounded-xl border border-[#E9E5D8] dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
         >
           <option value="en">English</option>
           <option value="kn">ಕನ್ನಡ</option>
           <option value="hi">हिन्दी</option>
+          <option value="te">తెలుగు</option>
         </select>
 
         {onToggleTheme && (

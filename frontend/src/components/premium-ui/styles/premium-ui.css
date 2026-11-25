@@ -1,20 +1,22 @@
 /* frontend/src/components/premium-ui/styles/premium-ui.css */
-/* Scoped styles for RaithaMitra Premium UI components (does not touch globals.css) */
+/* Scoped Natural Premium Design System for RaithaMitra (does not modify globals.css) */
 
 .rm-premium-root {
-  --rm-forest: #14532d;
-  --rm-green: #166534;
-  --rm-emerald: #059669;
-  --rm-cream: #f8f7f2;
-  --rm-earth: #92714b;
-  --rm-gold: #d4a72c;
-  --rm-charcoal: #17251d;
+  --rm-forest: #173c2b;
+  --rm-agri-green: #36784d;
+  --rm-leaf: #65a76f;
+  --rm-cream: #f7f5ed;
+  --rm-sand: #e9e5d8;
+  --rm-white: #ffffff;
+  --rm-earth: #8d7357;
+  --rm-gold: #c9a35c;
+  --rm-charcoal: #26332b;
 }
 
 @keyframes rmFadeSlideUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -22,17 +24,71 @@
   }
 }
 
+@keyframes rmSunGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes rmCloudDrift {
+  0%, 100% {
+    transform: translateX(0px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes rmRainFall {
+  0% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+}
+
+@keyframes rmOrbBreathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(54, 120, 77, 0.25);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 8px rgba(101, 167, 111, 0.08);
+  }
+}
+
+@keyframes rmWaveBar {
+  0%, 100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 .rm-animate-in {
-  animation: rmFadeSlideUp 0.35s ease-out both;
+  animation: rmFadeSlideUp 0.3s ease-out both;
 }
 
 .rm-card-hover {
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .rm-card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px -10px rgba(20, 83, 45, 0.16);
+  box-shadow: 0 10px 24px -12px rgba(23, 60, 43, 0.18);
 }
 
 .rm-img-zoom {
@@ -40,13 +96,39 @@
 }
 
 .group:hover .rm-img-zoom {
-  transform: scale(1.04);
+  transform: scale(1.03);
+}
+
+.rm-weather-sun {
+  animation: rmSunGlow 4s ease-in-out infinite;
+}
+
+.rm-weather-cloud {
+  animation: rmCloudDrift 5s ease-in-out infinite;
+}
+
+.rm-weather-rain-drop {
+  animation: rmRainFall 1.3s linear infinite;
+}
+
+.rm-orb-active {
+  animation: rmOrbBreathe 2.4s ease-in-out infinite;
+}
+
+.rm-wave-bar {
+  animation: rmWaveBar 0.9s ease-in-out infinite;
+  transform-origin: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rm-animate-in,
   .rm-card-hover,
-  .rm-img-zoom {
+  .rm-img-zoom,
+  .rm-weather-sun,
+  .rm-weather-cloud,
+  .rm-weather-rain-drop,
+  .rm-orb-active,
+  .rm-wave-bar {
     animation: none !important;
     transition: none !important;
     transform: none !important;

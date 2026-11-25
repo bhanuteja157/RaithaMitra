@@ -1,7 +1,7 @@
 // frontend/src/components/premium-ui/shared/i18n.ts
-// Feature-specific English, Kannada, and Hindi labels for Premium UI components.
+// Feature-specific English, Kannada, Hindi, and Telugu labels for Premium UI components.
 
-export type PremiumLang = 'en' | 'kn' | 'hi';
+export type PremiumLang = 'en' | 'kn' | 'hi' | 'te';
 
 export const PREMIUM_I18N: Record<
   PremiumLang,
@@ -65,5 +65,20 @@ export const PREMIUM_I18N: Record<
     planBeforePlant: 'बुवाई से पहले अपने खेत की योजना बनाएं।',
     startDigitalFarming: 'डिजिटल खेती शुरू करें',
     openMarketIntel: 'मार्केट इंटेलिजेंस खोलें',
+  },
+  te: {
+    tagline: 'విత్తనం నుండి అమ్మకం వరకు, ఒక తెలివైన సహచరుడు.',
+    intro: 'ప్రతి రైతుకు శాస్త్రీయ అవగాహన, వ్యవసాయ అవకాశాలు మరియు మెరుగైన నిర్ణయాలు.',
+    welcomeBack: 'తిరిగి స్వాగతం',
+    signIn: 'సైన్ ఇన్',
+    createAccount: 'ఖాతా సృష్టించండి',
+    chooseRole: 'రైత మిత్రలో మీ పాత్రను ఎంచుకోండి',
+    findWork: 'పని వెతకండి',
+    myJobs: 'నా పనులు',
+    myEarnings: 'నా ఆదాయం',
+    myProfile: 'నా ప్రొఫైల్',
+    planBeforePlant: 'విత్తే ముందు మీ పొలాన్ని ప్రణాళిక చేయండి.',
+    startDigitalFarming: 'డిజిటల్ వ్యవసాయం ప్రారంభించండి',
+    openMarketIntel: 'మార్కెట్ ఇంటెలిజెన్స్ తెరవండి',
   },
 };

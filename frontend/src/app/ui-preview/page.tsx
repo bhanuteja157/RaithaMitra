@@ -10,6 +10,8 @@ import { PremiumBuyerDashboard } from '@/components/premium-ui/buyer/PremiumBuye
 import { PremiumLabourDashboard } from '@/components/premium-ui/labour/PremiumLabourDashboard';
 import { PremiumDriverDashboard } from '@/components/premium-ui/driver/PremiumDriverDashboard';
 import { PremiumSidebar, PremiumTopBar } from '@/components/premium-ui/shared/PremiumShellChrome';
+import { AgriculturalAssistantOrb } from '@/components/premium-ui/shared/AgriculturalAssistantOrb';
+import { MonitoringChartCard, RiskStatusStrip } from '@/components/premium-ui/shared/MonitoringChartCard';
 import { PremiumLang } from '@/components/premium-ui/shared/i18n';
 
 type PreviewTab = 'login' | 'register' | 'farmer' | 'buyer' | 'labour' | 'driver';
@@ -94,6 +96,7 @@ export default function UiPreviewPage() {
             />
 
             {tab === 'farmer' && (
+              <>
               <PremiumFarmerDashboard
                 farmerName="Ramesh Gowda (Preview)"
                 farmName="Tumakuru Plot"
@@ -145,6 +148,36 @@ export default function UiPreviewPage() {
                   },
                 ]}
               />
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                <div className="lg:col-span-7">
+                  <MonitoringChartCard
+                    title="Modeled Crop Profit Comparison (Preview)"
+                    subtitle="Refined chart styling with soft sand grid lines and forest green bars"
+                    data={[
+                      { name: 'Tomato', value: 142000 },
+                      { name: 'Chilli', value: 118000 },
+                      { name: 'Maize', value: 84000 },
+                    ]}
+                  />
+                </div>
+                <div className="lg:col-span-5 rounded-xl border border-[#E9E5D8] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-[#26332B] dark:text-zinc-100">
+                      Farm-Level Risk & Assistant Status
+                    </h3>
+                  </div>
+                  <RiskStatusStrip
+                    items={[
+                      { label: 'Water Deficit Risk', level: 'Moderate', detail: 'Soil moisture at 48%' },
+                      { label: 'Nutrient Status Risk', level: 'Low', detail: 'Adequate organic baseline' },
+                      { label: 'Harvest Weather Risk', level: 'Low', detail: 'No storm overlap in 7-day window' },
+                    ]}
+                  />
+                  <AgriculturalAssistantOrb state="idle" voiceAvailable={false} />
+                </div>
+              </div>
+            </>
             )}
 
             {tab === 'buyer' && (

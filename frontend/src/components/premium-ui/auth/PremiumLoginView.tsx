@@ -1,7 +1,7 @@
 // frontend/src/components/premium-ui/auth/PremiumLoginView.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff, Sprout, ArrowRight, Loader2 } from 'lucide-react';
 import { AgriImage, AGRI_IMAGE_ASSETS } from '../shared/AgriImage';
 import { PREMIUM_I18N, PremiumLang } from '../shared/i18n';
@@ -30,6 +30,19 @@ export function PremiumLoginView({
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [slideIdx, setSlideIdx] = useState<number>(0);
+
+  const heroImages = [AGRI_IMAGE_ASSETS.heroSunrise, AGRI_IMAGE_ASSETS.satelliteFarmland];
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setSlideIdx((i) => (i + 1) % 2);
+    }, 6500);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,15 +59,24 @@ export function PremiumLoginView({
   return (
     <div className="rm-premium-root min-h-[620px] rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg grid grid-cols-1 lg:grid-cols-12">
       {/* Left 58% Visual Agricultural Showcase */}
-      <div className="lg:col-span-7 relative min-h-[280px] lg:min-h-[620px] flex flex-col justify-between overflow-hidden bg-[#14532D]">
+      <div className="lg:col-span-7 relative min-h-[280px] lg:min-h-[620px] flex flex-col justify-between overflow-hidden bg-[#173C2B]">
         <div className="absolute inset-0">
-          <AgriImage
-            src={AGRI_IMAGE_ASSETS.heroSunrise}
-            alt="Aerial view of green Indian agricultural farmland at sunrise"
-            aspectClass="w-full h-full"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#17251D]/90 via-[#14532D]/45 to-[#14532D]/30" />
+          {heroImages.map((img, i) => (
+            <div
+              key={img}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                slideIdx === i ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <AgriImage
+                src={img}
+                alt="Aerial view of green Indian agricultural farmland"
+                aspectClass="w-full h-full"
+                priority={i === 0}
+              />
+            </div>
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#26332B]/90 via-[#173C2B]/45 to-[#173C2B]/25" />
         </div>
 
         <div className="relative z-10 p-6 sm:p-8 flex items-center justify-between">
@@ -89,18 +111,18 @@ export function PremiumLoginView({
           </div>
           {onLanguageChange && (
             <div className="flex gap-1 text-xs">
-              {(['en', 'kn', 'hi'] as PremiumLang[]).map((code) => (
+              {(['en', 'kn', 'hi', 'te'] as PremiumLang[]).map((code) => (
                 <button
                   key={code}
                   type="button"
                   onClick={() => onLanguageChange(code)}
-                  className={`px-2.5 py-1 rounded-lg font-semibold ${
+                  className={`px-2 py-1 rounded-lg font-semibold ${
                     language === code
-                      ? 'bg-[#14532D] text-white'
-                      : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700'
+                      ? 'bg-[#173C2B] text-white'
+                      : 'bg-white dark:bg-zinc-800 text-[#26332B] dark:text-zinc-300 border border-[#E9E5D8] dark:border-zinc-700'
                   }`}
                 >
-                  {code === 'en' ? 'EN' : code === 'kn' ? 'ಕನ್ನಡ' : 'हिन्दी'}
+                  {code === 'en' ? 'EN' : code === 'kn' ? 'ಕನ್ನಡ' : code === 'hi' ? 'हिन्दी' : 'తెలుగు'}
                 </button>
               ))}
             </div>
