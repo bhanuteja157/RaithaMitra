@@ -61,3 +61,5 @@ references/
 *.pth
 *.h5
 *.keras
+
+*.tsbuildinfo
