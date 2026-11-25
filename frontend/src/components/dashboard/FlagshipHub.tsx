@@ -3,12 +3,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useFarm } from '@/context/FarmContext';
-import { Dna, Users, Gavel, Truck, ArrowRight, Sparkles, ShieldCheck, Zap } from 'lucide-react';
+import { Dna, Users, Gavel, Truck, ArrowRight, MapPin, TrendingUp } from 'lucide-react';
+import { AGRI_IMAGE_ASSETS } from '@/components/premium-ui/shared/AgriImage';
 
 export function FlagshipHub() {
-  const { t } = useFarm();
-
   const flagships = [
     {
       id: 'biointel',
@@ -16,8 +14,7 @@ export function FlagshipHub() {
       tagline: 'Genomics & Agri-Biotechnology',
       description: 'Peer-reviewed research from Europe PMC for disease-resistant crops, drought resilience, and certified nurseries.',
       icon: Dna,
-      badge: 'Live Research',
-      color: 'emerald',
+      image: AGRI_IMAGE_ASSETS.featureBiointel,
       href: '/biointel',
       metric: '300K+ Papers Indexed',
     },
@@ -25,105 +22,142 @@ export function FlagshipHub() {
       id: 'labour',
       title: 'Labour Connect',
       tagline: 'Farm Workforce Network',
-      description: 'Find skilled agricultural workers for sowing, weeding, and harvesting. Direct WhatsApp/phone contact with zero broker fees.',
+      description: 'Find skilled agricultural workers for sowing, weeding, and harvesting with transparent daily wages.',
       icon: Users,
-      badge: 'Fair Wages',
-      color: 'blue',
+      image: AGRI_IMAGE_ASSETS.featureLabour,
       href: '/labour',
-      metric: '100% Wage Transparency',
+      metric: 'Direct Wage Network',
     },
     {
       id: 'bidding',
       title: 'Smart Bidding',
       tagline: 'Farmer-First Produce Auction',
-      description: 'List produce lots with minimum floor price, evaluate verified buyer offers, and confirm sales with instant Purchase Orders.',
+      description: 'List produce lots with minimum floor price, evaluate verified buyer offers, and confirm sales.',
       icon: Gavel,
-      badge: 'Direct to Buyer',
-      color: 'amber',
-      href: '/bidding',
-      metric: 'Max-Offer AI Intelligence',
+      image: AGRI_IMAGE_ASSETS.featureBidding,
+      href: '/smart-market?section=bidding',
+      metric: 'Direct to Buyer',
     },
     {
       id: 'transport',
       title: 'Transport Connect',
       tagline: 'Farm-to-Market Logistics',
-      description: 'Book verified rural carriers by payload capacity, track 6-stage milestone delivery, and pool loads with Google OR-Tools.',
+      description: 'Book verified rural carriers by payload capacity, track 6-stage milestone delivery, and pool loads.',
       icon: Truck,
-      badge: 'OR-Tools Optimized',
-      color: 'purple',
+      image: AGRI_IMAGE_ASSETS.featureTransport,
       href: '/transport',
-      metric: '6-Stage Live Tracking',
+      metric: 'OR-Tools Optimized',
     },
   ];
 
   return (
-    <section className="bg-gradient-to-r from-emerald-900/40 via-slate-900/40 to-emerald-950/40 border border-emerald-500/30 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-700/60 gap-4 relative z-10">
+    <section className="space-y-5 rm-animate-in">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-semibold mb-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>HackWarts 2026 • 4 Flagship Innovations</span>
-          </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            RaithaMitra Flagship Intelligence Hub
-          </h2>
-          <p className="text-slate-400 text-sm mt-1">
-            Integrated agricultural capabilities powering rural prosperity — from seed genetics to market transport.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            Unified SQLite Backend Persistence
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8D7357]">
+            Core Platform Capabilities
           </span>
+          <h2 className="font-serif text-xl sm:text-2xl font-semibold text-[#20372A] dark:text-white tracking-tight">
+            Four Flagship Innovations
+          </h2>
         </div>
+        <span className="text-xs text-[#8D7357] dark:text-zinc-400">
+          From seed genetics to farm-gate transport
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 relative z-10">
+      {/* 4 Photographic Flagship Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {flagships.map((f) => {
           const Icon = f.icon;
           return (
             <Link
               key={f.id}
               href={f.href}
-              className="group flex flex-col justify-between bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/50 rounded-xl p-5 transition-all duration-200 shadow-md hover:shadow-emerald-950/50 hover:-translate-y-1"
+              className="group rounded-xl overflow-hidden border border-[#DCD8CA] dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between rm-card-hover"
             >
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-                    <Icon className="w-5 h-5" />
+                <div className="relative h-36 overflow-hidden bg-[#173C2B]">
+                  <img
+                    src={f.image}
+                    alt={f.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover rm-img-zoom"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#102D20]/80 via-[#102D20]/20 to-transparent" />
+                  <div className="absolute bottom-3 left-3.5 right-3.5 flex items-center justify-between text-white">
+                    <span className="font-serif text-lg font-semibold leading-tight">{f.title}</span>
+                    <Icon className="w-4 h-4 text-[#C9A35C] shrink-0" />
                   </div>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-700/80 text-emerald-300 border border-slate-600/60">
-                    {f.badge}
-                  </span>
                 </div>
-
-                <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-1.5">
-                  {f.title}
-                </h3>
-                <p className="text-xs font-medium text-emerald-500/90 mb-2">
-                  {f.tagline}
-                </p>
-                <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
-                  {f.description}
-                </p>
+                <div className="p-4 space-y-1.5">
+                  <div className="text-[11px] font-semibold text-[#526B38] dark:text-emerald-400">
+                    {f.tagline}
+                  </div>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-3">
+                    {f.description}
+                  </p>
+                </div>
               </div>
-
-              <div className="mt-5 pt-3 border-t border-slate-700/50 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-amber-400" />
-                  {f.metric}
-                </span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
-                  Explore <ArrowRight className="w-3.5 h-3.5" />
+              <div className="px-4 py-3 border-t border-[#E9E5D8] dark:border-zinc-800 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-[#8D7357] font-medium">{f.metric}</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-[#173C2B] dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
+                  Open <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               </div>
             </Link>
           );
         })}
+      </div>
+
+      {/* Digital Farming & Market Intelligence Photographic Entry Points */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <Link
+          href="/digital-farming"
+          className="group lg:col-span-7 relative rounded-xl overflow-hidden border border-[#DCD8CA] dark:border-zinc-800 bg-[#173C2B] text-white min-h-[168px] flex flex-col justify-between p-5 rm-card-hover"
+        >
+          <img
+            src={AGRI_IMAGE_ASSETS.satelliteFarmland}
+            alt="Satellite farmland plots"
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover rm-img-zoom"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/90 via-[#173C2B]/75 to-[#173C2B]/35" />
+          <div className="relative z-10 space-y-1.5 max-w-lg">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#C9A35C]">
+              <MapPin className="w-3.5 h-3.5" /> Digital Farming & Geospatial Simulator
+            </span>
+            <h3 className="font-serif text-xl font-semibold text-white">
+              Plan Your Farm Before You Plant.
+            </h3>
+            <p className="text-xs text-[#F7F5ED]/85">
+              Draw your exact field boundary on satellite imagery, calculate geodesic acreage, and run a 30-second crop growth & weather risk time-lapse.
+            </p>
+          </div>
+          <div className="relative z-10 pt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-white group-hover:translate-x-0.5 transition-transform">
+            Start Digital Farming <ArrowRight className="w-4 h-4 text-[#C9A35C]" />
+          </div>
+        </Link>
+
+        <Link
+          href="/smart-market?section=market_intel"
+          className="group lg:col-span-5 relative rounded-xl overflow-hidden border border-[#DCD8CA] dark:border-zinc-800 bg-[#F3EFE3] dark:bg-zinc-950 min-h-[168px] flex flex-col justify-between p-5 rm-card-hover"
+        >
+          <div className="space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#8D7357]">
+              <TrendingUp className="w-3.5 h-3.5 text-[#36784D]" /> Agricultural Market Intelligence
+            </span>
+            <h3 className="font-serif text-xl font-semibold text-[#20372A] dark:text-white">
+              Make Better Selling Decisions.
+            </h3>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Compare mandis net of transport, commission, and spoilage; simulate Sell Now vs Sell Later; and optimize shared vehicle freight.
+            </p>
+          </div>
+          <div className="pt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#173C2B] dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
+            Open Market Intelligence <ArrowRight className="w-4 h-4" />
+          </div>
+        </Link>
       </div>
     </section>
   );

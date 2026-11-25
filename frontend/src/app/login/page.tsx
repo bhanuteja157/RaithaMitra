@@ -21,7 +21,9 @@ import {
   MapPin,
   Check,
   Globe,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -34,6 +36,7 @@ export default function LoginPage() {
   // Sign In state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   // Registration state
   const [regName, setRegName] = useState('');
@@ -215,87 +218,155 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[90vh] flex flex-col items-center justify-center py-6 px-4">
-      {/* Brand & Language Header */}
-      <div className="w-full max-w-4xl flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-lg">
-            <Sprout className="w-7 h-7 text-emerald-300" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
-                RaithaMitra
-              </h1>
-              <span className="text-xs px-2 py-0.5 font-bold rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                ರೈತ ಮಿತ್ರ
-              </span>
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-              From Seed to Sale, One Intelligent Companion.
-            </p>
-          </div>
-        </div>
+    <div className="dark min-h-screen w-full relative overflow-hidden flex flex-col items-center justify-center py-8 px-4 bg-[#030907] text-[#F7F5ED]">
+      {/* Outer-Space Sky & Subtle Starfield */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-gradient-to-b from-[#020706] via-[#061410] to-[#0b2318]">
+        <div
+          className="absolute inset-0 opacity-45"
+          style={{
+            backgroundImage:
+              'radial-gradient(1px 1px at 14% 12%, rgba(255,255,255,0.75), transparent), radial-gradient(1px 1px at 38% 8%, rgba(186,230,253,0.7), transparent), radial-gradient(1.5px 1.5px at 72% 14%, rgba(255,255,255,0.65), transparent), radial-gradient(1px 1px at 88% 9%, rgba(167,243,208,0.6), transparent), radial-gradient(1px 1px at 56% 18%, rgba(255,255,255,0.5), transparent)',
+          }}
+        />
 
-        {/* Multilingual Selector */}
-        <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 shadow-sm">
-          <Globe className="w-3.5 h-3.5 text-zinc-400 ml-2" />
-          {(['en', 'kn', 'hi'] as Language[]).map((l) => (
-            <button
-              key={l}
-              onClick={() => setLanguage(l)}
-              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${
-                language === l
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-              }`}
-            >
-              {l === 'en' ? 'English' : l === 'kn' ? 'ಕನ್ನಡ' : 'हिंदी'}
-            </button>
-          ))}
+        {/* Realistic Earth-Observation Satellite in Upper-Left */}
+        <svg
+          viewBox="0 0 180 100"
+          aria-hidden="true"
+          className="hidden sm:block absolute top-6 left-6 md:top-10 md:left-12 w-36 md:w-44 opacity-85 drop-shadow-[0_6px_18px_rgba(56,189,248,0.28)]"
+        >
+          <defs>
+            <linearGradient id="rmSatPanel" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#1e3a5f" />
+              <stop offset="100%" stopColor="#0f172a" />
+            </linearGradient>
+            <linearGradient id="rmSatBody" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#e2e8f0" />
+              <stop offset="100%" stopColor="#64748b" />
+            </linearGradient>
+          </defs>
+          {/* Left solar wing */}
+          <rect x="8" y="34" width="52" height="22" rx="2" fill="url(#rmSatPanel)" stroke="#7dd3fc" strokeOpacity="0.45" strokeWidth="1" />
+          <line x1="25" y1="34" x2="25" y2="56" stroke="#38bdf8" strokeOpacity="0.35" strokeWidth="0.8" />
+          <line x1="42" y1="34" x2="42" y2="56" stroke="#38bdf8" strokeOpacity="0.35" strokeWidth="0.8" />
+          <line x1="8" y1="45" x2="60" y2="45" stroke="#38bdf8" strokeOpacity="0.35" strokeWidth="0.8" />
+          {/* Right solar wing */}
+          <rect x="114" y="34" width="52" height="22" rx="2" fill="url(#rmSatPanel)" stroke="#7dd3fc" strokeOpacity="0.45" strokeWidth="1" />
+          <line x1="131" y1="34" x2="131" y2="56" stroke="#38bdf8" strokeOpacity="0.35" strokeWidth="0.8" />
+          <line x1="148" y1="34" x2="148" y2="56" stroke="#38bdf8" strokeOpacity="0.35" strokeWidth="0.8" />
+          <line x1="114" y1="45" x2="166" y2="45" stroke="#38bdf8" strokeOpacity="0.35" strokeWidth="0.8" />
+          {/* Connecting boom */}
+          <rect x="60" y="43" width="54" height="4" fill="#94a3b8" />
+          {/* Main satellite bus */}
+          <rect x="74" y="29" width="26" height="32" rx="4" fill="url(#rmSatBody)" stroke="#cbd5e1" strokeWidth="1" />
+          <circle cx="87" cy="45" r="6" fill="#0f172a" stroke="#38bdf8" strokeWidth="1.2" />
+          <circle cx="87" cy="45" r="2.2" fill="#38bdf8" />
+          {/* Dish & sensor */}
+          <path d="M80 61 L87 72 L94 61 Z" fill="#94a3b8" />
+        </svg>
+
+        {/* Curved Earth Horizon & Aerial Green Agricultural Fields */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-[18%] sm:top-[16%] w-[165vw] sm:w-[140vw] h-[140vh] rounded-[50%] overflow-hidden border-t border-sky-300/40 shadow-[0_-18px_70px_rgba(56,189,248,0.28)]">
+          <img
+            src="/images/agriculture/indian-farmland-sunrise.jpg"
+            alt="Aerial green agricultural fields"
+            className="w-full h-full object-cover object-center opacity-55 scale-105"
+          />
+          <img
+            src="/images/agriculture/satellite-farmland.jpg"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-overlay"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-sky-400/15 via-[#0b2b1d]/65 to-[#04110b]/95" />
         </div>
       </div>
 
-      {/* Main Authentication Card */}
-      <div className="w-full max-w-4xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden p-6 md:p-8 space-y-6">
+      {/* Centered Translucent Dark-Green Glassmorphic Login Card */}
+      <div className="relative z-10 w-full max-w-2xl bg-[#0b2318]/82 backdrop-blur-xl border border-emerald-400/25 rounded-3xl shadow-[0_24px_80px_rgba(0,0,0,0.7)] overflow-hidden p-6 md:p-8 space-y-5 rm-animate-in">
+        {/* Brand & Language Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-400/15">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2b6a47] to-[#173C2B] border border-emerald-400/30 text-white shadow-lg">
+              <Sprout className="w-6 h-6 text-[#86efac]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-serif text-2xl font-semibold text-white tracking-tight">
+                  RaithaMitra
+                </h1>
+                <span className="text-[11px] px-2 py-0.5 font-semibold rounded-md bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                  ರೈತ ಮಿತ್ರ
+                </span>
+              </div>
+              <p className="text-xs text-[#C9A35C] font-medium">
+                From Seed to Sale, One Intelligent Companion.
+              </p>
+            </div>
+          </div>
+
+          {/* Multilingual Selector */}
+          <div className="flex items-center gap-1 bg-[#071810]/80 border border-emerald-400/20 rounded-xl p-1 self-start sm:self-auto">
+            <Globe className="w-3.5 h-3.5 text-emerald-300/80 ml-2" />
+            {(['en', 'kn', 'hi'] as Language[]).map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setLanguage(l)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                  language === l
+                    ? 'bg-[#2b6a47] text-white shadow-sm'
+                    : 'text-emerald-100/75 hover:bg-white/10'
+                }`}
+              >
+                {l === 'en' ? 'English' : l === 'kn' ? 'ಕನ್ನಡ' : 'हिंदी'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Navigation Mode Tabs */}
-        <div className="grid grid-cols-4 gap-2 p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-2xl">
+        <div className="grid grid-cols-4 gap-1.5 p-1.5 bg-[#071810]/80 border border-emerald-400/15 rounded-2xl">
           <button
+            type="button"
             onClick={() => { setActiveTab('otp'); setErrorMsg(null); }}
-            className={`py-2 text-xs font-bold rounded-xl transition-all ${
+            className={`py-2 text-xs font-semibold rounded-xl transition-all ${
               activeTab === 'otp'
-                ? 'bg-emerald-700 text-white shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-200'
+                ? 'bg-[#2b6a47] text-white shadow-sm'
+                : 'text-emerald-100/70 hover:text-white hover:bg-white/5'
             }`}
           >
             Mobile OTP
           </button>
           <button
+            type="button"
             onClick={() => { setActiveTab('signin'); setErrorMsg(null); }}
-            className={`py-2 text-xs font-bold rounded-xl transition-all ${
+            className={`py-2 text-xs font-semibold rounded-xl transition-all ${
               activeTab === 'signin'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                ? 'bg-[#2b6a47] text-white shadow-sm'
+                : 'text-emerald-100/70 hover:text-white hover:bg-white/5'
             }`}
           >
             Password
           </button>
           <button
+            type="button"
             onClick={() => { setActiveTab('register'); setErrorMsg(null); }}
-            className={`py-2 text-xs font-bold rounded-xl transition-all ${
+            className={`py-2 text-xs font-semibold rounded-xl transition-all ${
               activeTab === 'register'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                ? 'bg-[#2b6a47] text-white shadow-sm'
+                : 'text-emerald-100/70 hover:text-white hover:bg-white/5'
             }`}
           >
             Register
           </button>
           <button
+            type="button"
             onClick={() => { setActiveTab('demo'); setErrorMsg(null); }}
-            className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1 ${
+            className={`py-2 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1 ${
               activeTab === 'demo'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                ? 'bg-[#b48332] text-white shadow-sm'
+                : 'text-[#e2c285] hover:bg-white/5'
             }`}
           >
             <Sparkles className="w-3 h-3" />
@@ -303,7 +374,11 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {activeTab === 'otp' && <MobileOtpFlow />}
+        {activeTab === 'otp' && (
+          <div className="rounded-2xl bg-[#071810]/65 border border-emerald-400/15 p-4">
+            <MobileOtpFlow />
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMsg && (
@@ -400,13 +475,21 @@ export default function LoginPage() {
                 <div className="relative">
                   <Lock className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-200"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             </div>
