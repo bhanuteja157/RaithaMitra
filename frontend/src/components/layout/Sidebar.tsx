@@ -122,6 +122,13 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     // Farmer Dashboard & Full Agri Intelligence
     navigationGroups = [
       {
+        title: "OVERVIEW",
+        items: [
+          { name: "Farmer Dashboard", href: '/', icon: LayoutDashboard, status: 'role', badge: 'Farmer' },
+          { name: "Digital Farming Simulator", href: '/digital-farming', icon: Layers, status: 'flagship', badge: 'New' },
+        ],
+      },
+      {
         title: "FLAGSHIP INNOVATIONS",
         items: [
           { name: "BioIntel Research", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Flagship' },
@@ -129,6 +136,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
           { name: "Smart Bidding", href: '/bidding', icon: Gavel, status: 'flagship', badge: 'Flagship' },
           { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Flagship' },
+        ],
+      },
+      {
+        title: "ECONOMIC INTELLIGENCE",
+        items: [
+          { name: "Market Intelligence", href: '/market-intelligence', icon: LineChart, status: 'flagship', badge: 'New' },
+          { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
+          { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'operational' },
         ],
       },
       {
@@ -149,9 +164,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           { name: t('irrigation'), href: '/irrigation', icon: Droplets, status: 'prototype' },
           { name: t('diagnostics'), href: '/diagnostics', icon: Microscope, status: 'prototype' },
           { name: t('soilNutrients'), href: '/soil-nutrients', icon: Sprout, status: 'prototype' },
-          { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
           { name: t('simulation'), href: '/simulation', icon: LineChart, status: 'prototype' },
-          { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'operational' },
           { name: t('postHarvest'), href: '/post-harvest', icon: Warehouse, status: 'prototype' },
           { name: t('resources'), href: '/resources', icon: Tractor, status: 'prototype' },
           { name: t('surveillance'), href: '/surveillance', icon: Activity, status: 'prototype' },

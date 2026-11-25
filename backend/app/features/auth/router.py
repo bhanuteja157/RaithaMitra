@@ -18,25 +18,45 @@ router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
 
 def hash_password(password: str) -> str:
-    """Generate a salted SHA-256 password hash."""
+    """Generate a NIST-compliant PBKDF2-HMAC-SHA256 password hash (100,000 iterations)."""
     salt = secrets.token_hex(16)
-    hash_val = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
-    return f"sha256${salt}${hash_val}"
+    iterations = 100000
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations).hex()
+    return f"pbkdf2_sha256${iterations}${salt}${key}"
 
 
-def verify_password(plain_password: str, stored_hash: str) -> bool:
-    """Verify plain password against stored hash or legacy demo plaintext."""
+def verify_password(plain_password: str, stored_hash: str) -> tuple[bool, bool]:
+    """
+    Verify plain password against stored hash or legacy demo plaintext.
+    Returns: (is_valid: bool, needs_migration_to_pbkdf2: bool)
+    """
     if not stored_hash or not plain_password:
-        return False
-    # Legacy demo accounts use unhashed plaintext passwords for simplicity
+        return False, False
+        
+    # 1. PBKDF2-HMAC-SHA256 (Current Standard)
+    if stored_hash.startswith("pbkdf2_sha256$"):
+        parts = stored_hash.split("$")
+        if len(parts) == 4:
+            _, iters_str, salt, expected_key = parts
+            iters = int(iters_str)
+            computed_key = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), iters).hex()
+            return secrets.compare_digest(computed_key, expected_key), False
+
+    # 2. Legacy salted SHA-256 (Automatic Migration Target)
+    if stored_hash.startswith("sha256$"):
+        parts = stored_hash.split("$")
+        if len(parts) == 3:
+            _, salt, expected_hash = parts
+            computed_hash = hashlib.sha256((salt + plain_password).encode("utf-8")).hexdigest()
+            if secrets.compare_digest(computed_hash, expected_hash):
+                return True, True
+
+    # 3. Legacy demo plaintext passwords (e.g. 'farmer123', 'buyer123')
     if "$" not in stored_hash:
-        return secrets.compare_digest(plain_password, stored_hash)
-    parts = stored_hash.split("$")
-    if len(parts) == 3 and parts[0] == "sha256":
-        salt, expected_hash = parts[1], parts[2]
-        computed_hash = hashlib.sha256((salt + plain_password).encode("utf-8")).hexdigest()
-        return secrets.compare_digest(computed_hash, expected_hash)
-    return False
+        if secrets.compare_digest(plain_password, stored_hash):
+            return True, True
+
+    return False, False
 
 
 def verify_user_role_in_db(user_id: str, allowed_roles: List[str]) -> bool:
@@ -186,7 +206,12 @@ def login(credentials: UserLogin):
     FROM users WHERE LOWER(email) = ?
     """, (credentials.email.strip().lower(),)).fetchone()
     
-    if not user or not verify_password(credentials.password, user["password_hash"]):
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+    is_valid, needs_rehash = verify_password(credentials.password, user["password_hash"])
+    if not is_valid:
         conn.close()
         raise HTTPException(status_code=401, detail="Invalid email or password")
         
@@ -197,6 +222,11 @@ def login(credentials: UserLogin):
             status_code=403,
             detail=f"Role mismatch: account is registered as '{user['role'].capitalize()}', not '{credentials.role.capitalize()}'."
         )
+        
+    # Seamless in-place password migration to PBKDF2-HMAC-SHA256 upon successful login
+    if needs_rehash:
+        migrated_hash = hash_password(credentials.password)
+        cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (migrated_hash, user["id"]))
         
     now = datetime.now(timezone.utc).isoformat()
     session_token = f"rm_token_{user['id']}_{secrets.token_hex(12)}"

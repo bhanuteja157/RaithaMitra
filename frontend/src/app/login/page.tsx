@@ -48,6 +48,10 @@ export default function LoginPage() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<string[]>(['Harvesting', 'Transplantation']);
   const [dailyWage, setDailyWage] = useState<number>(600);
+  const [vehicleType, setVehicleType] = useState('Tata Ace');
+  const [regNumber, setRegNumber] = useState('KA-11-EA-4521');
+  const [capacityKg, setCapacityKg] = useState<number>(1500);
+  const [baseFarePerKm, setBaseFarePerKm] = useState<number>(30);
   
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -77,6 +81,14 @@ export default function LoginPage() {
       icon: Users,
       color: 'from-amber-500 to-orange-600',
       desc: 'Find nearby agricultural work, register skills, and track daily wages directly.'
+    },
+    {
+      role: 'driver',
+      title: 'Driver Profile',
+      subtitle: 'ಚಾಲಕ / चालक',
+      icon: Truck,
+      color: 'from-purple-500 to-indigo-600',
+      desc: 'Farm produce freight logistics, booking acceptance, and route delivery tracking.'
     }
   ];
 
@@ -165,6 +177,11 @@ export default function LoginPage() {
       } else if (selectedRole === 'labour') {
         payload.skills = selectedSkills;
         payload.daily_wage_rate = dailyWage;
+      } else if (selectedRole === 'driver') {
+        payload.vehicle_type = vehicleType;
+        payload.vehicle_reg_number = regNumber;
+        payload.capacity_kg = capacityKg;
+        payload.base_fare_per_km = baseFarePerKm;
       }
 
       const res = await registerUser(payload);
@@ -295,8 +312,8 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Exactly Three Primary Role-Selection Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Exactly Four Primary Role-Selection Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {PRIMARY_ROLES.map((r) => {
                 const Icon = r.icon;
                 const isSelected = selectedRole === r.role;
@@ -574,6 +591,69 @@ export default function LoginPage() {
                       max={2000}
                       value={dailyWage}
                       onChange={(e) => setDailyWage(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedRole === 'driver' && (
+              <div className="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 space-y-3">
+                <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase">
+                  Freight Vehicle & Tariff Details
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Vehicle Type
+                    </label>
+                    <select
+                      value={vehicleType}
+                      onChange={(e) => setVehicleType(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    >
+                      <option value="Tata Ace">Tata Ace (1.5 Tonne)</option>
+                      <option value="Mahindra Bolero Pickup">Mahindra Bolero Pickup (1.75T)</option>
+                      <option value="Ashok Leyland Dost">Ashok Leyland Dost (2.0T)</option>
+                      <option value="Eicher Pro 14ft">Eicher Pro 14ft (4.5T)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Registration Number
+                    </label>
+                    <input
+                      type="text"
+                      value={regNumber}
+                      onChange={(e) => setRegNumber(e.target.value)}
+                      placeholder="e.g. KA-11-EA-4521"
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Payload Capacity (kg)
+                    </label>
+                    <input
+                      type="number"
+                      min={500}
+                      max={10000}
+                      value={capacityKg}
+                      onChange={(e) => setCapacityKg(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                      Base Fare (₹ / km)
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={200}
+                      value={baseFarePerKm}
+                      onChange={(e) => setBaseFarePerKm(Number(e.target.value))}
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
                     />
                   </div>
