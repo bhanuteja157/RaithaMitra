@@ -198,6 +198,10 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
     if any(w in q for w in ("disease", "leaf spot", "blight", "wilt", "yellowing", "pest", "crop doctor", "ರೋಗ", "रोग", "తెగులు")):
         return {"intent": "crop_health", "crop": crop}
 
+    # 4b. Satellite & Geospatial Intelligence (AD-25)
+    if any(w in q for w in ("satellite", "ndvi", "ndmi", "ndwi", "evi", "savi", "ndre", "sentinel", "canopy", "vegetation index", "ಉಪಗ್ರಹ", "उपग्रह", "सैटेलाइट", "ఉపగ్రహం")):
+        return {"intent": "satellite_intelligence"}
+
     # 5. Irrigation & Weather
     if any(w in q for w in ("irrigate", "irrigation", "water today", "water my", "rain", "weather", "forecast", "climate", "ನೀರಾವರಿ", "ಹವಾಮಾನ", "ಮಳೆ", "सिंचाई", "मौसम", "बारिश", "నీటిపారుదల", "వాతావరణం")):
         return {"intent": "irrigation_weather"}

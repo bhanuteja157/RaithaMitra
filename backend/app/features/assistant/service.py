@@ -152,6 +152,24 @@ def _build_local_reply(
             f"and estimated net profit ₹{d['estimated_profit_inr']:,.0f} (using {d['variety']}).{warn}"
         )
 
+    if intent == "satellite_intelligence":
+        if d.get("error"):
+            return d["error"]
+        idx = d.get("indices", {})
+        ndvi_txt = f"NDVI {idx['ndvi']:.3f}" if idx.get("ndvi") is not None else "band stats awaiting Sentinel Hub / manual input"
+        cloud_txt = f"{d['cloud_cover_pct']:.1f}%" if d.get("cloud_cover_pct") is not None else "N/A"
+        acq_txt = (d.get("acquisition_date") or "N/A")[:10]
+        if lang == "kn":
+            return f"ಉಪಗ್ರಹ ವಿಶ್ಲೇಷಣೆ ({d.get('farm_name')}): ದಿನಾಂಕ {acq_txt}, ಮೋಡ {cloud_txt}, {ndvi_txt}. ಸ್ಥಿತಿ: {d.get('canopy_status')}. {d.get('irrigation_guidance', '')}"
+        if lang == "hi":
+            return f"उपग्रह विश्लेषण ({d.get('farm_name')}): तिथि {acq_txt}, बादल {cloud_txt}, {ndvi_txt}। स्थिति: {d.get('canopy_status')}। {d.get('irrigation_guidance', '')}"
+        if lang == "te":
+            return f"ఉపగ్రహ విశ్లేషణ ({d.get('farm_name')}): తేదీ {acq_txt}, మేఘాలు {cloud_txt}, {ndvi_txt}. స్థితి: {d.get('canopy_status')}."
+        return (
+            f"Satellite intelligence for {d.get('farm_name')} (scene {acq_txt}, cloud {cloud_txt}, mode: {d.get('source_mode')}): "
+            f"{ndvi_txt}. Canopy: {d.get('canopy_status')}. {d.get('irrigation_guidance', '')}"
+        )
+
     if intent == "irrigation_weather":
         if "action" in d:
             if lang == "kn":
@@ -374,6 +392,7 @@ async def handle_assistant_chat(
         "transport_draft": ("prepare_transport_booking_draft", {"weight_kg": classified.get("weight_kg"), "crop": classified.get("crop")}),
         "finance_query": ("get_financial_intelligence", {}),
         "finance_what_if": ("get_financial_intelligence", {"price_drop_pct": classified.get("price_drop_pct")}),
+        "satellite_intelligence": ("get_satellite_intelligence", {}),
         "schemes": ("find_government_schemes", {}),
         "crop_health": ("check_crop_health_adapter", {"crop": classified.get("crop")}),
     }

@@ -121,4 +121,6 @@ class SatelliteRequest(BaseModel):
     red_band: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Sentinel-2 B4 Red reflectance (0-1)")
     swir_band: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Sentinel-2 B11 SWIR reflectance (0-1)")
     blue_band: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Sentinel-2 B2 Blue reflectance (0-1)")
+    green_band: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Sentinel-2 B3 Green reflectance (0-1)")
+    red_edge_band: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Sentinel-2 B5 Red Edge reflectance (0-1)")
     use_demo_observation: bool = Field(default=True, description="Allow clearly labelled demonstration data when Sentinel-2 credentials are unavailable")

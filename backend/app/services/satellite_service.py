@@ -151,19 +151,57 @@ class SatelliteService:
                 ],
             )
 
-        # Case 3: Credentials present — ready for live Sentinel Hub Statistical/Process API integration
+        # Case 3: Credentials present — live Sentinel Hub Statistical API integration
         return ScientificModuleOutput(
             farm_id=req.farm_id,
             module="satellite_geospatial_intelligence",
-            source="Sentinel Hub Configured (Token Exchange Required at Runtime)",
+            source="Sentinel Hub Configured (Use async endpoint for live stats)",
             timestamp=datetime.now(timezone.utc),
             units={"ndvi": "index (-1 to +1)"},
             data_quality="unavailable",
             is_live=False,
-            assumptions=["Supply NIR/Red bands or verify Sentinel Hub quota."],
+            assumptions=["Use /api/v1/satellite/observations or /api/v1/scientific/satellite/analyze for live retrieval."],
             uncertainty="Pending live tile retrieval",
             results={"coordinates": {"latitude": req.latitude, "longitude": req.longitude}, "sentinel_credentials_configured": True},
-            recommended_actions=["Enter spectral bands manually to compute immediate NDVI."],
+            recommended_actions=["Call /api/v1/satellite/observations for live Sentinel-2 L2A field statistics."],
+        )
+
+    async def analyze_field_async(self, req: SatelliteRequest) -> ScientificModuleOutput:
+        """Async wrapper supporting live Sentinel Hub + Earth Search STAC retrieval."""
+        if (req.nir_band is not None and req.red_band is not None) or not (
+            os.getenv("SENTINEL_HUB_CLIENT_ID") and os.getenv("SENTINEL_HUB_CLIENT_SECRET")
+        ):
+            return self.analyze_field(req)
+
+        from backend.app.features.satellite.service import satellite_intelligence_service
+
+        live = await satellite_intelligence_service.analyze_observation(
+            farm_id=req.farm_id,
+            latitude=req.latitude,
+            longitude=req.longitude,
+            boundary_geojson=req.boundary_geojson,
+            nir_band=req.nir_band,
+            red_band=req.red_band,
+            swir_band=req.swir_band,
+            blue_band=req.blue_band,
+            green_band=getattr(req, "green_band", None),
+            red_edge_band=getattr(req, "red_edge_band", None),
+            use_demo_observation=req.use_demo_observation,
+        )
+        return ScientificModuleOutput(
+            farm_id=req.farm_id,
+            module="satellite_geospatial_intelligence",
+            source=live.get("provider", "Sentinel Hub"),
+            timestamp=datetime.now(timezone.utc),
+            units={"ndvi": "index (-1 to +1)", "ndmi": "index (-1 to +1)", "ndwi": "index (-1 to +1)", "evi": "index", "savi": "index", "ndre": "index"},
+            data_quality="live" if live.get("is_live") else "unavailable",
+            is_live=bool(live.get("is_live")),
+            assumptions=[live.get("provider_note", "")],
+            uncertainty="Cloud-masked Sentinel-2 L2A field statistics" if live.get("band_statistics_available") else "Metadata only",
+            results=live,
+            recommended_actions=[
+                live.get("agronomic_fusion", {}).get("irrigation_guidance", "Monitor field conditions.")
+            ],
         )
 
 

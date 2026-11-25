@@ -425,6 +425,33 @@ def init_db():
     )
     """)
 
+    # 16. Satellite Observation Metadata Cache (AD-25)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS satellite_observations_cache (
+        id TEXT PRIMARY KEY,
+        farm_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        product_id TEXT,
+        acquisition_timestamp TEXT NOT NULL,
+        processing_timestamp TEXT NOT NULL,
+        cloud_coverage_pct REAL,
+        valid_pixel_coverage_pct REAL,
+        indices_json TEXT NOT NULL,
+        polygon_hash TEXT NOT NULL,
+        source_reference TEXT NOT NULL,
+        data_quality TEXT NOT NULL,
+        thumbnail_url TEXT,
+        expires_at TEXT NOT NULL,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_sat_cache_farm_acq
+    ON satellite_observations_cache(farm_id, acquisition_timestamp DESC)
+    """)
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts

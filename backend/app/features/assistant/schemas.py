@@ -37,6 +37,7 @@ class StructuredCard(BaseModel):
         "research",
         "crop_health",
         "simulation",
+        "satellite_intelligence",
     ]
     title: str
     metrics: Dict[str, Any] = Field(default_factory=dict)

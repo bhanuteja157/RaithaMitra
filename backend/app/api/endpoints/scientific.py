@@ -54,8 +54,8 @@ async def simulate_digital_farm_twin(req: FarmTwinRequest):
 
 
 @router.post("/satellite/analyze", response_model=ScientificModuleOutput)
-def analyze_satellite_field(req: SatelliteRequest):
-    return satellite_service.analyze_field(req)
+async def analyze_satellite_field(req: SatelliteRequest):
+    return await satellite_service.analyze_field_async(req)
 
 
 @router.get("/diagnostics/status")

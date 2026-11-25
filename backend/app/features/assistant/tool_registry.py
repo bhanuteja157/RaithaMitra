@@ -169,6 +169,12 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "classification": "read_only",
         "provenance": "AD-24 SQLite Financial Ledger",
     },
+    "get_satellite_intelligence": {
+        "description": "Retrieve latest Sentinel-2 satellite observation, cloud cover, spectral indices, and canopy/moisture stress guidance.",
+        "allowed_roles": ["farmer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-25 Satellite & Geospatial Intelligence",
+    },
     "find_government_schemes": {
         "description": "Retrieve verified Indian government agricultural schemes and official links.",
         "allowed_roles": ["farmer", "buyer", "labour", "driver", "admin"],
@@ -744,6 +750,77 @@ async def execute_tool(
         for s in schemes[:3]:
             sources.append(SourceReference(title=s.name, source="Official Government Portal", url=s.application_portal, limitations="Check official portal for state-specific eligibility verification."))
         return {"authorized": True, "data": {"schemes": [s.name for s in schemes]}, "cards": cards, "sources": sources, "provenance": meta["provenance"]}
+
+    if tool_name == "get_satellite_intelligence":
+        if not farm:
+            return {"authorized": True, "data": {"error": "No farm profile found for satellite analysis."}, "cards": cards, "sources": sources, "provenance": meta["provenance"]}
+        from backend.app.features.satellite.service import satellite_intelligence_service
+
+        sat = await satellite_intelligence_service.analyze_observation(
+            user_id=user["user_id"],
+            role=user["role"],
+            farm_id=farm["id"],
+            latitude=float(farm["latitude"]),
+            longitude=float(farm["longitude"]),
+        )
+        hist = satellite_intelligence_service.get_history(
+            user_id=user["user_id"],
+            role=user["role"],
+            farm_id=farm["id"],
+            limit=6,
+        )
+        idx = sat.get("indices", {})
+        fusion = sat.get("agronomic_fusion", {})
+        metrics: Dict[str, Any] = {
+            "Provider": sat.get("provider", "Satellite"),
+            "Source Mode": sat.get("source_mode", "unknown"),
+            "Acquisition Date": (sat.get("acquisition_date") or "N/A")[:10],
+            "Cloud Cover": f"{sat['cloud_cover_pct']:.1f}%" if sat.get("cloud_cover_pct") is not None else "N/A",
+            "Canopy Status": fusion.get("canopy_status", "N/A"),
+            "Moisture Status": fusion.get("moisture_status", "N/A"),
+        }
+        if idx.get("ndvi") is not None:
+            metrics["NDVI"] = f"{idx['ndvi']:.3f}"
+        if idx.get("ndmi") is not None:
+            metrics["NDMI"] = f"{idx['ndmi']:.3f}"
+        if idx.get("evi") is not None:
+            metrics["EVI"] = f"{idx['evi']:.3f}"
+
+        highlights = [
+            fusion.get("canopy_health_summary", ""),
+            fusion.get("irrigation_guidance", ""),
+        ]
+        if hist.get("change_detection"):
+            highlights.append(hist["change_detection"].get("summary", ""))
+        highlights = [h for h in highlights if h]
+
+        cards.append(
+            StructuredCard(
+                card_type="satellite_intelligence",
+                title=f"Satellite Intelligence — {farm['farm_name']}",
+                metrics=metrics,
+                highlights=highlights[:3],
+            )
+        )
+        sources.append(SourceReference(title=sat.get("provider", "Sentinel-2 L2A"), source="AD-25 Satellite Intelligence", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": {
+                "farm_name": farm["farm_name"],
+                "source_mode": sat.get("source_mode"),
+                "acquisition_date": sat.get("acquisition_date"),
+                "cloud_cover_pct": sat.get("cloud_cover_pct"),
+                "band_statistics_available": sat.get("band_statistics_available"),
+                "indices": idx,
+                "canopy_status": fusion.get("canopy_status"),
+                "moisture_status": fusion.get("moisture_status"),
+                "irrigation_guidance": fusion.get("irrigation_guidance"),
+                "change_detection": hist.get("change_detection"),
+            },
+            "cards": cards,
+            "sources": sources,
+            "provenance": meta["provenance"],
+        }
 
     if tool_name == "check_crop_health_adapter":
         status_info = diagnostics_service.check_model_availability()
