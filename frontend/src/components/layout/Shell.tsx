@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { OnboardingModal } from '../modals/OnboardingModal';
+import { LocationSelectorModal } from '../modals/LocationSelectorModal';
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -22,8 +23,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {/* Shared Farm Onboarding Modal */}
+      {/* Shared Farm Onboarding & Location Modals */}
       <OnboardingModal />
+      <LocationSelectorModal />
     </div>
   );
 }

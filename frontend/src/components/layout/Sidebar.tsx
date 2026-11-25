@@ -26,7 +26,11 @@ import {
   Compass,
   Settings,
   User,
-  Sparkles
+  Sparkles,
+  Store,
+  Warehouse,
+  Tractor,
+  Activity
 } from 'lucide-react';
 
 interface NavItem {
@@ -51,6 +55,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       title: "FLAGSHIP INNOVATIONS",
       items: [
         { name: "BioIntel Research", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Flagship' },
+        { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
         { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
         { name: "Smart Bidding", href: '/bidding', icon: Gavel, status: 'flagship', badge: 'Flagship' },
         { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Flagship' },
@@ -74,7 +79,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         { name: t('irrigation'), href: '/irrigation', icon: Droplets, status: 'prototype' },
         { name: t('diagnostics'), href: '/diagnostics', icon: Microscope, status: 'prototype' },
         { name: t('soilNutrients'), href: '/soil-nutrients', icon: Sprout, status: 'prototype' },
+        { name: t('finance'), href: '/finance', icon: Coins, status: 'prototype' },
+        { name: t('simulation'), href: '/simulation', icon: LineChart, status: 'prototype' },
+        { name: t('marketplace'), href: '/marketplace', icon: ShoppingBag, status: 'operational' },
+        { name: t('postHarvest'), href: '/post-harvest', icon: Warehouse, status: 'prototype' },
+        { name: t('resources'), href: '/resources', icon: Tractor, status: 'prototype' },
+        { name: t('surveillance'), href: '/surveillance', icon: Activity, status: 'prototype' },
         { name: t('schemes'), href: '/schemes', icon: Award, status: 'operational' },
+        { name: t('assistant'), href: '/assistant', icon: BotMessageSquare, status: 'prototype' },
         { name: t('decisionIntelligence'), href: '/decision-intelligence', icon: Compass, status: 'operational' },
       ],
     },

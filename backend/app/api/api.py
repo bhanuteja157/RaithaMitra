@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from backend.app.api.endpoints import health, farms, weather, recommendations, schemes
+from backend.app.api.endpoints import health, farms, weather, recommendations, schemes, biotech, nurseries, locations
 from backend.app.features.auth import router as auth_router
 from backend.app.features.labour import router as labour_router
 from backend.app.features.bidding import router as bidding_router
@@ -15,7 +15,12 @@ api_router.include_router(weather.router, tags=["Weather"])
 api_router.include_router(recommendations.router, tags=["Recommendations"])
 api_router.include_router(schemes.router, tags=["Government Schemes"])
 
-# Flagship Feature Routers
+# Canonical Biotechnology, Nursery Marketplace, and Smart Location Services
+api_router.include_router(biotech.router)
+api_router.include_router(nurseries.router)
+api_router.include_router(locations.router)
+
+# Flagship Multi-Role Platform Routers
 api_router.include_router(auth_router.router)
 api_router.include_router(labour_router.router)
 api_router.include_router(bidding_router.router)

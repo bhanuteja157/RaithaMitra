@@ -5,6 +5,7 @@ import React from 'react';
 import { FlagshipHub } from '@/components/dashboard/FlagshipHub';
 import { OverviewCards } from '@/components/dashboard/OverviewCards';
 import { ActionPlan } from '@/components/dashboard/ActionPlan';
+import { BioIntelWidget } from '@/components/dashboard/BioIntelWidget';
 import { ConceptualFarmMap } from '@/components/dashboard/ConceptualFarmMap';
 import { AnalyticsCharts } from '@/components/dashboard/AnalyticsCharts';
 import { QuickActions } from '@/components/dashboard/QuickActions';
@@ -22,7 +23,10 @@ export default function DashboardPage() {
       {/* 3. Personalized Daily Action Plan (Centralized Decision Intelligence) */}
       <ActionPlan />
 
-      {/* 4. Interactive Farm Conceptual Zones Map */}
+      {/* 4. Feature 17 & 18: BioIntel & Intelligent Nursery Quick Access */}
+      <BioIntelWidget />
+
+      {/* 5. Interactive Farm Conceptual Zones Map */}
       <ConceptualFarmMap />
 
       {/* 5. Analytics & Time Series Charts (Water demand & Financials) */}

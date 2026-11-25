@@ -38,6 +38,10 @@ export interface Farm {
   water_source: 'Borewell' | 'Open Well' | 'Canal' | 'Farm Pond / Tank' | 'River / Stream' | 'Rainwater Only';
   available_water_m3: number;
   cultivation_budget_inr: number;
+  pin_code?: string;
+  formatted_address?: string;
+  location_source?: 'gps' | 'map' | 'search' | 'manual';
+  location_accuracy_m?: number;
   created_at: string;
   updated_at: string;
 }
@@ -54,27 +58,26 @@ export interface FarmSummary {
   last_updated: string;
 }
 
-export interface CurrentWeather {
-  time: string;
+export interface WeatherCurrent {
   temperature_c: number;
   relative_humidity_pct: number;
-  precipitation_mm: number;
-  rain_probability_pct: number;
   wind_speed_kmh: number;
-  wind_direction_deg: number;
-  weather_code: number;
-  condition_text: string;
-  et0_fao56_mm: number;
+  precipitation_probability_pct: number;
+  precipitation_mm: number;
+  surface_pressure_hpa: number;
+  condition: string;
+  icon: string;
 }
 
-export interface DailyForecast {
+export interface WeatherDailyForecast {
   date: string;
   temp_max_c: number;
   temp_min_c: number;
+  precipitation_probability_pct: number;
   precipitation_sum_mm: number;
-  rain_probability_max_pct: number;
-  et0_fao56_mm: number;
-  condition_text: string;
+  condition: string;
+  icon: string;
+  evapotranspiration_mm: number;
 }
 
 export interface WeatherResponse {
@@ -82,17 +85,16 @@ export interface WeatherResponse {
   longitude: number;
   elevation_m: number;
   timezone: string;
-  current: CurrentWeather;
-  daily_forecast: DailyForecast[];
-  provenance: {
-    source: string;
-    timestamp: string;
-    quality: string;
-    is_live: boolean;
-  };
+  current: WeatherCurrent;
+  daily: WeatherDailyForecast[];
+  et0_fao56_mm_day: number;
+  irrigation_recommendation: string;
+  source: string;
+  timestamp: string;
 }
 
 export interface SupportingData {
+  primary_driver: string;
   key_metrics: Record<string, any>;
   source: string;
   timestamp: string;
@@ -152,9 +154,15 @@ export interface FarmCreate {
   water_source: 'Borewell' | 'Open Well' | 'Canal' | 'Farm Pond / Tank' | 'River / Stream' | 'Rainwater Only';
   available_water_m3: number;
   cultivation_budget_inr: number;
+  pin_code?: string;
+  formatted_address?: string;
+  location_source?: 'gps' | 'map' | 'search' | 'manual';
+  location_accuracy_m?: number;
 }
 
-// Flagship 1: Labour Connect
+// ==========================================
+// FLAGSHIP 1: LABOUR CONNECT
+// ==========================================
 export interface LabourJob {
   id: string;
   farmer_id: string;
@@ -199,7 +207,9 @@ export interface LabourProfile {
   total_earnings: number;
 }
 
-// Flagship 2: Smart Bidding
+// ==========================================
+// FLAGSHIP 2: SMART BIDDING
+// ==========================================
 export interface BiddingListing {
   id: string;
   farmer_id: string;
@@ -262,7 +272,9 @@ export interface PurchaseOrder {
   created_at: string;
 }
 
-// Flagship 3: Transport Connect
+// ==========================================
+// FLAGSHIP 3: TRANSPORT CONNECT
+// ==========================================
 export interface TransportVehicle {
   id: string;
   driver_id: string;
@@ -298,28 +310,335 @@ export interface TransportBooking {
   updated_at: string;
 }
 
-// Flagship 4: BioIntel
+// Legacy Flagship publication models for backward compatibility
 export interface BioIntelPublication {
   id: string;
   title: string;
   authors: string;
-  year: string;
   journal: string;
-  doi?: string;
-  source_link: string;
+  pub_year: number;
   abstract: string;
-  is_open_access: boolean;
-  farmer_takeaway: string;
-  scientific_status: string;
+  doi?: string;
+  europe_pmc_url?: string;
+  relevance_score: number;
+  key_takeaways: string[];
 }
 
-export interface NurserySupplier {
+export interface CertifiedNursery {
   id: string;
   name: string;
-  location: string;
-  phone: string;
+  organization: string;
+  state: string;
+  district: string;
+  specialization: string[];
+  contact_number: string;
+  email?: string;
+  license_status: string;
   verified: boolean;
-  agency: string;
-  available_supplies: string[];
-  official_portal: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+  message: string;
+}
+
+// ==========================================
+// FLAGSHIP 4 & EXTENDED: BIOTECH & NURSERY MARKETPLACE
+// ==========================================
+export type BiotechCategoryType =
+  | 'disease_resistant_varieties'
+  | 'drought_tolerant_varieties'
+  | 'hybrid_varieties'
+  | 'tissue_cultured_plants'
+  | 'grafted_plants'
+  | 'biofertilizers'
+  | 'biopesticides'
+  | 'beneficial_soil_microorganisms'
+  | 'biological_nutrient_management'
+  | 'agricultural_waste_bioconversion';
+
+export type EvidenceType = 'peer_reviewed' | 'field_trial' | 'extension_study' | 'institutional_recommendation';
+
+export interface FarmerProfileInput {
+  crop: string;
+  soil_type?: string;
+  target_problem?: string;
+  budget_inr?: number;
+  available_water?: string;
+  land_area_ha?: number;
+  farmer_location?: string;
+}
+
+export interface EuropePmcPaper {
+  id: string;
+  source: string;
+  pmcid?: string;
+  doi?: string;
+  title: string;
+  author_string: string;
+  journal_title?: string;
+  pub_year?: number;
+  abstract_text?: string;
+  isOpenAccess: boolean;
+  citation_count: number;
+  europe_pmc_url?: string;
+  doi_url?: string;
+  relevance_explanation: string;
+  evidence_type: EvidenceType;
+  practical_takeaways: string[];
+}
+
+export interface BiotechResearchResponse {
+  crop: string;
+  target_problem: string;
+  query_used: string;
+  total_results: number;
+  cached: boolean;
+  retrieved_at: string;
+  evidence_summary: string;
+  papers: EuropePmcPaper[];
+}
+
+export interface CentralizedDecisionPayload {
+  source_module: string;
+  crop: string;
+  risk_category: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  confidence_score: number;
+  evidence_summary: string;
+  recommended_actions: string[];
+  scientific_grounding: string;
+  water_constraint_impact?: string;
+  financial_constraint_impact?: string;
+  conflicting_factors?: string[];
+  data_quality: string;
+}
+
+export interface BiotechRecommendation {
+  id: string;
+  crop: string;
+  category: BiotechCategoryType;
+  category_label: string;
+  problem_targeted: string;
+  recommended_variety_or_product: string;
+  scientific_rationale: string;
+  confidence_score: number;
+  expected_benefit: string;
+  evidence_citations: string[];
+  soil_suitability: string;
+  water_suitability: string;
+  supplier_availability_status: string;
+  estimated_procurement_cost_inr?: number;
+  farmer_budget_inr: number;
+  budget_compatibility: 'Within Budget' | 'Exceeds Budget' | 'Pending Quote';
+  recommendation_limitations: string;
+  generated_timestamp: string;
+}
+
+export interface BiotechRecommendationResponse {
+  farmer_profile: FarmerProfileInput;
+  generated_at: string;
+  total_recommendations: number;
+  recommendations: BiotechRecommendation[];
+  centralized_decision_payload: CentralizedDecisionPayload;
+}
+
+export interface CropVarietyProfile {
+  crop: string;
+  variety_name: string;
+  category: BiotechCategoryType;
+  category_label: string;
+  institution: string;
+  maturity_days: number;
+  yield_potential: string;
+  disease_resistance: string[];
+  soil_tolerance: string;
+  water_requirement: string;
+  seed_rate_per_ha: string;
+  description: string;
+  is_certified: boolean;
+}
+
+export interface Nursery {
+  id: string;
+  name: string;
+  license_number?: string;
+  contact_person: string;
+  phone: string;
+  email?: string;
+  address: string;
+  village_or_taluk?: string;
+  district: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+  is_verified: boolean;
+  rating: number;
+  data_source: 'direct_nursery_inventory' | 'google_places_supplier' | 'demo_data';
+  google_place_id?: string;
+  website_uri?: string;
+  google_maps_uri?: string;
+  opening_hours?: string;
+  owner_user_id?: string;
+  created_at: string;
+  updated_at: string;
+  distance_km?: number;
+  product_count: number;
+  is_demo: boolean;
+}
+
+export interface NurseryProduct {
+  id: string;
+  nursery_id: string;
+  crop_name: string;
+  variety_name: string;
+  biotechnology_category: string;
+  description: string;
+  price_per_unit?: number;
+  pricing_unit: string;
+  available_quantity?: number;
+  minimum_order_quantity: number;
+  certification_info?: string;
+  availability_status: 'in_stock' | 'low_stock' | 'pre_order_only' | 'out_of_stock' | 'contact_nursery';
+  data_source: 'direct_nursery_inventory' | 'google_places_supplier' | 'demo_data';
+  last_updated: string;
+  nursery_name?: string;
+  nursery_phone?: string;
+  nursery_district?: string;
+  nursery_state?: string;
+  nursery_latitude?: number;
+  nursery_longitude?: number;
+  distance_km?: number;
+  is_demo: boolean;
+}
+
+export interface NurseryProductCreate {
+  nursery_id: string;
+  crop_name: string;
+  variety_name: string;
+  biotechnology_category: string;
+  description: string;
+  price_per_unit?: number;
+  pricing_unit?: string;
+  available_quantity?: number;
+  minimum_order_quantity?: number;
+  certification_info?: string;
+  availability_status?: 'in_stock' | 'low_stock' | 'pre_order_only' | 'out_of_stock' | 'contact_nursery';
+  data_source?: 'direct_nursery_inventory' | 'google_places_supplier' | 'demo_data';
+}
+
+export interface NurseryInquiry {
+  id: string;
+  nursery_id: string;
+  product_id?: string;
+  farmer_name: string;
+  farmer_phone: string;
+  farmer_location: string;
+  required_quantity: number;
+  intended_sowing_date?: string;
+  notes?: string;
+  status: 'submitted' | 'acknowledged' | 'fulfilled' | 'cancelled';
+  created_at: string;
+}
+
+export interface NurseryInquiryCreate {
+  nursery_id: string;
+  product_id?: string;
+  farmer_name: string;
+  farmer_phone: string;
+  farmer_location: string;
+  required_quantity: number;
+  intended_sowing_date?: string;
+  notes?: string;
+}
+
+export interface ProcurementOption {
+  product_id: string;
+  nursery_id: string;
+  nursery_name: string;
+  crop_name: string;
+  variety_name: string;
+  biotechnology_category: string;
+  distance_km: number;
+  price_per_unit?: number;
+  pricing_unit: string;
+  required_quantity: number;
+  planting_material_cost?: number;
+  transportation_cost?: number;
+  total_procurement_cost?: number;
+  is_budget_feasible: boolean;
+  budget_surplus_or_deficit?: number;
+  certification_info?: string;
+  availability_status: string;
+  phone_number: string;
+  directions_url?: string;
+  suitability_score: number;
+  recommendation_rationale: string;
+  limitations: string;
+  is_demo: boolean;
+  data_source: string;
+}
+
+export interface ProcurementOptimizationResponse {
+  optimal_option?: ProcurementOption;
+  comparison_options: ProcurementOption[];
+  farmer_budget_inr: number;
+  required_quantity: number;
+  calculation_formula: Record<string, string>;
+  generated_at: string;
+}
+
+export interface SupplierComparisonResponse {
+  items: ProcurementOption[];
+  comparison_matrix: {
+    lowest_cost_option?: number;
+    closest_option_km?: number;
+    highest_rated_supplier?: string;
+  };
+}
+
+// ==========================================
+// SMART LOCATION SELECTOR TYPES
+// ==========================================
+export interface GeocodeResult {
+  latitude: number;
+  longitude: number;
+  formatted_address: string;
+  village_or_town?: string;
+  district?: string;
+  state?: string;
+  country?: string;
+  pin_code?: string;
+  display_name: string;
+  place_id?: string;
+  source: 'nominatim' | 'google_maps' | 'reverse_geocode';
+}
+
+export interface SmartLocationState {
+  latitude: number;
+  longitude: number;
+  formatted_address: string;
+  village_or_town: string;
+  district: string;
+  state: string;
+  pin_code: string;
+  source: 'gps' | 'map' | 'search' | 'manual';
+  accuracy_m?: number;
+}
+
+export interface SelectedLocation {
+  latitude: number;
+  longitude: number;
+  formatted_address: string;
+  village?: string;
+  village_or_town?: string;
+  district?: string;
+  state?: string;
+  pin_code?: string;
+  source?: 'gps' | 'map' | 'search' | 'manual';
+  location_source?: 'gps' | 'map' | 'search' | 'manual';
+  accuracy_m?: number;
+  location_accuracy_m?: number;
+  updated_at?: string;
 }
