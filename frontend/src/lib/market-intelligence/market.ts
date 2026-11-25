@@ -1,6 +1,10 @@
 // frontend/src/lib/market-intelligence/market.ts
 // Independent Agricultural Market Intelligence calculations:
 // Market comparison, price trends + SMA, Sell Now vs Later, Buyer Offers, Transportation Optimizer.
+import type { Language } from '@/types';
+
+const _numLocale = (lang: Language = 'en') =>
+  lang === 'kn' ? 'kn-IN' : lang === 'hi' ? 'hi-IN' : lang === 'te' ? 'te-IN' : 'en-IN';
 
 export interface MarketPriceRecord {
   id: string;
@@ -334,16 +338,26 @@ export function evaluateBuyerOffers(offers: BuyerOfferInput[], cultivationExpens
     .sort((a, b) => b.netRevenue - a.netRevenue);
 }
 
-export function evaluateTransportOption(opt: TransportOptionInput): TransportEvaluation {
+export function evaluateTransportOption(
+  opt: TransportOptionInput,
+  lang: Language = 'en'
+): TransportEvaluation {
   const myWeight = Math.max(0, opt.myProduceWeightKg);
   const otherWeight = opt.mode === 'Shared Vehicle' ? Math.max(0, opt.otherFarmersWeightKg) : 0;
   const totalWeightKg = myWeight + otherWeight;
   const cap = Math.max(0, opt.vehicleCapacityKg);
+  const loc = _numLocale(lang);
 
   if (cap <= 0) {
+    const capZeroErr: Record<Language, string> = {
+      en: 'Vehicle capacity must be greater than 0 kg.',
+      kn: 'ವಾಹನದ ಸಾಮರ್ಥ್ಯ 0 kg ಗಿಂತ ಹೆಚ್ಚಿರಬೇಕು.',
+      hi: 'वाहन क्षमता 0 kg से अधिक होनी चाहिए।',
+      te: 'వాహన సామర్థ్యం 0 kg కంటే ఎక్కువగా ఉండాలి.',
+    };
     return {
       valid: false,
-      error: 'Vehicle capacity must be greater than 0 kg.',
+      error: capZeroErr[lang] || capZeroErr.en,
       totalWeightKg,
       utilizationPct: 0,
       totalTransportExpenseInr: opt.quotedCostInr,
@@ -353,9 +367,17 @@ export function evaluateTransportOption(opt: TransportOptionInput): TransportEva
   }
 
   if (totalWeightKg > cap) {
+    const totStr = totalWeightKg.toLocaleString(loc);
+    const capStr = cap.toLocaleString(loc);
+    const overloadErr: Record<Language, string> = {
+      en: `Load (${totStr} kg) exceeds declared vehicle capacity (${capStr} kg). Reduce load or choose a higher-capacity vehicle.`,
+      kn: `ತೂಕ (${totStr} kg) ವಾಹನ ಸಾಮರ್ಥ್ಯವನ್ನು (${capStr} kg) ಮೀರಿದೆ. ಲೋಡ್ ಕಡಿಮೆ ಮಾಡಿ ಅಥವಾ ದೊಡ್ಡ ವಾಹನ ಆಯ್ಕೆಮಾಡಿ.`,
+      hi: `भार (${totStr} kg) वाहन क्षमता (${capStr} kg) से अधिक है। भार कम करें या बड़ा वाहन चुनें।`,
+      te: `బరువు (${totStr} kg) వాహన సామర్థ్యాన్ని (${capStr} kg) మించింది. లోడ్ తగ్గించండి లేదా పెద్ద వాహనాన్ని ఎంచుకోండి.`,
+    };
     return {
       valid: false,
-      error: `Load (${totalWeightKg.toLocaleString('en-IN')} kg) exceeds declared vehicle capacity (${cap.toLocaleString('en-IN')} kg). Reduce load or choose a higher-capacity vehicle.`,
+      error: overloadErr[lang] || overloadErr.en,
       totalWeightKg,
       utilizationPct: Number(((totalWeightKg / cap) * 100).toFixed(1)),
       totalTransportExpenseInr: opt.quotedCostInr,

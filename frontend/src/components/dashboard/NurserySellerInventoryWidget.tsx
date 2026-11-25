@@ -8,19 +8,69 @@ import {
   fetchNurseryProducts,
   createNurseryProduct,
 } from '@/lib/biointelApi';
-import { NurseryProduct, NurseryProductCreate } from '@/types';
+import {
+  NurseryProduct,
+  NurseryProductCreate,
+  Language,
+} from '@/types';
+import { localizeCropName, formatLocalizedCurrency } from '@/lib/translations';
 import {
   Store,
   PlusCircle,
-  Package,
-  CheckCircle2,
-  AlertCircle,
-  RotateCw,
   X,
-  Phone,
 } from 'lucide-react';
 
+const NURSERY_WIDGET_I18N: Record<Language, {
+  title: string; badge: string; sub: string; addNew: string; loading: string;
+  colVar: string; colCrop: string; colCat: string; colPrice: string; colStock: string; colStatus: string;
+  quote: string; inquire: string; units: string; buyerLocTitle: string; buyerLocSub: string;
+  modalTitle: string; cropLbl: string; varLbl: string; priceLbl: string; stockLbl: string; descLbl: string; saveBtn: string;
+}> = {
+  en: {
+    title: 'Nursery Seller Inventory', badge: 'Buyer & Nursery Module',
+    sub: 'Manage certified seedlings stock, resistant seeds, and wholesale supplies',
+    addNew: 'Add New Inventory', loading: 'Loading nursery stock items...',
+    colVar: 'Variety / Product', colCrop: 'Crop', colCat: 'Category', colPrice: 'Price / Unit', colStock: 'Available Stock', colStatus: 'Status',
+    quote: 'Quote', inquire: 'Inquire', units: 'units',
+    buyerLocTitle: 'Buyer Procurement & Delivery Location',
+    buyerLocSub: 'Set your warehouse or delivery point for nursery dispatch and freight estimation.',
+    modalTitle: 'Add Inventory Listing', cropLbl: 'Crop Name', varLbl: 'Variety Name', priceLbl: 'Price (₹)', stockLbl: 'Available Stock', descLbl: 'Description', saveBtn: 'Save Product',
+  },
+  kn: {
+    title: 'ನರ್ಸರಿ ಮಾರಾಟಗಾರರ ದಾಸ್ತಾನು', badge: 'ಖರೀದಿದಾರ / ನರ್ಸರಿ ವಿಭಾಗ',
+    sub: 'ಪ್ರಮಾಣೀಕೃತ ಸಸಿಗಳು, ರೋಗ-ನಿರೋಧಕ ಬೀಜಗಳು ಮತ್ತು ಸಗಟು ದಾಸ್ತಾನು ನಿರ್ವಹಿಸಿ',
+    addNew: 'ಹೊಸ ದಾಸ್ತಾನು ಸೇರಿಸಿ', loading: 'ನರ್ಸರಿ ದಾಸ್ತಾನು ಲೋಡ್ ಆಗುತ್ತಿದೆ...',
+    colVar: 'ತಳಿ / ಉತ್ಪನ್ನ', colCrop: 'ಬೆಳೆ', colCat: 'ವಿಭಾಗ', colPrice: 'ಬೆಲೆ / ಘಟಕ', colStock: 'ಲಭ್ಯ ದಾಸ್ತಾನು', colStatus: 'ಸ್ಥಿತಿ',
+    quote: 'ದರ ಕೇಳಿ', inquire: 'ವಿಚಾರಿಸಿ', units: 'ಘಟಕಗಳು',
+    buyerLocTitle: 'ಖರೀದಿ ಮತ್ತು ವಿತರಣಾ ಸ್ಥಳ',
+    buyerLocSub: 'ನರ್ಸರಿ ರವಾನೆ ಮತ್ತು ಸಾರಿಗೆ ವೆಚ್ಚಕ್ಕಾಗಿ ನಿಮ್ಮ ಗೋದಾಮು ಅಥವಾ ವಿತರಣಾ ಸ್ಥಳವನ್ನು ನಿಗದಿಪಡಿಸಿ.',
+    modalTitle: 'ಹೊಸ ಉತ್ಪನ್ನ ಸೇರಿಸಿ', cropLbl: 'ಬೆಳೆಯ ಹೆಸರು', varLbl: 'ತಳಿಯ ಹೆಸರು', priceLbl: 'ಬೆಲೆ (₹)', stockLbl: 'ಲಭ್ಯ ಪ್ರಮಾಣ', descLbl: 'ವಿವರಣೆ', saveBtn: 'ಉತ್ಪನ್ನ ಉಳಿಸಿ',
+  },
+  hi: {
+    title: 'नर्सरी विक्रेता स्टॉक प्रबंधन', badge: 'खरीदार व नर्सरी मॉड्यूल',
+    sub: 'प्रमाणित पौध, रोग-प्रतिरोधी बीज और थोक नर्सरी स्टॉक प्रबंधित करें',
+    addNew: 'नया स्टॉक जोड़ें', loading: 'नर्सरी स्टॉक लोड हो रहा है...',
+    colVar: 'किस्म / उत्पाद', colCrop: 'फसल', colCat: 'श्रेणी', colPrice: 'मूल्य / इकाई', colStock: 'उपलब्ध स्टॉक', colStatus: 'स्थिति',
+    quote: 'कोटेशन', inquire: 'पूछताछ करें', units: 'इकाइयाँ',
+    buyerLocTitle: 'खरीद और डिलीवरी स्थान',
+    buyerLocSub: 'नर्सरी प्रेषण और माल भाड़े के लिए अपना गोदाम या डिलीवरी बिंदु चुनें।',
+    modalTitle: 'नया स्टॉक जोड़ें', cropLbl: 'फसल का नाम', varLbl: 'किस्म का नाम', priceLbl: 'कीमत (₹)', stockLbl: 'उपलब्ध मात्रा', descLbl: 'विवरण', saveBtn: 'उत्पाद सहेजें',
+  },
+  te: {
+    title: 'నర్సరీ విక్రేత స్టాక్ వివరాలు', badge: 'కొనుగోలుదారు & నర్సరీ విభాగం',
+    sub: 'ధృవీకరించబడిన నారు, వ్యాధి-నిరోధక విత్తనాలు మరియు హోల్‌సేల్ స్టాక్ నిర్వహించండి',
+    addNew: 'కొత్త స్టాక్ చేర్చండి', loading: 'నర్సరీ స్టాక్ లోడ్ అవుతోంది...',
+    colVar: 'రకం / ఉత్పత్తి', colCrop: 'పంట', colCat: 'వర్గం', colPrice: 'ధర / యూనిట్', colStock: 'అందుబాటు స్టాక్', colStatus: 'స్థితి',
+    quote: 'కోట్', inquire: 'అడగండి', units: 'యూనిట్లు',
+    buyerLocTitle: 'కొనుగోలు & డెలివరీ స్థానం',
+    buyerLocSub: 'నర్సరీ రవాణా మరియు కిరాయి అంచనా కోసం మీ గోదాము స్థానాన్ని ఎంచుకోండి.',
+    modalTitle: 'కొత్త ఉత్పత్తిని చేర్చండి', cropLbl: 'పంట పేరు', varLbl: 'రకం పేరు', priceLbl: 'ధర (₹)', stockLbl: 'అందుబాటు పరిమాణం', descLbl: 'వివరణ', saveBtn: 'ఉత్పత్తిని సేవ్ చేయండి',
+  },
+};
+
 export function NurserySellerInventoryWidget() {
+  const { language, t } = useFarm();
+  const L = NURSERY_WIDGET_I18N[language] || NURSERY_WIDGET_I18N.en;
   const [products, setProducts] = useState<NurseryProduct[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -75,14 +125,14 @@ export function NurserySellerInventoryWidget() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-zinc-900 dark:text-white">
-                Nursery Seller Inventory Capability
+                {L.title}
               </h2>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300">
-                Buyer Dashboard Module
+                {L.badge}
               </span>
             </div>
             <p className="text-xs text-zinc-500">
-              Manage certified biological inputs, seedlings stock, and wholesale nursery supplies
+              {L.sub}
             </p>
           </div>
         </div>
@@ -91,23 +141,23 @@ export function NurserySellerInventoryWidget() {
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-green-800 hover:bg-green-700 text-white font-semibold text-xs rounded-xl transition shadow-sm"
         >
-          <PlusCircle className="w-4 h-4" /> Add New Inventory
+          <PlusCircle className="w-4 h-4" /> {L.addNew}
         </button>
       </div>
 
       {isLoading ? (
-        <div className="p-6 text-center text-xs text-zinc-400">Loading nursery stock items...</div>
+        <div className="p-6 text-center text-xs text-zinc-400">{L.loading}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-50 dark:bg-zinc-900 text-zinc-400 uppercase text-[10px] tracking-wider">
               <tr>
-                <th className="p-3">Variety / Product</th>
-                <th className="p-3">Crop</th>
-                <th className="p-3">Category</th>
-                <th className="p-3">Price / Unit</th>
-                <th className="p-3">Available Stock</th>
-                <th className="p-3">Status</th>
+                <th className="p-3">{L.colVar}</th>
+                <th className="p-3">{L.colCrop}</th>
+                <th className="p-3">{L.colCat}</th>
+                <th className="p-3">{L.colPrice}</th>
+                <th className="p-3">{L.colStock}</th>
+                <th className="p-3">{L.colStatus}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -116,13 +166,13 @@ export function NurserySellerInventoryWidget() {
                   <td className="p-3 font-semibold text-zinc-900 dark:text-white">
                     {p.variety_name}
                   </td>
-                  <td className="p-3 text-zinc-600 dark:text-zinc-300">{p.crop_name}</td>
+                  <td className="p-3 text-zinc-600 dark:text-zinc-300">{localizeCropName(p.crop_name, language)}</td>
                   <td className="p-3 text-zinc-500">{p.biotechnology_category}</td>
                   <td className="p-3 font-bold text-emerald-600">
-                    {p.price_per_unit ? `₹${p.price_per_unit} / ${p.pricing_unit}` : 'Quote'}
+                    {p.price_per_unit ? `${formatLocalizedCurrency(p.price_per_unit, language)} / ${p.pricing_unit}` : L.quote}
                   </td>
                   <td className="p-3 text-zinc-600 dark:text-zinc-300">
-                    {p.available_quantity ? `${p.available_quantity.toLocaleString('en-IN')} units` : 'Inquire'}
+                    {p.available_quantity ? `${p.available_quantity.toLocaleString('en-IN')} ${L.units}` : L.inquire}
                   </td>
                   <td className="p-3">
                     <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
@@ -141,8 +191,8 @@ export function NurserySellerInventoryWidget() {
         <SmartLocationSelector
           role="buyer"
           compactMap={true}
-          title="Buyer Procurement & Delivery Location"
-          subtitle="Set your warehouse or delivery point for nursery dispatch and freight estimation."
+          title={L.buyerLocTitle}
+          subtitle={L.buyerLocSub}
           onConfirmLocation={() => {}}
         />
       </div>
@@ -153,16 +203,16 @@ export function NurserySellerInventoryWidget() {
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-zinc-900 dark:text-white">
-                Add Inventory Listing
+                {L.modalTitle}
               </h3>
-              <button onClick={() => setShowAddModal(false)} className="text-zinc-400 hover:text-zinc-600">
+              <button onClick={() => setShowAddModal(false)} aria-label={t('close')} className="text-zinc-400 hover:text-zinc-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleAddProduct} className="space-y-3 text-xs">
               <div>
-                <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">Crop Name</label>
+                <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">{L.cropLbl}</label>
                 <input
                   type="text"
                   required
@@ -173,11 +223,11 @@ export function NurserySellerInventoryWidget() {
               </div>
 
               <div>
-                <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">Variety Name</label>
+                <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">{L.varLbl}</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Arka Rakshak F1"
+                  placeholder="Arka Rakshak F1"
                   value={newProduct.variety_name}
                   onChange={(e) => setNewProduct({ ...newProduct, variety_name: e.target.value })}
                   className="w-full p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
@@ -186,7 +236,7 @@ export function NurserySellerInventoryWidget() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">Price (₹)</label>
+                  <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">{L.priceLbl}</label>
                   <input
                     type="number"
                     step="0.05"
@@ -197,7 +247,7 @@ export function NurserySellerInventoryWidget() {
                   />
                 </div>
                 <div>
-                  <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">Available Stock</label>
+                  <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">{L.stockLbl}</label>
                   <input
                     type="number"
                     required
@@ -209,7 +259,7 @@ export function NurserySellerInventoryWidget() {
               </div>
 
               <div>
-                <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">Description</label>
+                <label className="block font-medium mb-1 text-zinc-600 dark:text-zinc-400">{L.descLbl}</label>
                 <textarea
                   rows={2}
                   required
@@ -225,13 +275,13 @@ export function NurserySellerInventoryWidget() {
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-green-800 text-white font-semibold rounded-xl"
                 >
-                  Save Product
+                  {L.saveBtn}
                 </button>
               </div>
             </form>

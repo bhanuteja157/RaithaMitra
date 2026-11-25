@@ -13,9 +13,19 @@ export function LocationSelectorModal() {
     setIsLocationModalOpen,
     updateFarmLocation,
     t,
+    language,
   } = useFarm();
 
   if (!isLocationModalOpen || !currentFarm) return null;
+
+  const subtitle =
+    language === 'kn'
+      ? 'ಜಮೀನಿನ ಸ್ಥಳ ಬದಲಿಸಿದರೆ ಹವಾಮಾನ ಮತ್ತು ಬೆಳೆ ಸಲಹೆಗಳು ತಾನಾಗಿಯೇ ನವೀಕರಣಗೊಳ್ಳುತ್ತವೆ.'
+      : language === 'hi'
+        ? 'खेत के निर्देशांक बदलने पर मौसम, जलवायु और सलाह स्वतः अपडेट होते हैं।'
+        : language === 'te'
+          ? 'పొలం స్థానం మార్చితే వాతావరణం మరియు సిఫార్సులు ఆటోమేటిక్‌గా అప్‌డేట్ అవుతాయి.'
+          : 'Updating farm coordinates automatically refreshes weather, climate, and recommendations.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
@@ -26,11 +36,12 @@ export function LocationSelectorModal() {
               {t('updateFarmLocation')} — {currentFarm.farm_name}
             </h2>
             <p className="text-xs text-zinc-500">
-              Updating farm coordinates automatically refreshes weather, climate, and recommendations.
+              {subtitle}
             </p>
           </div>
           <button
             onClick={() => setIsLocationModalOpen(false)}
+            aria-label={t('close')}
             className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg"
           >
             <X className="w-5 h-5" />

@@ -5,11 +5,39 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarm } from '@/context/FarmContext';
 import { fetchBiotechRecommendations } from '@/lib/biointelApi';
-import { BiotechRecommendation } from '@/types';
-import { Dna, Sparkles, Store, ChevronRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { localizeCropName, formatLocalizedCurrency } from '@/lib/translations';
+import { BiotechRecommendation, Language } from '@/types';
+import { Dna, Store, ChevronRight } from 'lucide-react';
+
+const BIO_WIDGET_I18N: Record<Language, {
+  title: string; badge: string; subPrefix: string;
+  exploreBtn: string; loading: string; contactNursery: string; findSuppliers: string;
+}> = {
+  en: {
+    title: 'Biotechnology Intelligence (BioIntel)', badge: 'Scientifically Grounded',
+    subPrefix: 'Optimal biological varieties & treatments for', exploreBtn: 'Explore Seed & Biotech Guide',
+    loading: 'Loading biotechnology recommendations...', contactNursery: 'Contact Nursery', findSuppliers: 'Find Suppliers',
+  },
+  kn: {
+    title: 'ಬೀಜ ಮತ್ತು ಜೈವಿಕ ತಂತ್ರಜ್ಞಾನ ಮಾಹಿತಿ (BioIntel)', badge: 'ವೈಜ್ಞಾನಿಕ ಆಧಾರಿತ',
+    subPrefix: 'ಉತ್ತಮ ರೋಗ-ನಿರೋಧಕ ತಳಿಗಳು ಮತ್ತು ಸಲಹೆ:', exploreBtn: 'ಸಂಪೂರ್ಣ ಬೀಜ ಮಾರ್ಗದರ್ಶಿ ನೋಡಿ',
+    loading: 'ಬೀಜ ಮತ್ತು ಬಯೋಟೆಕ್ ಶಿಫಾರಸುಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...', contactNursery: 'ನರ್ಸರಿ ಸಂಪರ್ಕಿಸಿ', findSuppliers: 'ನರ್ಸರಿ ಹುಡುಕಿ',
+  },
+  hi: {
+    title: 'जैव-प्रौद्योगिकी व बीज बुद्धिमत्ता (BioIntel)', badge: 'वैज्ञानिक रूप से प्रमाणित',
+    subPrefix: 'उपयुक्त रोग-प्रतिरोधी किस्में व जैव उपचार:', exploreBtn: 'बीज व शोध मार्गदर्शिका देखें',
+    loading: 'बीज एवं जैव-प्रौद्योगिकी सिफारिशें लोड हो रही हैं...', contactNursery: 'नर्सरी से पूछें', findSuppliers: 'नर्सरी खोजें',
+  },
+  te: {
+    title: 'విత్తన & జీవ సాంకేతిక సమాచారం (BioIntel)', badge: 'శాస్త్రీయ ఆధారితం',
+    subPrefix: 'ఉత్తమ వ్యాధి-నిరోధక విత్తనాలు & సూచనలు:', exploreBtn: 'విత్తన & పరిశోధన గైడ్ చూడండి',
+    loading: 'విత్తన మరియు బయోటెక్ సిఫార్సులు లోడ్ అవుతున్నాయి...', contactNursery: 'నర్సరీని సంప్రదించండి', findSuppliers: 'నర్సరీలను కనుగొనండి',
+  },
+};
 
 export function BioIntelWidget() {
-  const { currentFarm } = useFarm();
+  const { currentFarm, language } = useFarm();
+  const L = BIO_WIDGET_I18N[language] || BIO_WIDGET_I18N.en;
   const [recommendations, setRecommendations] = useState<BiotechRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -58,14 +86,14 @@ export function BioIntelWidget() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-zinc-900 dark:text-white">
-                Biotechnology Intelligence (BioIntel)
+                {L.title}
               </h2>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-                Scientifically Grounded
+                {L.badge}
               </span>
             </div>
             <p className="text-xs text-zinc-500">
-              Optimal biological interventions & certified varieties for {currentFarm?.primary_crop || 'Tomato'}
+              {L.subPrefix} {localizeCropName(currentFarm?.primary_crop || 'Tomato', language)}
             </p>
           </div>
         </div>
@@ -74,12 +102,12 @@ export function BioIntelWidget() {
           href="/biointel"
           className="flex items-center gap-1 text-xs font-semibold text-green-700 dark:text-green-400 hover:underline self-start sm:self-auto"
         >
-          Explore Scientific Research <ChevronRight className="w-3.5 h-3.5" />
+          {L.exploreBtn} <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </div>
 
       {isLoading ? (
-        <div className="p-6 text-center text-xs text-zinc-400">Loading biotechnology recommendations...</div>
+        <div className="p-6 text-center text-xs text-zinc-400">{L.loading}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {recommendations.map((rec) => (
@@ -101,14 +129,14 @@ export function BioIntelWidget() {
 
               <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
                 <span className="text-emerald-600 font-bold">
-                  {rec.estimated_cost_inr ? `₹${rec.estimated_cost_inr.toLocaleString('en-IN')}` : 'Contact Nursery'}
+                  {rec.estimated_cost_inr ? formatLocalizedCurrency(rec.estimated_cost_inr, language) : L.contactNursery}
                 </span>
 
                 <Link
                   href={`/nursery-marketplace?crop=${rec.crop_name}&category=${rec.nursery_search_category}`}
                   className="flex items-center gap-1 text-[11px] font-semibold text-green-800 dark:text-green-400 hover:underline"
                 >
-                  <Store className="w-3 h-3" /> Find Suppliers
+                  <Store className="w-3 h-3" /> {L.findSuppliers}
                 </Link>
               </div>
             </div>

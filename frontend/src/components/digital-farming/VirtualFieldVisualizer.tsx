@@ -2,6 +2,8 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useFarm } from '@/context/FarmContext';
+import { localizeCropName, localizeGrowthStage } from '@/lib/translations';
 import { LatLonPoint } from '@/lib/digital-farming/geo';
 import { CropCatalogItem } from '@/lib/digital-farming/crops';
 import { GROWTH_STAGES, SimulationState } from '@/lib/digital-farming/simulator';
@@ -19,6 +21,7 @@ export function VirtualFieldVisualizer({
   sim,
   areaAcres,
 }: VirtualFieldVisualizerProps) {
+  const { language } = useFarm();
   const stageMeta = GROWTH_STAGES.find((s) => s.id === sim.stage) || GROWTH_STAGES[0];
 
   // Project lat/lon polygon to SVG 520x280 viewport
@@ -163,19 +166,35 @@ export function VirtualFieldVisualizer({
     );
   };
 
+  const vTitle =
+    language === 'kn' ? 'ವರ್ಚುವಲ್ ಜಮೀನು ಮಾದರಿ' : language === 'hi' ? 'वर्चुअल खेत मॉडल' : language === 'te' ? 'వర్చువల్ పొలం నమూనా' : 'Virtual Farmland Twin';
+  const vAcres = language === 'kn' ? 'ಎಕರೆ' : language === 'hi' ? 'एकड़' : language === 'te' ? 'ఎకరాలు' : 'acres';
+  const vStage = language === 'kn' ? 'ಹಂತ:' : language === 'hi' ? 'चरण:' : language === 'te' ? 'దశ:' : 'Stage:';
+  const vDay = language === 'kn' ? 'ದಿನ' : language === 'hi' ? 'दिन' : language === 'te' ? 'రోజు' : 'Day';
+  const vSimNote =
+    language === 'kn'
+      ? 'ಸಿಮ್ಯುಲೇಶನ್ ದೃಶ್ಯ (ಉಪಗ್ರಹ ಚಿತ್ರವಲ್ಲ)'
+      : language === 'hi'
+        ? 'अनुमानित मॉडल दृश्य (वास्तविक उपग्रह चित्र नहीं)'
+        : language === 'te'
+          ? 'అంచనా సిమ్యులేషన్ దృశ్యం (ఉపగ్రహ చిత్రం కాదు)'
+          : 'Representative simulation view (not a real satellite observation)';
+  const vDaysRem =
+    language === 'kn' ? 'ದಿನಗಳು ಬಾಕಿ' : language === 'hi' ? 'दिन शेष' : language === 'te' ? 'రోజులు మిగిలాయి' : 'days remaining';
+
   return (
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            Virtual Farmland Twin — {crop.name} ({areaAcres.toFixed(2)} acres)
+            {vTitle} — {localizeCropName(crop.name, language)} ({areaAcres.toFixed(2)} {vAcres})
           </h3>
           <p className="text-xs text-zinc-500">
-            Stage: <span className="font-semibold text-emerald-700">{stageMeta.label}</span> · Day {sim.currentDay} / {sim.totalDays} ({Math.round(sim.growthPct)}%)
+            {vStage} <span className="font-semibold text-emerald-700">{localizeGrowthStage(stageMeta.label, language)}</span> · {vDay} {sim.currentDay} / {sim.totalDays} ({Math.round(sim.growthPct)}%)
           </p>
         </div>
         <span className="text-[11px] px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-          Representative simulation view (not a real satellite observation)
+          {vSimNote}
         </span>
       </div>
 
@@ -251,7 +270,7 @@ export function VirtualFieldVisualizer({
             />
           </div>
           <span className="font-semibold text-zinc-700 dark:text-zinc-200 shrink-0">
-            {Math.max(0, sim.totalDays - sim.currentDay)} days remaining
+            {Math.max(0, sim.totalDays - sim.currentDay)} {vDaysRem}
           </span>
         </div>
       </div>

@@ -65,7 +65,7 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <button
           onClick={onToggleSidebar}
           className="p-2 text-zinc-600 dark:text-zinc-400 rounded-lg md:hidden hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          aria-label="Toggle menu"
+          aria-label={language === 'kn' ? 'ಮೆನು ತೆರೆಯಿರಿ' : language === 'hi' ? 'मेनू खोलें' : language === 'te' ? 'మెను తెరవండి' : 'Toggle menu'}
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -87,7 +87,7 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
             {farmDropdownOpen && (
               <div className="absolute left-0 mt-2 w-72 p-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50">
                 <div className="px-3 py-2 text-xs font-semibold uppercase text-zinc-400">
-                  Registered Farm Parcels
+                  {t('registeredParcels')}
                 </div>
                 <div className="space-y-1">
                   {farms.map((f) => (
@@ -142,7 +142,13 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         {/* Role Badge for non-farmers */}
         {currentUser.role !== 'farmer' && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-            <span>{currentUser.role} Dashboard</span>
+            <span>
+              {currentUser.role === 'buyer'
+                ? t('buyerOverview')
+                : currentUser.role === 'labour'
+                  ? t('labourOverview')
+                  : t('driverConsoleLabel')}
+            </span>
           </div>
         )}
       </div>
@@ -155,25 +161,33 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
             <button
               onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-200 transition-colors shadow-sm"
-              title="Switch Demo Role for Judging Evaluation"
+              title={t('demoPersonasTitle')}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span className="hidden sm:inline">Demo:</span>
-              <span className="capitalize">{currentUser.role}</span>
+              <span className="hidden sm:inline">{t('loginTabDemo')}:</span>
+              <span className="capitalize">
+                {currentUser.role === 'farmer'
+                  ? t('roleFarmer')
+                  : currentUser.role === 'buyer'
+                    ? t('roleBuyer')
+                    : currentUser.role === 'labour'
+                      ? t('roleLabour')
+                      : t('roleDriver')}
+              </span>
               <ChevronDown className="w-3 h-3 text-amber-600" />
             </button>
 
             {roleDropdownOpen && (
               <div className="absolute right-0 mt-2 w-64 p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-50">
                 <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  1-Click Demo Personas
+                  {t('demoPersonasTitle')}
                 </div>
                 <div className="space-y-1">
                   {[
-                    { role: 'farmer' as UserRole, name: 'Suresh Gowda', label: 'Farmer Dashboard (Mandya)' },
-                    { role: 'buyer' as UserRole, name: 'Bengaluru Fresh Foods', label: 'Buyer Smart Bidding' },
-                    { role: 'labour' as UserRole, name: 'Basavaraj Koravara', label: 'Labour Portal & Work' },
-                    { role: 'driver' as UserRole, name: 'Manjunath Transport', label: 'Driver Logistics Console' },
+                    { role: 'farmer' as UserRole, name: 'Suresh Gowda', label: t('roleFarmer') },
+                    { role: 'buyer' as UserRole, name: 'Bengaluru Fresh Foods', label: t('roleBuyer') },
+                    { role: 'labour' as UserRole, name: 'Basavaraj Koravara', label: t('roleLabour') },
+                    { role: 'driver' as UserRole, name: 'Manjunath Transport', label: t('roleDriver') },
                   ].map((item) => (
                     <button
                       key={item.role}
@@ -186,7 +200,7 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
                     >
                       <div className="font-semibold">{item.label}</div>
                       <div className={`text-[10px] ${currentUser.role === item.role ? 'text-zinc-200' : 'text-zinc-400'}`}>
-                        User: {item.name}
+                        {item.name}
                       </div>
                     </button>
                   ))}
@@ -197,7 +211,15 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         ) : (
           <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 shadow-sm">
             <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="capitalize">{currentUser.role} Account</span>
+            <span>
+              {currentUser.role === 'farmer'
+                ? t('roleFarmer')
+                : currentUser.role === 'buyer'
+                  ? t('roleBuyer')
+                  : currentUser.role === 'labour'
+                    ? t('roleLabour')
+                    : t('roleDriver')}
+            </span>
           </div>
         )}
 
@@ -215,20 +237,22 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <div className="relative">
           <button
             onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+            aria-label={t('preferredLanguageLabel')}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
           >
             <Globe className="w-3.5 h-3.5 text-zinc-500" />
             <span>
-              {language === 'kn' ? 'ಕನ್ನಡ' : language === 'hi' ? 'हिन्दी' : 'English'}
+              {language === 'kn' ? 'ಕನ್ನಡ' : language === 'hi' ? 'हिन्दी' : language === 'te' ? 'తెలుగు' : 'English'}
             </span>
           </button>
 
           {langDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-36 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg z-50">
+            <div className="absolute right-0 mt-2 w-44 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg z-50">
               {[
                 { code: 'en' as Language, label: 'English' },
                 { code: 'kn' as Language, label: 'ಕನ್ನಡ (Kannada)' },
                 { code: 'hi' as Language, label: 'हिन्दी (Hindi)' },
+                { code: 'te' as Language, label: 'తెలుగు (Telugu)' },
               ].map((item) => (
                 <button
                   key={item.code}
@@ -254,8 +278,8 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <button
           onClick={toggleTheme}
           className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-rm-primary rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-          title="Toggle Light/Dark Theme"
-          aria-label="Toggle theme"
+          title={t('toggleTheme')}
+          aria-label={t('toggleTheme')}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
         </button>
@@ -264,7 +288,8 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <div className="relative">
           <button
             className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-rm-primary rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-            title="Risk Alerts"
+            title={t('riskAlerts')}
+            aria-label={t('riskAlerts')}
           >
             <Bell className="w-4 h-4" />
             {activeAlerts > 0 && (
@@ -286,7 +311,13 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
               {currentUser?.name || 'User'}
             </div>
             <div className="text-[10px] text-zinc-400 capitalize">
-              {currentUser?.role || 'Farmer'}
+              {currentUser.role === 'farmer'
+                ? t('roleFarmer')
+                : currentUser.role === 'buyer'
+                  ? t('roleBuyer')
+                  : currentUser.role === 'labour'
+                    ? t('roleLabour')
+                    : t('roleDriver')}
             </div>
           </div>
           <button
@@ -295,8 +326,8 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
               router.push('/login');
             }}
             className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors ml-1"
-            title="Sign Out"
-            aria-label="Sign out"
+            title={t('signOut')}
+            aria-label={t('signOut')}
           >
             <LogOut className="w-4 h-4" />
           </button>

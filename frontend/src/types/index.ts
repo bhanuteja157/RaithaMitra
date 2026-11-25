@@ -1,6 +1,6 @@
 // frontend/src/types/index.ts
 
-export type Language = 'en' | 'kn' | 'hi';
+export type Language = 'en' | 'kn' | 'hi' | 'te';
 export type Theme = 'light' | 'dark';
 export type UserRole = 'farmer' | 'buyer' | 'labour' | 'driver' | 'admin';
 

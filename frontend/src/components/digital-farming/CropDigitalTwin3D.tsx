@@ -3,10 +3,39 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { useFarm } from '@/context/FarmContext';
+import { localizeCropName, localizeCondition } from '@/lib/translations';
 import { LatLonPoint } from '@/lib/digital-farming/geo';
 import { CropCatalogItem } from '@/lib/digital-farming/crops';
 import { SimulationState } from '@/lib/digital-farming/simulator';
-import { Eye, Layers, Sparkles, Wind, Droplets } from 'lucide-react';
+import { Language } from '@/types';
+import { Sparkles, Wind, Droplets } from 'lucide-react';
+
+const TWIN3D_I18N: Record<Language, {
+  dayWord: string; plantsWord: string; webglFallback: string;
+  webglErr: string; modeledMoisture: string; weatherScenario: string;
+}> = {
+  en: {
+    dayWord: 'Day', plantsWord: 'plants', webglFallback: 'WebGL Fallback',
+    webglErr: 'WebGL 3D hardware context is unavailable in this browser. Switch to Observed Satellite Data or update graphics drivers.',
+    modeledMoisture: 'Modeled Soil Moisture:', weatherScenario: 'Weather Scenario:',
+  },
+  kn: {
+    dayWord: 'ದಿನ', plantsWord: 'ಸಸಿಗಳು', webglFallback: 'WebGL ಲಭ್ಯವಿಲ್ಲ',
+    webglErr: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ 3D WebGL ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ನೇರ ಉಪಗ್ರಹ ಚಿತ್ರಣವನ್ನು ಬಳಸಿ.',
+    modeledMoisture: 'ಮಣ್ಣಿನ ತೇವಾಂಶ (ಅಂದಾಜು):', weatherScenario: 'ಹವಾಮಾನ ಸ್ಥಿತಿ:',
+  },
+  hi: {
+    dayWord: 'दिन', plantsWord: 'पौधे', webglFallback: 'WebGL अनुपलब्ध',
+    webglErr: 'इस ब्राउज़र में 3D WebGL उपलब्ध नहीं है। कृपया लाइव उपग्रह दृश्य देखें।',
+    modeledMoisture: 'अनुमानित मिट्टी नमी:', weatherScenario: 'मौसम परिदृश्य:',
+  },
+  te: {
+    dayWord: 'రోజు', plantsWord: 'మొక్కలు', webglFallback: 'WebGL అందుబాటులో లేదు',
+    webglErr: 'ఈ బ్రౌజర్‌లో 3D WebGL అందుబాటులో లేదు. దయచేసి ఉపగ్రహ చిత్రాన్ని చూడండి.',
+    modeledMoisture: 'అంచనా నేల తేమ:', weatherScenario: 'వాతావరణ పరిస్థితి:',
+  },
+};
 
 interface CropDigitalTwin3DProps {
   mode: 'field' | 'closeup';
@@ -106,6 +135,8 @@ export function CropDigitalTwin3D({
   estimatedPopulation = 60000,
   qualityTier = 'balanced',
 }: CropDigitalTwin3DProps) {
+  const { t, language } = useFarm();
+  const L = TWIN3D_I18N[language] || TWIN3D_I18N.en;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [webglUnsupported, setWebglUnsupported] = useState(false);
   const [fps, setFps] = useState<number>(0);
@@ -683,31 +714,28 @@ export function CropDigitalTwin3D({
           <Sparkles className="w-4 h-4 text-[#36784D]" />
           <div>
             <div className="font-bold text-sm text-[#20372A] dark:text-white">
-              {mode === 'field'
-                ? 'Predicted Crop Growth — Digital Twin (Mode B)'
-                : 'Seed-to-Harvest Biological Close-Up (Mode C)'}
+              {mode === 'field' ? t('twinModeFieldTitle') : t('twinModeCloseupTitle')}
             </div>
             <div className="text-[11px] text-zinc-500">
-              {crop.name} · Day {sim.currentDay}/{sim.totalDays} ({Math.round(progress * 100)}%) ·
-              Drag to orbit, scroll to zoom
+              {localizeCropName(crop.name, language)} · {L.dayWord} {sim.currentDay}/{sim.totalDays} ({Math.round(progress * 100)}%) · {t('twinOrbitHint')}
             </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           {mode === 'field' && (
             <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-semibold">
-              Est. Field Stand: {estimatedPopulation.toLocaleString('en-IN')} plants · Rendered Sample: {renderedCount}
+              {t('twinEstFieldStand')}: {estimatedPopulation.toLocaleString('en-IN')} {L.plantsWord} · {t('twinRenderedSample')}: {renderedCount}
             </span>
           )}
           <span className="px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold">
-            {webglUnsupported ? 'WebGL Fallback' : `${fps} FPS`}
+            {webglUnsupported ? L.webglFallback : `${fps} FPS`}
           </span>
         </div>
       </div>
 
       {webglUnsupported ? (
         <div className="p-8 text-center text-xs text-zinc-500">
-          WebGL 3D hardware context is unavailable in this browser. Switch to Observed Satellite Data or update graphics drivers.
+          {L.webglErr}
         </div>
       ) : (
         <div ref={mountRef} className="w-full h-[400px] bg-sky-100 cursor-grab active:cursor-grabbing" />
@@ -716,14 +744,14 @@ export function CropDigitalTwin3D({
       <div className="px-4 py-2.5 bg-[#F7F5ED] dark:bg-zinc-900 border-t border-[#E9E5D8] dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
         <span className="inline-flex items-center gap-1.5">
           <Droplets className="w-3.5 h-3.5 text-sky-600" />
-          Modeled Soil Moisture: <strong>{Math.round(sim.soilMoisturePct)}%</strong>
+          {L.modeledMoisture} <strong>{Math.round(sim.soilMoisturePct)}%</strong>
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Wind className="w-3.5 h-3.5 text-emerald-700" />
-          Weather Scenario: <strong>{sim.scenario}</strong>
+          {L.weatherScenario} <strong>{localizeCondition(sim.scenario.replace(/_/g, ' '), language)}</strong>
         </span>
         <span className="italic">
-          SIMULATED / ILLUSTRATIVE — Interactive biological model informed by weather &amp; crop stage (not satellite photography).
+          {t('twinSimulatedNote')}
         </span>
       </div>
     </div>

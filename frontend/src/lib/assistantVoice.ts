@@ -148,7 +148,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   {
     id: 'farm-management',
     route: '/farm-management',
-    keywords: ['farm management', 'ಕೃಷಿ ನಿರ್ವಹಣೆ', 'खेत प्रबंधन'],
+    keywords: ['farm management', 'ಕೃಷಿ ನಿರ್ವಹಣೆ', 'खेत प्रबंधन', 'పొలం నిర్వహణ'],
     allowedRoles: ['farmer'],
     label: { en: 'Farm Management', kn: 'ಕೃಷಿ ನಿರ್ವಹಣೆ', hi: 'खेत प्रबंधन', te: 'పొలం నిర్వహణ' },
     description: {
@@ -174,7 +174,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   {
     id: 'surveillance',
     route: '/crop-health?section=surveillance',
-    keywords: ['surveillance', 'crop health', 'camera', 'monitor', 'ಬೆಳೆ ಆರೋಗ್ಯ', 'फसल स्वास्थ्य'],
+    keywords: ['surveillance', 'crop health', 'camera', 'monitor', 'ಬೆಳೆ ಆರೋಗ್ಯ', 'फसल स्वास्थ्य', 'పంట ఆరోగ్యం'],
     allowedRoles: ['farmer'],
     label: { en: 'Crop Health & Surveillance', kn: 'ಬೆಳೆ ಆರೋಗ್ಯ ಮತ್ತು ಕಣ್ಗಾವಲು', hi: 'फसल स्वास्थ्य और निगरानी', te: 'పంట ఆరోగ్యం మరియు నిఘా' },
     description: {
@@ -213,7 +213,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   {
     id: 'dashboard',
     route: '/',
-    keywords: ['home', 'dashboard', 'farmer dashboard', 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್', 'डैशबोर्ड'],
+    keywords: ['home', 'dashboard', 'farmer dashboard', 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್', 'डैशबोर्ड', 'డాష్‌బోర్డ్'],
     allowedRoles: ['farmer'],
     label: { en: 'Farmer Dashboard', kn: 'ರೈತ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್', hi: 'किसान डैशबोर्ड', te: 'రైతు డ్యాష్‌బోర్డ్' },
     description: {
@@ -465,8 +465,8 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
   }
 
   // 2. Labour hiring draft
-  if (/(hire|book|find|post).*(worker|workers|labour|labor|ಕಾರ್ಮಿಕ|श्रमिक)/i.test(q)) {
-    const countMatch = q.match(/(\d+)\s*(?:worker|workers|labour|labor|people|men|women|ಕಾರ್ಮಿಕ|श्रमिक)/i);
+  if (/(hire|book|find|post).*(worker|workers|labour|labor|ಕಾರ್ಮಿಕ|श्रमिक|కూలీ)/i.test(q)) {
+    const countMatch = q.match(/(\d+)\s*(?:worker|workers|labour|labor|people|men|women|ಕಾರ್ಮಿಕ|श्रमिक|కూలీ)/i);
     const workersCount = countMatch ? Math.max(1, Math.min(100, Number(countMatch[1]))) : 2;
     let workType = 'Harvesting';
     if (/weed/i.test(q)) workType = 'Weeding';
@@ -499,7 +499,7 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
   }
 
   // 4. Transport Connect lookup / booking
-  if (/(find|book|check|need).*(transport|truck|vehicle|tempo|tractor|ಸಾರಿಗೆ|वाहन)/i.test(q)) {
+  if (/(find|book|check|need).*(transport|truck|vehicle|tempo|tractor|ಸಾರಿಗೆ|वाहन|రవాణా)/i.test(q)) {
     const weightMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:kg|ton|tons|quintal)/i);
     const cargoWeightKg = weightMatch ? Number(weightMatch[1]) : undefined;
     return {
@@ -514,7 +514,7 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
   const crop = extractCropFromText(q);
   const areaMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:acre|acres|ac|ಎಕರೆ|एकड़|ఎకరాల|ఎకరం)/i);
   const kBudgetMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:k|thousand)\b/i);
-  const rawBudgetMatch = q.match(/(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये)?/i);
+  const rawBudgetMatch = q.match(/(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये|రూపాయలు)?/i);
   const budgetInr = kBudgetMatch
     ? Math.round(Number(kBudgetMatch[1]) * 1000)
     : rawBudgetMatch

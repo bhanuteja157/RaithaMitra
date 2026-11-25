@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { Farm, FarmSummary, WeatherResponse, RecommendationResponse, Language, Theme, FarmCreate, User, UserRole, SelectedLocation } from '@/types';
-import { TRANSLATIONS } from '@/lib/translations';
+import { TRANSLATIONS, translateKey } from '@/lib/translations';
 
 interface FarmContextType {
   currentUser: User;
@@ -29,7 +29,7 @@ interface FarmContextType {
   setLanguage: (lang: Language) => void;
   theme: Theme;
   toggleTheme: () => void;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   isLoading: boolean;
   isOnboardingOpen: boolean;
   setIsOnboardingOpen: (open: boolean) => void;
@@ -106,8 +106,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   // Initialize preferences & persisted user/farm state from localStorage
   useEffect(() => {
     const savedLang = localStorage.getItem('rm_lang') as Language;
-    if (savedLang && (savedLang === 'en' || savedLang === 'kn' || savedLang === 'hi')) {
+    if (savedLang && (savedLang === 'en' || savedLang === 'kn' || savedLang === 'hi' || savedLang === 'te')) {
       setLanguageState(savedLang);
+      document.documentElement.lang = savedLang;
     }
     const savedTheme = localStorage.getItem('rm_theme') as Theme;
     if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
@@ -383,6 +384,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('rm_lang', lang);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
   };
 
   const toggleTheme = () => {
@@ -396,9 +400,8 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const t = (key: string): string => {
-    const dict = TRANSLATIONS[language] || TRANSLATIONS.en;
-    return (dict as Record<string, string>)[key] || (TRANSLATIONS.en as Record<string, string>)[key] || key;
+  const t = (key: string, vars?: Record<string, string | number>): string => {
+    return translateKey(language, key, vars);
   };
 
   const currentFarm = farms.find(f => f.id === currentFarmId) || farms[0] || null;

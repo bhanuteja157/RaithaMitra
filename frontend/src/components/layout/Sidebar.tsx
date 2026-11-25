@@ -60,18 +60,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   if (currentUser.role === 'buyer') {
     navigationGroups = [
       {
-        title: "BUYER PORTAL",
+        title: t('buyerPortal'),
         items: [
-          { name: "Buyer Overview", href: '/dashboard/buyer', icon: LayoutDashboard, status: 'role', badge: 'Buyer' },
-          { name: "Browse Produce Lots", href: '/bidding', icon: ShoppingBag, status: 'flagship', badge: 'Flagship' },
-          { name: "Active Auctions & Bids", href: '/dashboard/buyer#bids', icon: Gavel, status: 'flagship' },
-          { name: "Confirmed Purchases", href: '/dashboard/buyer#orders', icon: ShieldCheck, status: 'operational' },
-          { name: "Delivery Tracking", href: '/transport', icon: Truck, status: 'flagship' },
-          { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
+          { name: t('buyerOverview'), href: '/dashboard/buyer', icon: LayoutDashboard, status: 'role', badge: t('roleBuyer') },
+          { name: t('browseLots'), href: '/bidding', icon: ShoppingBag, status: 'flagship' },
+          { name: t('activeAuctions'), href: '/dashboard/buyer#bids', icon: Gavel, status: 'flagship' },
+          { name: t('confirmedPurchases'), href: '/dashboard/buyer#orders', icon: ShieldCheck, status: 'operational' },
+          { name: t('deliveryTracking'), href: '/transport', icon: Truck, status: 'flagship' },
+          { name: t('nurseryMarketplace'), href: '/nursery-marketplace', icon: Store, status: 'flagship' },
         ],
       },
       {
-        title: "SYSTEM PREFERENCES",
+        title: t('systemPrefs'),
         items: [
           { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
           { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
@@ -81,16 +81,16 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   } else if (currentUser.role === 'labour') {
     navigationGroups = [
       {
-        title: "LABOUR PORTAL",
+        title: t('labourPortal'),
         items: [
-          { name: "Labour Overview", href: '/dashboard/labour', icon: HardHat, status: 'role', badge: 'Labour' },
-          { name: "Find Agricultural Work", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
-          { name: "My Jobs & Schedule", href: '/dashboard/labour#my-jobs', icon: CheckCircle2, status: 'operational' },
-          { name: "My Daily Earnings", href: '/dashboard/labour#earnings', icon: Coins, status: 'operational' },
+          { name: t('labourOverview'), href: '/dashboard/labour', icon: HardHat, status: 'role', badge: t('roleLabour') },
+          { name: t('findAgriWork'), href: '/labour', icon: Users2, status: 'flagship' },
+          { name: t('myJobsSchedule'), href: '/dashboard/labour#my-jobs', icon: CheckCircle2, status: 'operational' },
+          { name: t('myDailyEarnings'), href: '/dashboard/labour#earnings', icon: Coins, status: 'operational' },
         ],
       },
       {
-        title: "SYSTEM PREFERENCES",
+        title: t('systemPrefs'),
         items: [
           { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
           { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
@@ -100,18 +100,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   } else if (currentUser.role === 'driver') {
     navigationGroups = [
       {
-        title: "LOGISTICS CONSOLE",
+        title: t('driverConsole'),
         items: [
-          { name: "Driver Console", href: '/dashboard/driver', icon: Truck, status: 'role', badge: 'Driver' },
-          { name: "Find Agri Cargo Loads", href: '/transport', icon: Search, status: 'flagship', badge: 'Flagship' },
-          { name: "Booking Requests", href: '/dashboard/driver#requests', icon: Clock, status: 'operational' },
-          { name: "My Trips & Deliveries", href: '/dashboard/driver#trips', icon: CalendarCheck, status: 'operational' },
-          { name: "My Vehicle & Capacity", href: '/dashboard/driver#vehicle', icon: ShieldCheck, status: 'operational' },
-          { name: "My Freight Earnings", href: '/dashboard/driver#earnings', icon: Coins, status: 'operational' },
+          { name: t('driverConsoleLabel'), href: '/dashboard/driver', icon: Truck, status: 'role', badge: t('roleDriver') },
+          { name: t('findCargoLoads'), href: '/transport', icon: Search, status: 'flagship' },
+          { name: t('bookingRequests'), href: '/dashboard/driver#requests', icon: Clock, status: 'operational' },
+          { name: t('myTrips'), href: '/dashboard/driver#trips', icon: CalendarCheck, status: 'operational' },
+          { name: t('myVehicle'), href: '/dashboard/driver#vehicle', icon: ShieldCheck, status: 'operational' },
+          { name: t('myEarnings'), href: '/dashboard/driver#earnings', icon: Coins, status: 'operational' },
         ],
       },
       {
-        title: "SYSTEM PREFERENCES",
+        title: t('systemPrefs'),
         items: [
           { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
           { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
@@ -122,18 +122,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     // Simplified Farmer Navigation (AD-16: 10 clean farmer-friendly entries)
     navigationGroups = [
       {
-        title: "FARMER WORKSPACE",
+        title: t('farmerWorkspace'),
         items: [
-          { name: "Home", href: '/', icon: LayoutDashboard, status: 'role' },
-          { name: "BioIntel", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Seeds' },
-          { name: "Digital Farm", href: '/digital-farming', icon: Layers, status: 'flagship', badge: 'Map & Twin' },
-          { name: "Farm Management", href: '/farm-management', icon: CloudSun, status: 'operational' },
-          { name: "Crop Health", href: '/crop-health', icon: Microscope, status: 'operational' },
-          { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Workers' },
-          { name: "Smart Bidding & Market", href: '/smart-market', icon: Gavel, status: 'flagship', badge: 'Sell' },
-          { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Transport' },
-          { name: "Finance & Benefits", href: '/finance-benefits', icon: Coins, status: 'operational' },
-          { name: "Profile & Settings", href: '/profile', icon: User, status: 'operational' },
+          { name: t('navHome'), href: '/', icon: LayoutDashboard, status: 'role' },
+          { name: t('navBiointel'), href: '/biointel', icon: Dna, status: 'flagship', badge: t('badgeSeeds') },
+          { name: t('navDigitalFarm'), href: '/digital-farming', icon: Layers, status: 'flagship', badge: t('badgeMapTwin') },
+          { name: t('navFarmMgmt'), href: '/farm-management', icon: CloudSun, status: 'operational' },
+          { name: t('navCropHealth'), href: '/crop-health', icon: Microscope, status: 'operational' },
+          { name: t('navLabour'), href: '/labour', icon: Users2, status: 'flagship', badge: t('badgeWorkers') },
+          { name: t('navSmartMarket'), href: '/smart-market', icon: Gavel, status: 'flagship', badge: t('badgeSell') },
+          { name: t('navTransport'), href: '/transport', icon: Truck, status: 'flagship', badge: t('badgeTransport') },
+          { name: t('navFinanceBenefits'), href: '/finance-benefits', icon: Coins, status: 'operational' },
+          { name: t('navProfileSettings'), href: '/profile', icon: User, status: 'operational' },
         ],
       },
     ];
@@ -175,14 +175,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-lg tracking-tight text-rm-text dark:text-white">
-                RaithaMitra
+                {t('appName')}
               </span>
               <span className="text-xs px-1.5 py-0.5 font-semibold rounded bg-rm-primary/10 text-rm-primary dark:bg-rm-accent/20 dark:text-rm-accent">
                 ರೈತ ಮಿತ್ರ
               </span>
             </div>
             <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-              Syntax Squad • HackWarts 2026
+              {t('brandSubtitle')}
             </span>
           </div>
         </div>
@@ -250,11 +250,17 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40">
           <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
             <span className="capitalize font-semibold text-zinc-800 dark:text-zinc-200">
-              Role: {currentUser.role}
+              {currentUser.role === 'farmer'
+                ? t('roleFarmer')
+                : currentUser.role === 'buyer'
+                  ? t('roleBuyer')
+                  : currentUser.role === 'labour'
+                    ? t('roleLabour')
+                    : t('roleDriver')}
             </span>
             <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              SQLite DB Sync
+              {t('liveIndicator')}
             </span>
           </div>
         </div>

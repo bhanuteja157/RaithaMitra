@@ -3,6 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFarm } from '@/context/FarmContext';
+import { localizeGrowthStage, localizeCondition, formatLocalizedDate } from '@/lib/translations';
+import { Language } from '@/types';
 import {
   simulateFarmTwin,
   ScientificModuleOutput,
@@ -19,9 +21,55 @@ import {
 } from 'recharts';
 import { Layers, Sprout, Activity, RotateCw, Info } from 'lucide-react';
 
+const FARM_TWIN_I18N: Record<Language, {
+  title: string; badge: string; sub: string;
+  rainScen: string; irrDef: string; baseIrr: string;
+  canopy: string; daysSince: string; rootDepth: string; stageProg: string;
+  scenRet: string; days7Etc: string; supplyLbl: string;
+  trajTitle: string; modeledMoistName: string; zoneBalTitle: string; haUnit: string; modeledMoistLbl: string; modelDisc: string;
+}> = {
+  en: {
+    title: 'Digital Farm Twin', badge: 'Water-Balance Model',
+    sub: 'Virtual farm crop timeline, 7-day root-zone water balance, and irrigation scenarios',
+    rainScen: 'Rainfall Scenario', irrDef: 'Irrigation Deficit', baseIrr: 'Recent Irrigation (mm)',
+    canopy: 'Canopy Cover', daysSince: 'days since sowing', rootDepth: 'Root Depth', stageProg: 'Stage progress:',
+    scenRet: 'Yield Retention', days7Etc: '7-day Water Need:', supplyLbl: 'Supply:',
+    trajTitle: '7-Day Modeled Soil Moisture Trajectory (%)', modeledMoistName: 'Modeled Moisture %',
+    zoneBalTitle: 'Farm Zone Water Balance', haUnit: 'ha', modeledMoistLbl: 'Moisture:', modelDisc: 'Model Note:',
+  },
+  kn: {
+    title: 'ಡಿಜಿಟಲ್ ಫಾರ್ಮ್ ಟ್ವಿನ್', badge: 'ನೀರಿನ ಸಮತೋಲನ ಮಾದರಿ',
+    sub: 'ಜಮೀನಿನ ಬೆಳೆ ಕಾಲಾನುಕ್ರಮ, 7-ದಿನದ ಬೇರಿನ ತೇವಾಂಶ ಮತ್ತು ನೀರಾವರಿ ಸನ್ನಿವೇಶಗಳು',
+    rainScen: 'ಮಳೆ ಪ್ರಮಾಣ', irrDef: 'ನೀರಾವರಿ ಕೊರತೆ', baseIrr: 'ಇತ್ತೀಚಿನ ನೀರಾವರಿ (ಮಿ.ಮೀ)',
+    canopy: 'ಎಲೆ ಹರಡುವಿಕೆ', daysSince: 'ದಿನಗಳು (ಬಿತ್ತನೆಯಿಂದ)', rootDepth: 'ಬೇರಿನ ಆಳ', stageProg: 'ಹಂತದ ಪ್ರಗತಿ:',
+    scenRet: 'ಅಂದಾಜು ಇಳುವರಿ ಉಳಿಕೆ', days7Etc: '7-ದಿನದ ನೀರಿನ ಅಗತ್ಯ:', supplyLbl: 'ಪೂರೈಕೆ:',
+    trajTitle: '7-ದಿನದ ಮಣ್ಣಿನ ತೇವಾಂಶ ಮುನ್ಸೂಚನೆ (%)', modeledMoistName: 'ಅಂದಾಜು ತೇವಾಂಶ %',
+    zoneBalTitle: 'ಜಮೀನಿನ ವಲಯವಾರು ನೀರಿನ ಸಮತೋಲನ', haUnit: 'ಹೆ.', modeledMoistLbl: 'ತೇವಾಂಶ:', modelDisc: 'ಮಾದರಿ ಮಾಹಿತಿ:',
+  },
+  hi: {
+    title: 'डिजिटल फार्म ट्विन', badge: 'जल-संतुलन मॉडल',
+    sub: 'फसल समय-सीमा, 7-दिन मिट्टी नमी संतुलन और सिंचाई कमी परिदृश्य',
+    rainScen: 'वर्षा परिदृश्य', irrDef: 'सिंचाई कमी', baseIrr: 'हाल की सिंचाई (मिमी)',
+    canopy: 'फसल फैलाव', daysSince: 'दिन (बुवाई से)', rootDepth: 'जड़ की गहराई', stageProg: 'चरण प्रगति:',
+    scenRet: 'उपज संरक्षण अनुमान', days7Etc: '7-दिन पानी की मांग:', supplyLbl: 'आपूर्ति:',
+    trajTitle: '7-दिन अनुमानित जड़-क्षेत्र नमी (%)', modeledMoistName: 'अनुमानित नमी %',
+    zoneBalTitle: 'खेत क्षेत्रवार जल संतुलन', haUnit: 'हे.', modeledMoistLbl: 'नमी:', modelDisc: 'मॉडल विवरण:',
+  },
+  te: {
+    title: 'డిజిటల్ ఫార్మ్ ట్ವಿన్', badge: 'నీటి-సమతుల్యత నమూనా',
+    sub: 'పొలం పంట కాలక్రమం, 7-రోజుల నేల తేమ సమతుల్యత మరియు నీటిపారుదల అంచనాలు',
+    rainScen: 'వర్షపాతం అంచనా', irrDef: 'నీటిపారుదల లోటు', baseIrr: 'ఇటీవలి నీరు (మి.మీ)',
+    canopy: 'ఆకుల విస్తరణ', daysSince: 'రోజులు (విత్తినప్పటి నుండి)', rootDepth: 'వేరు లోతు', stageProg: 'దశ పురోగతి:',
+    scenRet: 'దిగుబడి నిలుపుదల', days7Etc: '7-రోజుల నీటి అవసరం:', supplyLbl: 'సరఫరా:',
+    trajTitle: '7-రోజుల అంచనా నేల తేమ (%)', modeledMoistName: 'అంచనా తేమ %',
+    zoneBalTitle: 'పొలం విభాగాల నీటి సమతుల్యత', haUnit: 'హె.', modeledMoistLbl: 'తేమ:', modelDisc: 'నమూనా వివరణ:',
+  },
+};
+
 export default function DigitalFarmTwinPage() {
   const { currentFarm, language } = useFarm();
   const mt = MODULE_TRANSLATIONS[language] || MODULE_TRANSLATIONS.en;
+  const L = FARM_TWIN_I18N[language] || FARM_TWIN_I18N.en;
 
   const [rainfallMult, setRainfallMult] = useState<number>(1.0);
   const [deficitPct, setDeficitPct] = useState<number>(0);
@@ -73,14 +121,14 @@ export default function DigitalFarmTwinPage() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-zinc-900 dark:text-white">
-                Digital Farm Twin
+                {L.title}
               </h1>
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">
-                Simplified Water-Balance Model
+                {L.badge}
               </span>
             </div>
             <p className="text-xs text-zinc-500">
-              Virtual parcel representation: crop timeline, 7-day soil water balance, zone stress, and deficit scenarios
+              {L.sub}
             </p>
           </div>
         </div>
@@ -90,7 +138,7 @@ export default function DigitalFarmTwinPage() {
       <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs items-end">
         <div>
           <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-            Rainfall Scenario (×{rainfallMult})
+            {L.rainScen} (×{rainfallMult})
           </label>
           <input
             type="range"
@@ -104,7 +152,7 @@ export default function DigitalFarmTwinPage() {
         </div>
         <div>
           <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-            Irrigation Deficit ({deficitPct}%)
+            {L.irrDef} ({deficitPct}%)
           </label>
           <input
             type="range"
@@ -118,7 +166,7 @@ export default function DigitalFarmTwinPage() {
         </div>
         <div>
           <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-            Baseline Irrigation Event (mm)
+            {L.baseIrr}
           </label>
           <input
             type="number"
@@ -144,29 +192,29 @@ export default function DigitalFarmTwinPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-2">
               <div className="flex items-center justify-between text-zinc-500 text-xs">
-                <span>Canopy Cover ({tl.crop_stage})</span>
+                <span>{L.canopy} ({localizeGrowthStage(tl.crop_stage, language)})</span>
                 <Sprout className="w-4 h-4 text-emerald-500" />
               </div>
               <div className="text-3xl font-bold text-zinc-900 dark:text-white">{tl.canopy_cover_pct}%</div>
               <p className="text-[11px] text-zinc-400">
-                Day {tl.days_since_sowing} since sowing ({tl.sowing_date})
+                {tl.days_since_sowing} {L.daysSince} ({formatLocalizedDate(tl.sowing_date, language)})
               </p>
             </div>
 
             <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-2">
               <div className="flex items-center justify-between text-zinc-500 text-xs">
-                <span>Modeled Root Depth</span>
+                <span>{L.rootDepth}</span>
                 <Activity className="w-4 h-4 text-teal-500" />
               </div>
               <div className="text-3xl font-bold text-zinc-900 dark:text-white">{tl.effective_root_depth_cm} cm</div>
-              <p className="text-[11px] text-zinc-400">Stage progress: {tl.stage_progress_pct}%</p>
+              <p className="text-[11px] text-zinc-400">{L.stageProg} {tl.stage_progress_pct}%</p>
             </div>
 
             <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-2">
-              <div className="text-xs text-zinc-500">Scenario Yield Retention</div>
+              <div className="text-xs text-zinc-500">{L.scenRet}</div>
               <div className="text-3xl font-bold text-emerald-600">{scen.modeled_yield_retention_pct}%</div>
               <p className="text-[11px] text-zinc-400">
-                7-day ETc: {scen.total_7d_etc_mm} mm • Supply: {scen.total_7d_water_supply_mm} mm
+                {L.days7Etc} {scen.total_7d_etc_mm} mm • {L.supplyLbl} {scen.total_7d_water_supply_mm} mm
               </p>
             </div>
           </div>
@@ -174,7 +222,7 @@ export default function DigitalFarmTwinPage() {
           {daily.length > 0 && (
             <div className="p-6 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-3">
               <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
-                7-Day Modeled Root-Zone Moisture Trajectory (%)
+                {L.trajTitle}
               </h3>
               <div className="h-60 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -189,7 +237,7 @@ export default function DigitalFarmTwinPage() {
                       stroke="#0f766e"
                       fill="#14b8a6"
                       fillOpacity={0.2}
-                      name="Modeled Moisture %"
+                      name={L.modeledMoistName}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -199,13 +247,13 @@ export default function DigitalFarmTwinPage() {
 
           {/* Multi-Zone Breakdown */}
           <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-3">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Parcel Zone Water Balance</h3>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">{L.zoneBalTitle}</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               {zones.map((z: any, i: number) => (
                 <div key={i} className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1">
                   <div className="font-bold text-zinc-900 dark:text-white">{z.zone_name}</div>
-                  <div className="text-zinc-500">{z.area_ha} ha • {z.soil_type}</div>
-                  <div className="font-semibold text-teal-600">Modeled Moisture: {z.modeled_moisture_pct}% ({z.status})</div>
+                  <div className="text-zinc-500">{z.area_ha} {L.haUnit} • {localizeCondition(z.soil_type, language)}</div>
+                  <div className="font-semibold text-teal-600">{L.modeledMoistLbl} {z.modeled_moisture_pct}% ({localizeCondition(z.status, language)})</div>
                 </div>
               ))}
             </div>
@@ -214,7 +262,7 @@ export default function DigitalFarmTwinPage() {
           <div className="p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-xs text-zinc-500 flex items-start gap-2">
             <Info className="w-4 h-4 shrink-0 mt-0.5 text-teal-600" />
             <div>
-              <strong>Model Disclosure:</strong> {r.model_type}. {mt.sourceLabel}: {output?.source}
+              <strong>{L.modelDisc}</strong> {r.model_type}. {mt.sourceLabel}: {output?.source}
             </div>
           </div>
         </>

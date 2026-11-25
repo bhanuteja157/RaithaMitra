@@ -8,7 +8,113 @@ import {
   LocationSource,
   SelectedLocation,
   GeocodeSearchResult,
+  Language,
 } from '@/types';
+
+const LOC_I18N: Record<Language, {
+  labourSub: string; mainSub: string; searchMin: string; noMatch: string;
+  geoUnsupported: string; gpsDenied: string; gpsUnavail: string; gpsTimeout: string; gpsFailed: string;
+  locConfirmed: string; searchBtn: string; searchingBtn: string;
+  gpsDetected: string; villageLabel: string; districtLabel: string; stateLabel: string; pinLabel: string;
+  resolvedTitle: string; lookingUp: string; addressLabel: string; sourceLabel: string; selectedLabel: string;
+}> = {
+  en: {
+    labourSub: 'Find nearby agricultural work by GPS or entering your village.',
+    mainSub: 'Search a place, click or drag the map pin, detect GPS, or enter coordinates.',
+    searchMin: 'Enter at least 2 characters (village, city, district, state, or PIN code).',
+    noMatch: 'No matching locations found. Try a nearby town, district, or PIN code.',
+    geoUnsupported: 'Geolocation is not supported by this browser.',
+    gpsDenied: 'Location permission denied. Please enable location access or select on the map.',
+    gpsUnavail: 'Device location unavailable. Please search or click on the map.',
+    gpsTimeout: 'Location request timed out. Please try again or enter coordinates manually.',
+    gpsFailed: 'Unable to detect device location.',
+    locConfirmed: 'Location confirmed and saved.',
+    searchBtn: 'Search',
+    searchingBtn: 'Searching...',
+    gpsDetected: 'Device GPS detected. Review and confirm before saving.',
+    villageLabel: 'Village / Locality',
+    districtLabel: 'District',
+    stateLabel: 'State',
+    pinLabel: 'PIN Code',
+    resolvedTitle: 'Resolved Address Details (Editable)',
+    lookingUp: 'Looking up address...',
+    addressLabel: 'Address',
+    sourceLabel: 'Source',
+    selectedLabel: 'Selected',
+  },
+  kn: {
+    labourSub: 'GPS ಮೂಲಕ ಅಥವಾ ನಿಮ್ಮ ಗ್ರಾಮವನ್ನು ನಮೂದಿಸಿ ಹತ್ತಿರದ ಕೃಷಿ ಕೆಲಸ ಹುಡುಕಿ.',
+    mainSub: 'ಸ್ಥಳ ಹುಡುಕಿ, ನಕ್ಷೆಯ ಮೇಲೆ ಒತ್ತಿ, GPS ಬಳಸಿ ಅಥವಾ ನಿರ್ದೇಶಾಂಕ ನಮೂದಿಸಿ.',
+    searchMin: 'ಕನಿಷ್ಠ 2 ಅಕ್ಷರಗಳನ್ನು ನಮೂದಿಸಿ (ಗ್ರಾಮ, ಪಟ್ಟಣ, ಜಿಲ್ಲೆ ಅಥವಾ ಪಿನ್ ಕೋಡ್).',
+    noMatch: 'ಯಾವುದೇ ಸ್ಥಳ ಪತ್ತೆಯಾಗಲಿಲ್ಲ. ಹತ್ತಿರದ ಪಟ್ಟಣ ಅಥವಾ ಪಿನ್ ಕೋಡ್ ಪ್ರಯತ್ನಿಸಿ.',
+    geoUnsupported: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ GPS ಸೌಲಭ್ಯ ಲಭ್ಯವಿಲ್ಲ.',
+    gpsDenied: 'ಸ್ಥಳದ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ. ದಯವಿಟ್ಟು ನಕ್ಷೆಯಲ್ಲಿ ಆಯ್ಕೆಮಾಡಿ.',
+    gpsUnavail: 'ಸಾಧನದ ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ಹುಡುಕಿ ಅಥವಾ ನಕ್ಷೆಯಲ್ಲಿ ಒತ್ತಿ.',
+    gpsTimeout: 'ಸ್ಥಳ ಹುಡುಕಾಟ ಸಮಯ ಮೀರಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+    gpsFailed: 'ಸ್ಥಳ ಪತ್ತೆಹಚ್ಚಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+    locConfirmed: 'ಸ್ಥಳವನ್ನು ದೃಢೀಕರಿಸಿ ಉಳಿಸಲಾಗಿದೆ.',
+    searchBtn: 'ಹುಡುಕಿ',
+    searchingBtn: 'ಹುಡುಕಲಾಗುತ್ತಿದೆ...',
+    gpsDetected: 'GPS ಸ್ಥಳ ಪತ್ತೆಯಾಗಿದೆ. ಉಳಿಸುವ ಮುನ್ನ ಪರಿಶೀಲಿಸಿ.',
+    villageLabel: 'ಗ್ರಾಮ / ಪ್ರದೇಶ',
+    districtLabel: 'ಜಿಲ್ಲೆ',
+    stateLabel: 'ರಾಜ್ಯ',
+    pinLabel: 'ಪಿನ್ ಕೋಡ್',
+    resolvedTitle: 'ಪತ್ತೆಯಾದ ವಿಳಾಸ ವಿವರಗಳು (ತಿದ್ದುಪಡಿ ಮಾಡಬಹುದು)',
+    lookingUp: 'ವಿಳಾಸ ಹುಡುಕಲಾಗುತ್ತಿದೆ...',
+    addressLabel: 'ವಿಳಾಸ',
+    sourceLabel: 'ಮೂಲ',
+    selectedLabel: 'ಆಯ್ಕೆಯಾದ ಸ್ಥಳ',
+  },
+  hi: {
+    labourSub: 'GPS या अपने गाँव के नाम से नज़दीकी कृषि कार्य खोजें।',
+    mainSub: 'स्थान खोजें, मानचित्र पिन चुनें, GPS का उपयोग करें या निर्देशांक दर्ज करें।',
+    searchMin: 'कम से कम 2 अक्षर दर्ज करें (गाँव, शहर, जिला या पिन कोड)।',
+    noMatch: 'कोई मिलान स्थान नहीं मिला। नज़दीकी कस्बा या पिन कोड आज़माएं।',
+    geoUnsupported: 'यह ब्राउज़र GPS स्थान का समर्थन नहीं करता है।',
+    gpsDenied: 'स्थान अनुमति अस्वीकार की गई। कृपया मानचित्र पर चुनें।',
+    gpsUnavail: 'डिवाइस स्थान उपलब्ध नहीं है। कृपया खोजें या मानचित्र पर क्लिक करें।',
+    gpsTimeout: 'स्थान अनुरोध का समय समाप्त। कृपया पुनः प्रयास करें।',
+    gpsFailed: 'डिवाइस स्थान पता लगाने में असमर्थ।',
+    locConfirmed: 'स्थान की पुष्टि हो गई और सहेजा गया।',
+    searchBtn: 'खोजें',
+    searchingBtn: 'खोज रहे हैं...',
+    gpsDetected: 'GPS स्थान मिला। सहेजने से पहले जांचें और पुष्टि करें।',
+    villageLabel: 'गाँव / क्षेत्र',
+    districtLabel: 'जिला',
+    stateLabel: 'राज्य',
+    pinLabel: 'पिन कोड',
+    resolvedTitle: 'प्राप्त पता विवरण (संपादन योग्य)',
+    lookingUp: 'पता खोज रहे हैं...',
+    addressLabel: 'पता',
+    sourceLabel: 'स्रोत',
+    selectedLabel: 'चयनित',
+  },
+  te: {
+    labourSub: 'GPS ద్వారా లేదా మీ గ్రామం పేరుతో సమీప వ్యవసాయ పనిని కనుగొనండి.',
+    mainSub: 'స్థలాన్ని వెతకండి, మ్యాప్‌లో ఎంచుకోండి, GPS వాడండి లేదా అక్షాంశాలు ఇవ్వండి.',
+    searchMin: 'కనీసం 2 అక్షరాలు నమోదు చేయండి (గ్రామం, పట్టణం, జిల్లా లేదా పిన్ కోడ్).',
+    noMatch: 'సరిపోయే స్థలాలు కనుగొనబడలేదు. సమీప పట్టణం లేదా పిన్ ప్రయత్నించండి.',
+    geoUnsupported: 'ఈ బ్రౌజర్‌లో GPS సదుపాయం లేదు.',
+    gpsDenied: 'స్థాన అనుమతి నిరాకరించబడింది. దయచేసి మ్యాప్‌లో ఎంచుకోండి.',
+    gpsUnavail: 'పరికర స్థానం అందుబాటులో లేదు. మ్యాప్‌లో ఎంచుకోండి.',
+    gpsTimeout: 'స్థానం అభ్యర్థన సమయం ముగిసింది. మళ్ళీ ప్రయత్నించండి.',
+    gpsFailed: 'స్థానాన్ని గుర్తించడం సాధ్యం కాలేదు.',
+    locConfirmed: 'స్థానం నిర్ధారించబడి సేవ్ చేయబడింది.',
+    searchBtn: 'వెతకండి',
+    searchingBtn: 'వెతుకుతోంది...',
+    gpsDetected: 'GPS స్థానం గుర్తించబడింది. సేవ్ చేసే ముందు తనిఖీ చేయండి.',
+    villageLabel: 'గ్రామం / ప్రాంతం',
+    districtLabel: 'జిల్లా',
+    stateLabel: 'రాష్ట్రం',
+    pinLabel: 'పిన్ కోడ్',
+    resolvedTitle: 'గుర్తించిన చిరునామా వివరాలు (మార్చుకోవచ్చు)',
+    lookingUp: 'చిరునామా వెతుకుతోంది...',
+    addressLabel: 'చిరునామా',
+    sourceLabel: 'మూలం',
+    selectedLabel: 'ఎంచుకున్నది',
+  },
+};
 import {
   searchLocations,
   reverseGeocode,
@@ -56,7 +162,8 @@ export function SmartLocationSelector({
   onConfirmLocation,
   confirmLabel,
 }: SmartLocationSelectorProps) {
-  const { t } = useFarm();
+  const { t, language } = useFarm();
+  const L = LOC_I18N[language] || LOC_I18N.en;
 
   // Coordinates state (kept separate from saved farm until confirmed)
   const [lat, setLat] = useState<number>(initialLocation?.latitude ?? 12.5234);
@@ -139,7 +246,7 @@ export function SmartLocationSelector({
   const handleSearchSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (searchQuery.trim().length < 2) {
-      setSearchError('Enter at least 2 characters (village, city, district, state, or PIN code).');
+      setSearchError(L.searchMin);
       return;
     }
     setIsSearching(true);
@@ -152,7 +259,7 @@ export function SmartLocationSelector({
     }
     setSearchResults(res.results || []);
     if (!res.error_message && res.results.length === 0) {
-      setSearchError('No matching locations found. Try a nearby town, district, or PIN code.');
+      setSearchError(L.noMatch);
     }
   };
 
@@ -193,7 +300,7 @@ export function SmartLocationSelector({
     setSavedFeedback(null);
 
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
-      setGpsError('Geolocation is not supported by this browser.');
+      setGpsError(L.geoUnsupported);
       return;
     }
 
@@ -218,13 +325,13 @@ export function SmartLocationSelector({
       (err) => {
         setIsLocatingGps(false);
         if (err.code === err.PERMISSION_DENIED) {
-          setGpsError('Location permission denied. Please enable location access or select on the map.');
+          setGpsError(L.gpsDenied);
         } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setGpsError('Device location unavailable. Please search or click on the map.');
+          setGpsError(L.gpsUnavail);
         } else if (err.code === err.TIMEOUT) {
-          setGpsError('Location request timed out. Please try again or enter coordinates manually.');
+          setGpsError(L.gpsTimeout);
         } else {
-          setGpsError('Unable to detect device location.');
+          setGpsError(L.gpsFailed);
         }
       },
       {
@@ -241,7 +348,12 @@ export function SmartLocationSelector({
     setSavedFeedback(null);
     const check = validateCoordinates(latInput, lonInput);
     if (!check.valid) {
-      setCoordError(check.error);
+      const fallbackCoordErr =
+        language === 'kn' ? 'ಅಮಾನ್ಯ ನಿರ್ದೇಶಾಂಕಗಳು. ದಯವಿಟ್ಟು ಮಾನ್ಯ ಅಕ್ಷಾಂಶ ಮತ್ತು ರೇಖಾಂಶ ನಮೂದಿಸಿ.' :
+        language === 'hi' ? 'अमान्य निर्देशांक। कृपया मान्य अक्षांश और देशांतर दर्ज करें।' :
+        language === 'te' ? 'చెల్లని కోఆర్డినేట్‌లు. దయచేసి సరైన అక్షాంశం మరియు రేఖాంశం నమోదు చేయండి.' :
+        check.error;
+      setCoordError(language === 'en' ? check.error : fallbackCoordErr);
       return;
     }
     setLat(check.lat);
@@ -257,7 +369,12 @@ export function SmartLocationSelector({
   const handleConfirm = async () => {
     const check = validateCoordinates(latInput, lonInput);
     if (!check.valid) {
-      setCoordError(check.error);
+      const fallbackCoordErr =
+        language === 'kn' ? 'ಅಮಾನ್ಯ ನಿರ್ದೇಶಾಂಕಗಳು. ದಯವಿಟ್ಟು ಮಾನ್ಯ ಅಕ್ಷಾಂಶ ಮತ್ತು ರೇಖಾಂಶ ನಮೂದಿಸಿ.' :
+        language === 'hi' ? 'अमान्य निर्देशांक। कृपया मान्य अक्षांश और देशांतर दर्ज करें।' :
+        language === 'te' ? 'చెల్లని కోఆర్డినేట్‌లు. దయచేసి సరైన అక్షాంశం మరియు రేఖాంశం నమోదు చేయండి.' :
+        check.error;
+      setCoordError(language === 'en' ? check.error : fallbackCoordErr);
       return;
     }
     setIsSaving(true);
@@ -276,7 +393,7 @@ export function SmartLocationSelector({
     };
     try {
       await onConfirmLocation(payload);
-      setSavedFeedback('Location confirmed and saved.');
+      setSavedFeedback(L.locConfirmed);
     } finally {
       setIsSaving(false);
     }
@@ -293,7 +410,7 @@ export function SmartLocationSelector({
               {title || t('labourLocationTitle')}
             </h3>
             <p className="text-xs text-zinc-500">
-              {subtitle || 'Find nearby agricultural work by GPS or entering your village.'}
+              {subtitle || L.labourSub}
             </p>
           </div>
           <button
@@ -316,22 +433,22 @@ export function SmartLocationSelector({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Village / Locality</label>
+            <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.villageLabel}</label>
             <input
               type="text"
               value={village}
               onChange={(e) => setVillage(e.target.value)}
-              placeholder="e.g. Gubbi"
+              placeholder="Gubbi"
               className="w-full p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
             />
           </div>
           <div>
-            <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">District</label>
+            <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.districtLabel}</label>
             <input
               type="text"
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
-              placeholder="e.g. Tumakuru"
+              placeholder="Tumakuru"
               className="w-full p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
             />
           </div>
@@ -360,7 +477,7 @@ export function SmartLocationSelector({
             {title || (role === 'buyer' ? t('buyerDeliveryLocation') : t('smartLocationSelector'))}
           </h3>
           <p className="text-xs text-zinc-500">
-            {subtitle || 'Search a place, click or drag the map pin, detect GPS, or enter coordinates.'}
+            {subtitle || L.mainSub}
           </p>
         </div>
 
@@ -400,7 +517,7 @@ export function SmartLocationSelector({
             disabled={isSearching}
             className="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold hover:opacity-90 transition disabled:opacity-60"
           >
-            {isSearching ? 'Searching...' : 'Search'}
+            {isSearching ? L.searchingBtn : L.searchBtn}
           </button>
         </div>
 
@@ -447,7 +564,7 @@ export function SmartLocationSelector({
         <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-medium">
             <Navigation className="w-3.5 h-3.5" />
-            Device GPS detected (Accuracy: ±{accuracyMeters} m). Review and confirm before saving.
+            {L.gpsDetected} (±{accuracyMeters} m)
           </span>
         </div>
       )}
@@ -509,11 +626,11 @@ export function SmartLocationSelector({
         <div className="flex items-center justify-between">
           <span className="font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
             <Edit3 className="w-3.5 h-3.5 text-green-700" />
-            Resolved Address Details (Editable)
+            {L.resolvedTitle}
           </span>
           {isReversing && (
             <span className="text-[11px] text-zinc-500 flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin" /> Looking up address...
+              <Loader2 className="w-3 h-3 animate-spin" /> {L.lookingUp}
             </span>
           )}
         </div>
@@ -522,42 +639,42 @@ export function SmartLocationSelector({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           <div>
-            <label className="block text-[11px] text-zinc-500 mb-0.5">Village / Locality</label>
+            <label className="block text-[11px] text-zinc-500 mb-0.5">{L.villageLabel}</label>
             <input
               type="text"
               value={village}
               onChange={(e) => setVillage(e.target.value)}
-              placeholder="Village or locality"
+              placeholder={L.villageLabel}
               className="w-full p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
             />
           </div>
           <div>
-            <label className="block text-[11px] text-zinc-500 mb-0.5">District</label>
+            <label className="block text-[11px] text-zinc-500 mb-0.5">{L.districtLabel}</label>
             <input
               type="text"
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
-              placeholder="District"
+              placeholder={L.districtLabel}
               className="w-full p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
             />
           </div>
           <div>
-            <label className="block text-[11px] text-zinc-500 mb-0.5">State</label>
+            <label className="block text-[11px] text-zinc-500 mb-0.5">{L.stateLabel}</label>
             <input
               type="text"
               value={stateName}
               onChange={(e) => setStateName(e.target.value)}
-              placeholder="State"
+              placeholder={L.stateLabel}
               className="w-full p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
             />
           </div>
           <div>
-            <label className="block text-[11px] text-zinc-500 mb-0.5">PIN Code</label>
+            <label className="block text-[11px] text-zinc-500 mb-0.5">{L.pinLabel}</label>
             <input
               type="text"
               value={pinCode}
               onChange={(e) => setPinCode(e.target.value)}
-              placeholder="e.g. 571401"
+              placeholder="571401"
               className="w-full p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
             />
           </div>
@@ -565,7 +682,7 @@ export function SmartLocationSelector({
 
         {formattedAddress && (
           <div className="text-[11px] text-zinc-500">
-            <strong>Address:</strong> {formattedAddress}
+            <strong>{L.addressLabel}:</strong> {formattedAddress}
           </div>
         )}
       </div>
@@ -574,10 +691,10 @@ export function SmartLocationSelector({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="text-[11px] text-zinc-500 flex items-center gap-2 flex-wrap">
           <span>
-            Source: <strong className="uppercase">{locationSource}</strong>
+            {L.sourceLabel}: <strong className="uppercase">{locationSource}</strong>
           </span>
           <span>•</span>
-          <span>Selected: {lat.toFixed(5)}, {lon.toFixed(5)}</span>
+          <span>{L.selectedLabel}: {lat.toFixed(5)}, {lon.toFixed(5)}</span>
           {savedFeedback && (
             <span className="text-emerald-600 font-semibold flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" /> {savedFeedback}

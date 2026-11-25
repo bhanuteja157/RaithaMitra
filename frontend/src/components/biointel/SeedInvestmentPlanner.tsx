@@ -6,6 +6,150 @@ import Link from 'next/link';
 import { useFarm } from '@/context/FarmContext';
 import { saveSeedToDigitalFarmTransfer } from '@/lib/workflowBridge';
 import {
+  localizeCropName,
+  localizeCondition,
+  formatLocalizedCurrency,
+  getIntlLocale,
+} from '@/lib/translations';
+import { Language } from '@/types';
+
+const SEED_PLANNER_I18N: Record<Language, {
+  badgeSub: string; autoSynced: string; soilLbl: string;
+  step1Title: string; step1Hint: string; helpChooseBtn: string;
+  acresLbl: string; acShort: string; budgetQ: string; waterQ: string; cropNeedLbl: string;
+  autoPopNote: string; formulating: string;
+  recPlanBadge: string; updatedLbl: string; seedReqLbl: string; seedOutlayLbl: string;
+  ofTotalCost: string; expHarvestLbl: string; quintalsLbl: string; targetPriceLbl: string; breakEvenPrefix: string;
+  totalInvLbl: string; seedPlusInputs: string; budgetStatusLbl: string; withinBudget: string; budgetDeficit: string;
+  expProdLbl: string; revPrefix: string; netProfitRoi: string; breakEvenTitle: string; breakEvenHint: string;
+  adviceTitle: string; risksTitle: string;
+  varCompTitle: string; varCompSub: string; benchNote: string; recRibbon: string;
+  exceedsBudget: string; seedPriceLbl: string; totalCultLbl: string; expProdShort: string; estProfitColon: string;
+  waterTag: string; resTag: string; selectedNurseryFarm: string; selectVariety: string;
+  cultivateInDfPrefix: string; cultivateInDfSuffix: string; profitChartTitle: string; profitBarName: string;
+  advTitle: string; advOpenDesc: string; advClosedDesc: string; collapse: string; expand: string;
+  advNote: string; cropNameLbl: string; varNameLbl: string; seedRateLbl: string; fertExpLbl: string;
+  labExpLbl: string; irrigExpLbl: string; otherExpLbl: string; expYieldAcLbl: string; expSellPriceLbl: string;
+  editTableTitle: string; colVarName: string; colSeedRate: string; colPriceKg: string; colYieldAc: string; colWaterRes: string;
+  riskParamTitle: string; unfavYield: string; unfavPrice: string; favYield: string; favPrice: string; projProfit: string;
+  helpTitle: string; helpDescSoil: string; helpDescWater: string; helpDescBudget: string; matchSuffix: string; selectCropBtn: string;
+  disclaimerLeft: string; disclaimerRight: string;
+  waterLevels: Record<WaterAvailabilityLevel, string>;
+}> = {
+  en: {
+    badgeSub: 'Farmer-Friendly Seed Planner', autoSynced: 'Auto-Synced', soilLbl: 'Soil:',
+    step1Title: 'Cultivation Essentials', step1Hint: '(Only 4 simple inputs)', helpChooseBtn: 'Help Me Choose Crop',
+    acresLbl: 'Acres', acShort: 'Ac', budgetQ: 'What is your available budget?', waterQ: 'How much water is available?', cropNeedLbl: 'Crop need:',
+    autoPopNote: 'Parameters pre-filled from regional agricultural benchmarks.', formulating: 'Preparing Plan...',
+    recPlanBadge: 'Recommended Cultivation Plan', updatedLbl: 'Updated:', seedReqLbl: 'Seed Quantity Required', seedOutlayLbl: 'Seed Outlay',
+    ofTotalCost: '% of total cost', expHarvestLbl: 'Expected Harvest', quintalsLbl: 'Quintals', targetPriceLbl: 'Expected Selling Price', breakEvenPrefix: 'Break-even:',
+    totalInvLbl: 'Total Investment', seedPlusInputs: 'Seed + Inputs', budgetStatusLbl: 'Budget Status', withinBudget: 'Within Budget', budgetDeficit: 'Budget Deficit',
+    expProdLbl: 'Expected Production', revPrefix: 'Rev:', netProfitRoi: 'Est. Net Profit & ROI', breakEvenTitle: 'Break-Even Price', breakEvenHint: 'Minimum needed to avoid loss',
+    adviceTitle: 'Cultivation Financial Advice', risksTitle: 'Major Crop & Market Risks',
+    varCompTitle: 'Seed Variety Comparison — 3 Options', varCompSub: 'Compare hybrid, resilient, and standard seed options for your budget.',
+    benchNote: 'Illustrative Estimates', recRibbon: 'Recommended for Budget',
+    exceedsBudget: 'Exceeds Budget', seedPriceLbl: 'Seed Price', totalCultLbl: 'Total Cost', expProdShort: 'Exp. Yield', estProfitColon: 'Est. Net Profit:',
+    waterTag: 'Water:', resTag: 'Resistance:', selectedNurseryFarm: 'Selected for Nursery & Farm', selectVariety: 'Select This Variety',
+    cultivateInDfPrefix: 'Grow', cultivateInDfSuffix: 'in Digital Farm', profitChartTitle: 'Estimated Profit Comparison Across Varieties', profitBarName: 'Est. Net Profit (₹)',
+    advTitle: 'Advanced Settings — Customize Estimates',
+    advOpenDesc: 'Manually fine-tune seed rate, fertilizer, labour, irrigation, yield and prices',
+    advClosedDesc: 'Click here to customize specific farm costs and yield prices',
+    collapse: 'Collapse', expand: 'Expand', advNote: 'Adjust any value below. Profit and break-even recalculate immediately.',
+    cropNameLbl: 'Crop Name', varNameLbl: 'Seed Variety', seedRateLbl: 'Seed Rate (kg/acre)', fertExpLbl: 'Fertilizer Expenses (₹)',
+    labExpLbl: 'Labour Expenses (₹)', irrigExpLbl: 'Irrigation Expenses (₹)', otherExpLbl: 'Other Expenses (₹)', expYieldAcLbl: 'Expected Yield (kg/acre)', expSellPriceLbl: 'Selling Price (₹/kg)',
+    editTableTitle: 'Editable Variety Parameters', colVarName: 'Variety Name', colSeedRate: 'Seed Rate (kg/ac)', colPriceKg: 'Price (₹/kg)', colYieldAc: 'Yield (kg/ac)', colWaterRes: 'Water Need',
+    riskParamTitle: 'Risk Scenario Simulation Parameters', unfavYield: 'Low Yield (kg/ac)', unfavPrice: 'Low Price (₹/kg)', favYield: 'High Yield (kg/ac)', favPrice: 'High Price (₹/kg)', projProfit: 'Projected Profit (₹)',
+    helpTitle: 'Help Me Choose a Crop', helpDescSoil: 'Soil:', helpDescWater: 'Water:', helpDescBudget: 'Budget:', matchSuffix: '% Match', selectCropBtn: 'Select Crop',
+    disclaimerLeft: 'Deterministic calculations from your inputs and regional benchmarks. Not a guaranteed financial return.',
+    disclaimerRight: 'RaithaMitra Crop Planning Engine',
+    waterLevels: { Abundant: 'Abundant (Canal/River)', Moderate: 'Moderate (Borewell/Drip)', Limited: 'Limited water', Rainfed: 'Rainfed (Monsoon)' },
+  },
+  kn: {
+    badgeSub: 'ಸರಳ ಬೀಜ ಮತ್ತು ಬೆಳೆ ಹೂಡಿಕೆ ಯೋಜಕ', autoSynced: 'ಸ್ವಯಂ ಸಂಪರ್ಕಿತ', soilLbl: 'ಮಣ್ಣು:',
+    step1Title: 'ಬೇಸಾಯದ ಪ್ರಮುಖ ವಿವರಗಳು', step1Hint: '(ಕೇವಲ 4 ಸರಳ ಪ್ರಶ್ನೆಗಳು)', helpChooseBtn: 'ಬೆಳೆ ಆಯ್ಕೆಗೆ ಸಹಾಯ ಮಾಡಿ',
+    acresLbl: 'ಎಕರೆ', acShort: 'ಎಕರೆ', budgetQ: 'ನಿಮ್ಮ ಬಳಿ ಇರುವ ಬಜೆಟ್ ಎಷ್ಟು?', waterQ: 'ನೀರಿನ ಲಭ್ಯತೆ ಹೇಗಿದೆ?', cropNeedLbl: 'ಬೆಳೆಗೆ ನೀರಿನ ಅಗತ್ಯ:',
+    autoPopNote: 'ಪ್ರಾದೇಶಿಕ ಕೃಷಿ ವಿಶ್ವವಿದ್ಯಾಲಯದ ಮಾನದಂಡಗಳ ಪ್ರಕಾರ ಲೆಕ್ಕಹಾಕಲಾಗಿದೆ.', formulating: 'ಯೋಜನೆ ತಯಾರಾಗುತ್ತಿದೆ...',
+    recPlanBadge: 'ಶಿಫಾರಸು ಮಾಡಿದ ಬೇಸಾಯ ಯೋಜನೆ', updatedLbl: 'ನವೀಕರಣ:', seedReqLbl: 'ಬೇಕಾಗುವ ಬೀಜ', seedOutlayLbl: 'ಬೀಜದ ವೆಚ್ಚ',
+    ofTotalCost: '% ಒಟ್ಟು ವೆಚ್ಚದಲ್ಲಿ', expHarvestLbl: 'ನಿರೀಕ್ಷಿತ ಇಳುವರಿ', quintalsLbl: 'ಕ್ವಿಂಟಾಲ್', targetPriceLbl: 'ನಿರೀಕ್ಷಿತ ಮಾರಾಟ ಬೆಲೆ', breakEvenPrefix: 'ಕನಿಷ್ಠ ಬೆಲೆ:',
+    totalInvLbl: 'ಒಟ್ಟು ಹೂಡಿಕೆ', seedPlusInputs: 'ಬೀಜ + ಇತರೆ ವೆಚ್ಚ', budgetStatusLbl: 'ಬಜೆಟ್ ಸ್ಥಿತಿ', withinBudget: 'ಬಜೆಟ್ ಒಳಗಿದೆ', budgetDeficit: 'ಬಜೆಟ್ ಕೊರತೆ',
+    expProdLbl: 'ನಿರೀಕ್ಷಿತ ಉತ್ಪಾದನೆ', revPrefix: 'ಆದಾಯ:', netProfitRoi: 'ಅಂದಾಜು ನಿವ್ವಳ ಲಾಭ & ROI', breakEvenTitle: 'ನಷ್ಟವಿಲ್ಲದ ಕನಿಷ್ಠ ಬೆಲೆ', breakEvenHint: 'ನಷ್ಟ ತಪ್ಪಿಸಲು ಕನಿಷ್ಠ ದರ',
+    adviceTitle: 'ಬೇಸಾಯ ಮತ್ತು ಹಣಕಾಸು ಸಲಹೆ', risksTitle: 'ಪ್ರಮುಖ ಬೆಳೆ ಮತ್ತು ಮಾರುಕಟ್ಟೆ ಅಪಾಯಗಳು',
+    varCompTitle: 'ಬೀಜ ತಳಿಗಳ ಹೋಲಿಕೆ — 3 ಆಯ್ಕೆಗಳು', varCompSub: 'ನಿಮ್ಮ ಬಜೆಟ್ ಪ್ರಕಾರ ಹೈಬ್ರಿಡ್ ಮತ್ತು ರೋಗ ನಿರೋಧಕ ತಳಿಗಳನ್ನು ಹೋಲಿಸಿ.',
+    benchNote: 'ಅಂದಾಜು ಮಾದರಿ', recRibbon: 'ನಿಮ್ಮ ಬಜೆಟ್‌ಗೆ ಸೂಕ್ತ',
+    exceedsBudget: 'ಬಜೆಟ್ ಮೀರಿದೆ', seedPriceLbl: 'ಬೀಜದ ದರ', totalCultLbl: 'ಒಟ್ಟು ವೆಚ್ಚ', expProdShort: 'ನಿರೀಕ್ಷಿತ ಇಳುವರಿ', estProfitColon: 'ಅಂದಾಜು ಲಾಭ:',
+    waterTag: 'ನೀರು:', resTag: 'ರೋಗ ನಿರೋಧಕತೆ:', selectedNurseryFarm: 'ನರ್ಸರಿ ಮತ್ತು ಜಮೀನಿಗೆ ಆಯ್ಕೆಯಾಗಿದೆ', selectVariety: 'ಈ ತಳಿ ಆಯ್ಕೆಮಾಡಿ',
+    cultivateInDfPrefix: 'ಡಿಜಿಟಲ್ ಜಮೀನಿನಲ್ಲಿ', cultivateInDfSuffix: 'ಬೆಳೆಯಿರಿ', profitChartTitle: 'ತಳಿಗಳ ಪ್ರಕಾರ ಅಂದಾಜು ಲಾಭದ ಹೋಲಿಕೆ', profitBarName: 'ಅಂದಾಜು ಲಾಭ (₹)',
+    advTitle: 'ಹೆಚ್ಚುವರಿ ಸೆಟ್ಟಿಂಗ್ಸ್ — ಅಂದಾಜು ಬದಲಿಸಿ',
+    advOpenDesc: 'ಬೀಜದ ದರ, ಗೊಬ್ಬರ, ಕೂಲಿ, ನೀರಾವರಿ ಮತ್ತು ಮಾರಾಟ ಬೆಲೆಯನ್ನು ನೀವೇ ಬದಲಾಯಿಸಿ',
+    advClosedDesc: 'ವೆಚ್ಚ ಮತ್ತು ಬೆಲೆಗಳನ್ನು ಸ್ವತಃ ಬದಲಾಯಿಸಲು ಇಲ್ಲಿ ಒತ್ತಿ',
+    collapse: 'ಮರೆಮಾಡಿ', expand: 'ತೆರೆಯಿರಿ', advNote: 'ಕೆಳಗಿನ ಯಾವುದೇ ಅಂಕಿ ಬದಲಿಸಿದರೆ ಲಾಭ ತಕ್ಷಣವೇ ಮರು-ಲೆಕ್ಕಾಚಾರಗೊಳ್ಳುತ್ತದೆ.',
+    cropNameLbl: 'ಬೆಳೆ ಹೆಸರು', varNameLbl: 'ಬೀಜ ತಳಿ', seedRateLbl: 'ಬೀಜದ ಪ್ರಮಾಣ (kg/ಎಕರೆ)', fertExpLbl: 'ಗೊಬ್ಬರ ವೆಚ್ಚ (₹)',
+    labExpLbl: 'ಕೂಲಿ ವೆಚ್ಚ (₹)', irrigExpLbl: 'ನೀರಾವರಿ ವೆಚ್ಚ (₹)', otherExpLbl: 'ಇತರೆ ವೆಚ್ಚ (₹)', expYieldAcLbl: 'ಇಳುವರಿ (kg/ಎಕರೆ)', expSellPriceLbl: 'ಮಾರಾಟ ಬೆಲೆ (₹/kg)',
+    editTableTitle: 'ತಳಿಗಳ ವಿವರ ಬದಲಾಯಿಸಿ', colVarName: 'ತಳಿಯ ಹೆಸರು', colSeedRate: 'ಬೀಜ ಪ್ರಮಾಣ (kg/ಎ)', colPriceKg: 'ಬೆಲೆ (₹/kg)', colYieldAc: 'ಇಳುವರಿ (kg/ಎ)', colWaterRes: 'ನೀರಿನ ಅಗತ್ಯ',
+    riskParamTitle: 'ಅಪಾಯ ಪರಿಸ್ಥಿತಿ ಲೆಕ್ಕಾಚಾರ', unfavYield: 'ಕಡಿಮೆ ಇಳುವರಿ (kg/ಎ)', unfavPrice: 'ಕಡಿಮೆ ಬೆಲೆ (₹/kg)', favYield: 'ಹೆಚ್ಚು ಇಳುವರಿ (kg/ಎ)', favPrice: 'ಹೆಚ್ಚು ಬೆಲೆ (₹/kg)', projProfit: 'ಅಂದಾಜು ಲಾಭ (₹)',
+    helpTitle: 'ಸೂಕ್ತ ಬೆಳೆ ಆಯ್ಕೆ ಸಹಾಯಕ', helpDescSoil: 'ಮಣ್ಣು:', helpDescWater: 'ನೀರು:', helpDescBudget: 'ಬಜೆಟ್:', matchSuffix: '% ಹೊಂದಾಣಿಕೆ', selectCropBtn: 'ಬೆಳೆ ಆಯ್ಕೆಮಾಡಿ',
+    disclaimerLeft: 'ನೀವು ನೀಡಿದ ವಿಸ್ತೀರ್ಣ ಮತ್ತು ಬಜೆಟ್ ಆಧಾರದ ಅಂದಾಜು ಲೆಕ್ಕ. ನಿಖರ ಲಾಭ ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗೆ ಒಳಪಟ್ಟಿರುತ್ತದೆ.',
+    disclaimerRight: 'ರೈತ ಮಿತ್ರ ಬೆಳೆ ಯೋಜನಾ ವ್ಯವಸ್ಥೆ',
+    waterLevels: { Abundant: 'ಹೆಚ್ಚು ನೀರು (ಕಾಲುವೆ/ನದಿ)', Moderate: 'ಮಧ್ಯಮ ನೀರು (ಬೋರ್‌ವೆಲ್/ಹನಿ)', Limited: 'ಕಡಿಮೆ ನೀರು', Rainfed: 'ಮಳೆಯಾಶ್ರಿತ' },
+  },
+  hi: {
+    badgeSub: 'सरल बीज एवं फसल निवेश योजनाकार', autoSynced: 'स्वतः सिंक', soilLbl: 'मिट्टी:',
+    step1Title: 'खेती की बुनियादी जानकारी', step1Hint: '(सिर्फ 4 आसान सवाल)', helpChooseBtn: 'सही फसल चुनने में मदद करें',
+    acresLbl: 'एकड़', acShort: 'एकड़', budgetQ: 'आपका उपलब्ध बजट कितना है?', waterQ: 'सिंचाई के लिए पानी कितना है?', cropNeedLbl: 'फसल की पानी जरूरत:',
+    autoPopNote: 'क्षेत्रीय कृषि मानकों के अनुसार सभी आंकड़े स्वतः भरे गए हैं।', formulating: 'योजना बन रही है...',
+    recPlanBadge: 'अनुशंसित खेती योजना', updatedLbl: 'अपडेट:', seedReqLbl: 'आवश्यक बीज मात्रा', seedOutlayLbl: 'बीज खर्च',
+    ofTotalCost: '% कुल खर्च का', expHarvestLbl: 'संभावित उपज', quintalsLbl: 'क्विंटल', targetPriceLbl: 'संभावित बिक्री भाव', breakEvenPrefix: 'न्यूनतम भाव:',
+    totalInvLbl: 'कुल निवेश', seedPlusInputs: 'बीज + खाद व अन्य', budgetStatusLbl: 'बजट स्थिति', withinBudget: 'बजट के भीतर', budgetDeficit: 'बजट से अधिक',
+    expProdLbl: 'अनुमानित उत्पादन', revPrefix: 'आमदनी:', netProfitRoi: 'अनुमानित शुद्ध लाभ व ROI', breakEvenTitle: 'ब्रेक-ईवन कीमत', breakEvenHint: 'नुकसान से बचने का न्यूनतम भाव',
+    adviceTitle: 'खेती व वित्तीय सलाह', risksTitle: 'प्रमुख फसल और बाज़ार जोखिम',
+    varCompTitle: 'बीज किस्म तुलना — 3 विकल्प', varCompSub: 'अपने बजट के अनुसार हाइब्रिड और रोग-प्रतिरोधी किस्मों की तुलना करें।',
+    benchNote: 'अनुमानित तुलना', recRibbon: 'आपके बजट के अनुकूल',
+    exceedsBudget: 'बजट से अधिक', seedPriceLbl: 'बीज दर', totalCultLbl: 'कुल खर्च', expProdShort: 'अनुमानित उपज', estProfitColon: 'अनुमानित लाभ:',
+    waterTag: 'पानी:', resTag: 'रोग प्रतिरोधकता:', selectedNurseryFarm: 'नर्सरी और खेत के लिए चयनित', selectVariety: 'यह किस्म चुनें',
+    cultivateInDfPrefix: 'डिजिटल खेत में उगाएं:', cultivateInDfSuffix: '', profitChartTitle: 'किस्मों के अनुसार लाभ तुलना', profitBarName: 'अनुमानित लाभ (₹)',
+    advTitle: 'उन्नत सेटिंग्स — अनुमान बदलें',
+    advOpenDesc: 'बीज दर, खाद, मजदूरी, सिंचाई और बिक्री भाव स्वयं संशोधित करें',
+    advClosedDesc: 'खर्च और कीमतें स्वयं बदलने के लिए यहाँ क्लिक करें',
+    collapse: 'समेटें', expand: 'विस्तार करें', advNote: 'नीचे कोई भी मान बदलने पर लाभ और ब्रेक-ईवन तुरंत अपडेट हो जाते हैं।',
+    cropNameLbl: 'फसल का नाम', varNameLbl: 'बीज किस्म', seedRateLbl: 'बीज दर (kg/एकड़)', fertExpLbl: 'खाद खर्च (₹)',
+    labExpLbl: 'मजदूरी खर्च (₹)', irrigExpLbl: 'सिंचाई खर्च (₹)', otherExpLbl: 'अन्य खर्च (₹)', expYieldAcLbl: 'अनुमानित उपज (kg/एकड़)', expSellPriceLbl: 'बिक्री भाव (₹/kg)',
+    editTableTitle: 'संपादन योग्य किस्म विवरण', colVarName: 'किस्म का नाम', colSeedRate: 'बीज दर (kg/एकड़)', colPriceKg: 'दाम (₹/kg)', colYieldAc: 'उपज (kg/एकड़)', colWaterRes: 'पानी आवश्यकता',
+    riskParamTitle: 'जोखिम परिदृश्य विश्लेषण', unfavYield: 'कम उपज (kg/एकड़)', unfavPrice: 'कम भाव (₹/kg)', favYield: 'अधिक उपज (kg/एकड़)', favPrice: 'अधिक भाव (₹/kg)', projProfit: 'संभावित लाभ (₹)',
+    helpTitle: 'सही फसल चुनने में मदद', helpDescSoil: 'मिट्टी:', helpDescWater: 'पानी:', helpDescBudget: 'बजट:', matchSuffix: '% उपयुक्त', selectCropBtn: 'फसल चुनें',
+    disclaimerLeft: 'दर्ज क्षेत्रफल व बजट के आधार पर अनुमानित गणना। वास्तविक लाभ मंडी भाव पर निर्भर करता है।',
+    disclaimerRight: 'रैत मित्र फसल योजना प्रणाली',
+    waterLevels: { Abundant: 'भरपूर पानी (नहर/नदी)', Moderate: 'मध्यम पानी (बोरवेल/ड्रिप)', Limited: 'सीमित पानी', Rainfed: 'वर्षा आधारित' },
+  },
+  te: {
+    badgeSub: 'సులభమైన విత్తన & పంట పెట్టుబడి ప్లానర్', autoSynced: 'ఆటో-సింక్', soilLbl: 'నేల:',
+    step1Title: 'సాగు ప్రాథమిక వివరాలు', step1Hint: '(కేవలం 4 సులభ ప్రశ్నలు)', helpChooseBtn: 'పంట ఎంపికలో సహాయం చేయండి',
+    acresLbl: 'ఎకరాలు', acShort: 'ఎ.', budgetQ: 'మీ వద్ద ఉన్న బడ్జెట్ ఎంత?', waterQ: 'నీటి లభ్యత ఎంత ఉంది?', cropNeedLbl: 'పంట నీటి అవసరం:',
+    autoPopNote: 'ప్రాంతీయ వ్యవసాయ ప్రమాణాల ఆధారంగా వివరాలు ఆటోమేటిక్‌గా నింపబడ్డాయి.', formulating: 'ప్రణాళిక తయారవుతోంది...',
+    recPlanBadge: 'సిఫార్సు చేసిన సాగు ప్రణాళిక', updatedLbl: 'నవీకరణ:', seedReqLbl: 'అవసరమైన విత్తనం', seedOutlayLbl: 'విత్తన ఖర్చు',
+    ofTotalCost: '% మొత్తం ఖర్చులో', expHarvestLbl: 'అంచనా దిగుబడి', quintalsLbl: 'క్వింటాళ్లు', targetPriceLbl: 'అంచనా అమ్మకం ధర', breakEvenPrefix: 'కనీస ధర:',
+    totalInvLbl: 'మొత్తం పెట్టుబడి', seedPlusInputs: 'విత్తనం + ఇతర ఖర్చులు', budgetStatusLbl: 'బడ్జెట్ స్థితి', withinBudget: 'బడ్జెట్ లోపల', budgetDeficit: 'బడ్జెట్ లోటు',
+    expProdLbl: 'అంచనా ఉత్పత్తి', revPrefix: 'ఆదాయం:', netProfitRoi: 'అంచనా నికర లాభం & ROI', breakEvenTitle: 'బ్రేక్-ఈవెన్ ధర', breakEvenHint: 'నష్టం రాకుండా కనీస ధర',
+    adviceTitle: 'సాగు మరియు ఆర్థిక సలహా', risksTitle: 'ప్రధాన పంట & మార్కెట్ ప్రమాదాలు',
+    varCompTitle: 'విత్తన రకాల పోలిక — 3 ఎంపికలు', varCompSub: 'మీ బడ్జెట్ ఆధారంగా హైబ్రిడ్ మరియు వ్యాధి-నిరోధక విత్తనాలను పోల్చండి.',
+    benchNote: 'సూచనాత్మక అంచనాలు', recRibbon: 'మీ బడ్జెట్‌కు ఉత్తమం',
+    exceedsBudget: 'బడ్జెట్ మించింది', seedPriceLbl: 'విత్తన ధర', totalCultLbl: 'మొత్తం ఖర్చు', expProdShort: 'అంచనా దిగుబడి', estProfitColon: 'అంచనా లాభం:',
+    waterTag: 'నీరు:', resTag: 'వ్యాధి నిరోధకత:', selectedNurseryFarm: 'నర్సరీ & పొలానికి ఎంచుకోబడింది', selectVariety: 'ఈ రకాన్ని ఎంచుకోండి',
+    cultivateInDfPrefix: 'డిజిటల్ పొలంలో పండించండి:', cultivateInDfSuffix: '', profitChartTitle: 'విత్తన రకాల వారీగా అంచనా లాభం', profitBarName: 'అంచనా లాభం (₹)',
+    advTitle: 'అదనపు సెట్టింగ్స్ — అంచనాలు మార్చండి',
+    advOpenDesc: 'విత్తన మోతాదు, ఎరువులు, కూలీ, నీరు మరియు ధరలను మీరే మార్చుకోండి',
+    advClosedDesc: 'ఖర్చులు మరియు ధరలను మార్చడానికి ఇక్కడ నొక్కండి',
+    collapse: 'మూసివేయండి', expand: 'తెరవండి', advNote: 'క్రింది విలువలను మార్చిన వెంటనే లాభం మళ్ళీ లెక్కించబడుతుంది.',
+    cropNameLbl: 'పంట పేరు', varNameLbl: 'విత్తన రకం', seedRateLbl: 'విత్తన మోతాదు (kg/ఎకరం)', fertExpLbl: 'ఎరువుల ఖర్చు (₹)',
+    labExpLbl: 'కూలీ ఖర్చు (₹)', irrigExpLbl: 'నీటిపారుదల ఖర్చు (₹)', otherExpLbl: 'ఇతర ఖర్చులు (₹)', expYieldAcLbl: 'దిగుబడి (kg/ఎకరం)', expSellPriceLbl: 'అమ్మకం ధర (₹/kg)',
+    editTableTitle: 'మార్చగల విత్తన రకాల వివరాలు', colVarName: 'రకం పేరు', colSeedRate: 'మోతాదు (kg/ఎ)', colPriceKg: 'ధర (₹/kg)', colYieldAc: 'దిగుబడి (kg/ఎ)', colWaterRes: 'నీటి అవసరం',
+    riskParamTitle: 'ప్రమాద పరిస్థితి విశ్లేషణ', unfavYield: 'తక్కువ దిగుబడి (kg/ఎ)', unfavPrice: 'తక్కువ ధర (₹/kg)', favYield: 'ఎక్కువ దిగుబడి (kg/ఎ)', favPrice: 'ఎక్కువ ధర (₹/kg)', projProfit: 'అంచనా లాభం (₹)',
+    helpTitle: 'సరైన పంటను ఎంచుకోవడానికి సహాయం', helpDescSoil: 'నేల:', helpDescWater: 'నీరు:', helpDescBudget: 'బడ్జెట్:', matchSuffix: '% సరిపోతుంది', selectCropBtn: 'పంటను ఎంచుకోండి',
+    disclaimerLeft: 'మీరు ఇచ్చిన విస్తీర్ణం & బడ్జెట్ ఆధారంగా అంచనా లెక్కలు. అసలు లాభం మార్కెట్ ధరపై ఆధారపడి ఉంటుంది.',
+    disclaimerRight: 'రైతు మిత్ర పంట ప్రణాళిక ఇంజిన్',
+    waterLevels: { Abundant: 'సమృద్ధిగా నీరు (కాలువ/నది)', Moderate: 'మోస్తరు నీరు (బోరు/బిందు)', Limited: 'తక్కువ నీరు', Rainfed: 'వర్షాధారం' },
+  },
+};
+import {
   SeedInvestmentInput,
   VarietyComparisonInput,
   calculateSeedInvestment,
@@ -67,7 +211,8 @@ export function SeedInvestmentPlanner({
   onSelectCrop,
   onVarietySelectedForNursery,
 }: SeedInvestmentPlannerProps) {
-  const { currentFarm, currentUser, language } = useFarm();
+  const { currentFarm, currentUser, language, t } = useFarm();
+  const L = SEED_PLANNER_I18N[language] || SEED_PLANNER_I18N.en;
   const planSectionRef = useRef<HTMLDivElement | null>(null);
 
   // 1. Simplified Mandatory Inputs
@@ -197,8 +342,8 @@ export function SeedInvestmentPlanner({
     [input, unfavYield, unfavPrice, favYield, favPrice]
   );
   const farmerRecs = useMemo(
-    () => generateFarmerRecommendations(calc, input, comparison.items),
-    [calc, input, comparison.items]
+    () => generateFarmerRecommendations(calc, input, comparison.items, language),
+    [calc, input, comparison.items, language]
   );
 
   // Suggested crops for "Help Me Choose a Crop"
@@ -208,16 +353,17 @@ export function SeedInvestmentPlanner({
         currentFarm?.soil_type || 'Red Sandy Loam',
         waterAvailability,
         budgetInr,
-        areaAcres
+        areaAcres,
+        language
       ),
-    [currentFarm?.soil_type, waterAvailability, budgetInr, areaAcres]
+    [currentFarm?.soil_type, waterAvailability, budgetInr, areaAcres, language]
   );
 
   const handleGeneratePlan = () => {
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
-      setPlanGeneratedAt(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+      setPlanGeneratedAt(new Date().toLocaleTimeString(getIntlLocale(language), { hour: '2-digit', minute: '2-digit' }));
       planSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 400);
   };
@@ -344,17 +490,17 @@ export function SeedInvestmentPlanner({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold tracking-wide uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-                HackWarts 2026 • AD-10
+                BioIntel • Seed Planner
               </span>
               <span className="text-[11px] text-zinc-500">
-                {language === 'kn' ? 'ಸರಳೀಕೃತ ಕೃಷಿ ಯೋಜಕ' : language === 'hi' ? 'सरल बीज योजना' : 'Farmer-Friendly Seed Planner'}
+                {L.badgeSub}
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-emerald-950 dark:text-white mt-1">
-              Intelligent Seed Investment Planner
+              {t('seedPlannerTitle')}
             </h2>
             <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
-              Select your crop, land and budget. We automatically calculate seeds, costs, profit and risks.
+              {t('seedPlannerSubtitle')}
             </p>
           </div>
         </div>
@@ -365,10 +511,10 @@ export function SeedInvestmentPlanner({
           <div>
             <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
               <span>{currentFarm?.village ? `${currentFarm.village}, ${currentFarm.district || 'Karnataka'}` : 'Mandya Rural, Karnataka'}</span>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.2 rounded font-medium">Auto-Synced</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.2 rounded font-medium">{L.autoSynced}</span>
             </div>
             <div className="text-[11px] text-zinc-500">
-              Soil: <span className="font-medium text-zinc-700 dark:text-zinc-300">{currentFarm?.soil_type || 'Red Sandy Loam'}</span>
+              {L.soilLbl} <span className="font-medium text-zinc-700 dark:text-zinc-300">{localizeCondition(currentFarm?.soil_type || 'Red Sandy Loam', language)}</span>
             </div>
           </div>
         </div>
@@ -380,7 +526,7 @@ export function SeedInvestmentPlanner({
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-emerald-800 text-white flex items-center justify-center text-xs font-bold">1</span>
             <h3 className="text-base font-bold text-emerald-950 dark:text-white">
-              Cultivation Essentials <span className="text-xs font-normal text-zinc-500">(Ask the farmer only 4 things)</span>
+              {L.step1Title} <span className="text-xs font-normal text-zinc-500">{L.step1Hint}</span>
             </h3>
           </div>
           <button
@@ -388,14 +534,14 @@ export function SeedInvestmentPlanner({
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-amber-100/70 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 transition-colors border border-amber-300/40"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>Help Me Choose a Crop</span>
+            <span>{L.helpChooseBtn}</span>
           </button>
         </div>
 
         {/* Q1: Which crop do you want to grow? */}
         <div className="space-y-2.5">
           <label className="block text-xs sm:text-sm font-bold text-zinc-800 dark:text-zinc-200">
-            Which crop do you want to grow? <span className="text-zinc-500 font-normal">({activePreset.kannadaName} / {activePreset.hindiName})</span>
+            {t('qWhichCrop')}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
             {featuredCrops.map((cName) => {
@@ -415,14 +561,14 @@ export function SeedInvestmentPlanner({
                   <div className="w-12 h-12 rounded-xl overflow-hidden mb-1.5 shadow-inner bg-zinc-200">
                     <img
                       src={p.imageUrl}
-                      alt={p.name}
+                      alt={localizeCropName(p.name, language)}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                   </div>
                   <span className={`text-xs font-bold leading-tight ${isSelected ? 'text-emerald-900 dark:text-emerald-300' : 'text-zinc-800 dark:text-zinc-200'}`}>
-                    {p.name}
+                    {localizeCropName(p.name, language)}
                   </span>
-                  <span className="text-[10px] text-zinc-500">{p.kannadaName}</span>
+                  {language === 'en' && <span className="text-[10px] text-zinc-500">{p.kannadaName}</span>}
                   {isSelected && (
                     <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center">
                       <Check className="w-2.5 h-2.5" />
@@ -440,7 +586,7 @@ export function SeedInvestmentPlanner({
           <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-800 dark:text-zinc-200">
               <LandPlot className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              <span>How much land do you have?</span>
+              <span>{t('qLandAreaAcres')}</span>
             </div>
             <div className="relative">
               <input
@@ -450,10 +596,10 @@ export function SeedInvestmentPlanner({
                 max="100"
                 value={areaAcres}
                 onChange={(e) => handleAreaChange(parseFloat(e.target.value) || 0.1)}
-                className="w-full p-2.5 pr-14 text-base font-bold rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                className="w-full p-2.5 pr-16 text-base font-bold rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
               />
               <span className="absolute right-3 top-3 text-xs font-semibold text-zinc-500">
-                Acres
+                {L.acresLbl}
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1">
@@ -468,7 +614,7 @@ export function SeedInvestmentPlanner({
                       : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100'
                   }`}
                 >
-                  {val} Ac
+                  {val} {L.acShort}
                 </button>
               ))}
             </div>
@@ -478,7 +624,7 @@ export function SeedInvestmentPlanner({
           <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-800 dark:text-zinc-200">
               <IndianRupee className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              <span>What is your available budget?</span>
+              <span>{L.budgetQ}</span>
             </div>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-base font-bold text-zinc-400">₹</span>
@@ -513,14 +659,14 @@ export function SeedInvestmentPlanner({
           <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-800 dark:text-zinc-200">
               <Droplets className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              <span>How much water is available?</span>
+              <span>{L.waterQ}</span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                { level: 'Abundant' as WaterAvailabilityLevel, label: 'Abundant (Canal/River)', icon: '💧💧' },
-                { level: 'Moderate' as WaterAvailabilityLevel, label: 'Moderate (Borewell/Drip)', icon: '💧' },
-                { level: 'Limited' as WaterAvailabilityLevel, label: 'Limited (Low Yield)', icon: '⚠️' },
-                { level: 'Rainfed' as WaterAvailabilityLevel, label: 'Rainfed (Monsoon)', icon: '🌧️' },
+                { level: 'Abundant' as WaterAvailabilityLevel, icon: '💧💧' },
+                { level: 'Moderate' as WaterAvailabilityLevel, icon: '💧' },
+                { level: 'Limited' as WaterAvailabilityLevel, icon: '⚠️' },
+                { level: 'Rainfed' as WaterAvailabilityLevel, icon: '🌧️' },
               ].map((item) => (
                 <button
                   key={item.level}
@@ -533,12 +679,12 @@ export function SeedInvestmentPlanner({
                   }`}
                 >
                   <span>{item.icon}</span>
-                  <span className="truncate">{item.level}</span>
+                  <span className="truncate">{L.waterLevels[item.level]}</span>
                 </button>
               ))}
             </div>
             <div className="text-[10px] text-zinc-500 pt-0.5">
-              Crop need: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{activePreset.waterNeed} ({activePreset.waterRequirementMm} mm)</span>
+              {L.cropNeedLbl} <span className="font-semibold text-zinc-700 dark:text-zinc-300">{activePreset.waterNeed} ({activePreset.waterRequirementMm} mm)</span>
             </div>
           </div>
         </div>
@@ -547,9 +693,7 @@ export function SeedInvestmentPlanner({
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-zinc-500 flex items-center gap-1.5">
             <Info className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>
-              All parameters auto-populated from <strong>ICAR-IIHR & UAS regional agronomic benchmarks</strong>.
-            </span>
+            <span>{L.autoPopNote}</span>
           </div>
 
           <button
@@ -561,12 +705,12 @@ export function SeedInvestmentPlanner({
             {isGenerating ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
-                <span>Formulating Plan...</span>
+                <span>{L.formulating}</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5 text-amber-300" />
-                <span>Generate My Cultivation Plan</span>
+                <span>{t('generateMyCropPlan')}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -585,10 +729,10 @@ export function SeedInvestmentPlanner({
               </span>
               <div>
                 <span className="text-[11px] font-semibold text-emerald-300 uppercase tracking-wider">
-                  Recommended Cultivation Plan
+                  {L.recPlanBadge}
                 </span>
                 <h3 className="text-lg sm:text-xl font-bold text-white">
-                  {input.crop} — {input.variety}
+                  {localizeCropName(input.crop, language)} — {input.variety}
                 </h3>
               </div>
             </div>
@@ -599,10 +743,10 @@ export function SeedInvestmentPlanner({
               </span>
               <span className="flex items-center gap-1">
                 <LandPlot className="w-3.5 h-3.5 text-emerald-400" />
-                {input.areaAcres} Acres
+                {input.areaAcres} {L.acresLbl}
               </span>
               {planGeneratedAt && (
-                <span className="text-[11px] text-emerald-300/80">Updated: {planGeneratedAt}</span>
+                <span className="text-[11px] text-emerald-300/80">{L.updatedLbl} {planGeneratedAt}</span>
               )}
             </div>
           </div>
@@ -613,24 +757,24 @@ export function SeedInvestmentPlanner({
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
             <div className="p-2.5 rounded-xl bg-emerald-800/50 border border-emerald-700/50">
-              <div className="text-[11px] text-emerald-300">Seed Quantity Required</div>
+              <div className="text-[11px] text-emerald-300">{L.seedReqLbl}</div>
               <div className="text-base font-bold text-white mt-0.5">{calc.totalSeedRequirementKg} kg</div>
               <div className="text-[10px] text-emerald-300/80">@ ₹{input.seedPricePerKg.toLocaleString('en-IN')}/kg</div>
             </div>
             <div className="p-2.5 rounded-xl bg-emerald-800/50 border border-emerald-700/50">
-              <div className="text-[11px] text-emerald-300">Seed Outlay</div>
-              <div className="text-base font-bold text-white mt-0.5">₹{calc.totalSeedCostInr.toLocaleString('en-IN')}</div>
-              <div className="text-[10px] text-emerald-300/80">{((calc.totalSeedCostInr / Math.max(1, calc.totalCultivationInvestmentInr)) * 100).toFixed(0)}% of total cost</div>
+              <div className="text-[11px] text-emerald-300">{L.seedOutlayLbl}</div>
+              <div className="text-base font-bold text-white mt-0.5">{formatLocalizedCurrency(calc.totalSeedCostInr, language)}</div>
+              <div className="text-[10px] text-emerald-300/80">{((calc.totalSeedCostInr / Math.max(1, calc.totalCultivationInvestmentInr)) * 100).toFixed(0)}{L.ofTotalCost}</div>
             </div>
             <div className="p-2.5 rounded-xl bg-emerald-800/50 border border-emerald-700/50">
-              <div className="text-[11px] text-emerald-300">Expected Harvest</div>
+              <div className="text-[11px] text-emerald-300">{L.expHarvestLbl}</div>
               <div className="text-base font-bold text-white mt-0.5">{calc.expectedProductionKg.toLocaleString('en-IN')} kg</div>
-              <div className="text-[10px] text-emerald-300/80">~{(calc.expectedProductionKg / 100).toFixed(0)} Quintals</div>
+              <div className="text-[10px] text-emerald-300/80">~{(calc.expectedProductionKg / 100).toFixed(0)} {L.quintalsLbl}</div>
             </div>
             <div className="p-2.5 rounded-xl bg-emerald-800/50 border border-emerald-700/50">
-              <div className="text-[11px] text-emerald-300">Target Selling Price</div>
+              <div className="text-[11px] text-emerald-300">{L.targetPriceLbl}</div>
               <div className="text-base font-bold text-amber-300 mt-0.5">₹{input.expectedSellingPricePerKg} / kg</div>
-              <div className="text-[10px] text-emerald-300/80">Break-even: ₹{calc.breakEvenSellingPricePerKg}/kg</div>
+              <div className="text-[10px] text-emerald-300/80">{L.breakEvenPrefix} ₹{calc.breakEvenSellingPricePerKg}/kg</div>
             </div>
           </div>
         </div>
@@ -640,27 +784,27 @@ export function SeedInvestmentPlanner({
           {/* Card 1: Total Investment */}
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-900/10 dark:border-zinc-800 shadow-sm space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
-              Total Investment
+              {L.totalInvLbl}
             </span>
             <div className="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-white">
-              ₹{calc.totalCultivationInvestmentInr.toLocaleString('en-IN')}
+              {formatLocalizedCurrency(calc.totalCultivationInvestmentInr, language)}
             </div>
             <div className="text-[11px] text-zinc-500">
-              Seed: ₹{calc.totalSeedCostInr.toLocaleString('en-IN')} + Inputs
+              {L.seedPlusInputs}: {formatLocalizedCurrency(calc.totalSeedCostInr, language)}
             </div>
           </div>
 
           {/* Card 2: Remaining Budget */}
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-900/10 dark:border-zinc-800 shadow-sm space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
-              Budget Status
+              {L.budgetStatusLbl}
             </span>
             <div
               className={`text-lg sm:text-xl font-extrabold ${
                 calc.isWithinBudget ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'
               }`}
             >
-              {calc.isWithinBudget ? `+₹${calc.remainingBudgetInr.toLocaleString('en-IN')}` : `-₹${Math.abs(calc.remainingBudgetInr).toLocaleString('en-IN')}`}
+              {calc.isWithinBudget ? `+${formatLocalizedCurrency(calc.remainingBudgetInr, language)}` : `-${formatLocalizedCurrency(Math.abs(calc.remainingBudgetInr), language)}`}
             </div>
             <span
               className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -669,34 +813,34 @@ export function SeedInvestmentPlanner({
                   : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
               }`}
             >
-              {calc.isWithinBudget ? 'Within Budget' : 'Budget Deficit'}
+              {calc.isWithinBudget ? L.withinBudget : L.budgetDeficit}
             </span>
           </div>
 
           {/* Card 3: Expected Production */}
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-900/10 dark:border-zinc-800 shadow-sm space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
-              Expected Production
+              {L.expProdLbl}
             </span>
             <div className="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-white">
               {calc.expectedProductionKg.toLocaleString('en-IN')} kg
             </div>
             <div className="text-[11px] text-zinc-500">
-              Rev: ₹{calc.expectedRevenueInr.toLocaleString('en-IN')}
+              {L.revPrefix} {formatLocalizedCurrency(calc.expectedRevenueInr, language)}
             </div>
           </div>
 
           {/* Card 4: Estimated Profit & ROI */}
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-900/10 dark:border-zinc-800 shadow-sm space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
-              Est. Net Profit & ROI
+              {L.netProfitRoi}
             </span>
             <div
               className={`text-lg sm:text-xl font-extrabold ${
                 calc.estimatedProfitInr >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'
               }`}
             >
-              ₹{calc.estimatedProfitInr.toLocaleString('en-IN')}
+              {formatLocalizedCurrency(calc.estimatedProfitInr, language)}
             </div>
             <div className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
               ROI: {calc.roiPct}%
@@ -706,13 +850,13 @@ export function SeedInvestmentPlanner({
           {/* Card 5: Break-Even Selling Price */}
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-900/10 dark:border-zinc-800 shadow-sm space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
-              Break-Even Price
+              {L.breakEvenTitle}
             </span>
             <div className="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-white">
               ₹{calc.breakEvenSellingPricePerKg} / kg
             </div>
             <div className="text-[11px] text-zinc-500">
-              Required to avoid loss
+              {L.breakEvenHint}
             </div>
           </div>
         </div>
@@ -722,7 +866,7 @@ export function SeedInvestmentPlanner({
           <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800 space-y-2.5 text-xs">
             <div className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5 text-sm">
               <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-              <span>Cultivation Financial Advice</span>
+              <span>{L.adviceTitle}</span>
             </div>
             <ul className="space-y-1.5 text-zinc-700 dark:text-zinc-300">
               {farmerRecs.map((rec, i) => (
@@ -737,7 +881,7 @@ export function SeedInvestmentPlanner({
           <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800 space-y-2.5 text-xs">
             <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5 text-sm">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span>Major Agronomic & Market Risks</span>
+              <span>{L.risksTitle}</span>
             </div>
             <ul className="space-y-1.5 text-zinc-700 dark:text-zinc-300">
               {activePreset.majorRisks.map((risk, i) => (
@@ -756,14 +900,14 @@ export function SeedInvestmentPlanner({
             <div>
               <h3 className="text-base font-bold text-emerald-950 dark:text-white flex items-center gap-2">
                 <Layers className="w-5 h-5 text-emerald-700" />
-                <span>Seed Variety Comparison — 3 Options</span>
+                <span>{L.varCompTitle}</span>
               </h3>
               <p className="text-xs text-zinc-500">
-                Compare hybrid, resilient, and standard seed lines evaluated against your available budget.
+                {L.varCompSub}
               </p>
             </div>
             <span className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950 px-2.5 py-1 rounded-full font-medium">
-              Illustrative Benchmarks — Not Guaranteed Outcomes
+              {L.benchNote}
             </span>
           </div>
 
@@ -783,7 +927,7 @@ export function SeedInvestmentPlanner({
                   {v.isRecommended && (
                     <div className="absolute -top-3 right-4 bg-emerald-700 text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-sm flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-amber-300" />
-                      <span>Recommended for Your Budget</span>
+                      <span>{L.recRibbon}</span>
                     </div>
                   )}
 
@@ -806,32 +950,32 @@ export function SeedInvestmentPlanner({
                             : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                         }`}
                       >
-                        {v.isBudgetSuitable ? 'Within Budget' : 'Exceeds Budget'}
+                        {v.isBudgetSuitable ? L.withinBudget : L.exceedsBudget}
                       </span>
                     </div>
 
                     {/* Financial Specs */}
                     <div className="grid grid-cols-2 gap-2 text-xs pt-2">
                       <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/60">
-                        <span className="text-[10px] text-zinc-500">Seed Price</span>
+                        <span className="text-[10px] text-zinc-500">{L.seedPriceLbl}</span>
                         <div className="font-bold text-zinc-800 dark:text-zinc-200">
                           ₹{v.seedPricePerKg.toLocaleString('en-IN')}/kg
                         </div>
                       </div>
                       <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/60">
-                        <span className="text-[10px] text-zinc-500">Seed Outlay</span>
+                        <span className="text-[10px] text-zinc-500">{L.seedOutlayLbl}</span>
                         <div className="font-bold text-zinc-800 dark:text-zinc-200">
-                          ₹{v.seedInvestmentInr.toLocaleString('en-IN')}
+                          {formatLocalizedCurrency(v.seedInvestmentInr, language)}
                         </div>
                       </div>
                       <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/60">
-                        <span className="text-[10px] text-zinc-500">Total Cultivation</span>
+                        <span className="text-[10px] text-zinc-500">{L.totalCultLbl}</span>
                         <div className="font-bold text-zinc-800 dark:text-zinc-200">
-                          ₹{v.totalCultivationExpensesInr.toLocaleString('en-IN')}
+                          {formatLocalizedCurrency(v.totalCultivationExpensesInr, language)}
                         </div>
                       </div>
                       <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/60">
-                        <span className="text-[10px] text-zinc-500">Exp. Production</span>
+                        <span className="text-[10px] text-zinc-500">{L.expProdShort}</span>
                         <div className="font-bold text-zinc-800 dark:text-zinc-200">
                           {v.expectedProductionKg.toLocaleString('en-IN')} kg
                         </div>
@@ -840,24 +984,24 @@ export function SeedInvestmentPlanner({
 
                     <div className="p-2.5 rounded-xl bg-emerald-100/40 dark:bg-emerald-950/40 border border-emerald-200/50 dark:border-emerald-800/50 flex items-center justify-between">
                       <span className="text-xs font-semibold text-emerald-950 dark:text-emerald-200">
-                        Est. Net Profit:
+                        {L.estProfitColon}
                       </span>
                       <span
                         className={`text-sm font-extrabold ${
                           v.estimatedProfitInr >= 0 ? 'text-emerald-800 dark:text-emerald-300' : 'text-rose-600'
                         }`}
                       >
-                        ₹{v.estimatedProfitInr.toLocaleString('en-IN')}
+                        {formatLocalizedCurrency(v.estimatedProfitInr, language)}
                       </span>
                     </div>
 
                     {/* Agronomic Specs */}
                     <div className="text-[11px] text-zinc-500 space-y-1 pt-1">
                       <div>
-                        💧 <strong>Water:</strong> {v.waterRequirement}
+                        💧 <strong>{L.waterTag}</strong> {v.waterRequirement}
                       </div>
                       <div>
-                        🛡️ <strong>Resistance:</strong> {v.diseaseResistance}
+                        🛡️ <strong>{L.resTag}</strong> {v.diseaseResistance}
                       </div>
                     </div>
                   </div>
@@ -874,10 +1018,10 @@ export function SeedInvestmentPlanner({
                     {isSelected ? (
                       <>
                         <Check className="w-3.5 h-3.5" />
-                        <span>Selected for Nursery &amp; Farm</span>
+                        <span>{L.selectedNurseryFarm}</span>
                       </>
                     ) : (
-                      <span>Select This Variety</span>
+                      <span>{L.selectVariety}</span>
                     )}
                   </button>
                 </div>
@@ -901,7 +1045,7 @@ export function SeedInvestmentPlanner({
               }
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold shadow-sm"
             >
-              <span>Cultivate {crop} in Digital Farm</span>
+              <span>{L.cultivateInDfPrefix} {localizeCropName(crop, language)} {L.cultivateInDfSuffix}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -910,7 +1054,7 @@ export function SeedInvestmentPlanner({
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-2">
             <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-emerald-700" />
-              <span>Visual Profit Arbitrage Across Compared Varieties</span>
+              <span>{L.profitChartTitle}</span>
             </h4>
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -919,7 +1063,7 @@ export function SeedInvestmentPlanner({
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="profit" radius={[6, 6, 0, 0]} name="Est. Net Profit (₹)">
+                  <Bar dataKey="profit" radius={[6, 6, 0, 0]} name={L.profitBarName}>
                     {profitChartData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
@@ -946,18 +1090,16 @@ export function SeedInvestmentPlanner({
               </div>
               <div>
                 <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-                  Advanced Settings — Customize Estimates
+                  {L.advTitle}
                 </h4>
                 <p className="text-xs text-zinc-500">
-                  {isAdvancedOpen
-                    ? 'Manually fine-tune seed rate, fertilizer, labour, irrigation, yield and prices'
-                    : 'Experienced farmers can click here to fine-tune specific costs and parameters'}
+                  {isAdvancedOpen ? L.advOpenDesc : L.advClosedDesc}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold hidden sm:inline">
-                {isAdvancedOpen ? 'Collapse' : 'Expand'}
+                {isAdvancedOpen ? L.collapse : L.expand}
               </span>
               {isAdvancedOpen ? (
                 <ChevronUp className="w-5 h-5 text-zinc-500" />
@@ -970,13 +1112,13 @@ export function SeedInvestmentPlanner({
           {isAdvancedOpen && (
             <div className="p-5 sm:p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-6 text-xs">
               <div className="text-xs font-semibold text-zinc-500">
-                Adjust any field below. All profit, revenue, break-even and ROI calculations recalculate immediately.
+                {L.advNote}
               </div>
 
               {/* Granular Farm Inputs */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Crop Name</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.cropNameLbl}</label>
                   <input
                     type="text"
                     value={input.crop}
@@ -985,7 +1127,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Seed Variety</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.varNameLbl}</label>
                   <input
                     type="text"
                     value={input.variety}
@@ -994,7 +1136,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Seed Rate (kg/acre)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.seedRateLbl}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1005,7 +1147,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Seed Price (₹/kg)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.colPriceKg}</label>
                   <input
                     type="number"
                     step="100"
@@ -1016,7 +1158,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Fertilizer Expenses (₹)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.fertExpLbl}</label>
                   <input
                     type="number"
                     step="500"
@@ -1027,7 +1169,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Labour Expenses (₹)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.labExpLbl}</label>
                   <input
                     type="number"
                     step="500"
@@ -1038,7 +1180,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Irrigation Expenses (₹)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.irrigExpLbl}</label>
                   <input
                     type="number"
                     step="500"
@@ -1049,7 +1191,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Other Expenses (₹)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.otherExpLbl}</label>
                   <input
                     type="number"
                     step="500"
@@ -1060,7 +1202,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Expected Yield (kg/acre)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.expYieldAcLbl}</label>
                   <input
                     type="number"
                     step="250"
@@ -1071,7 +1213,7 @@ export function SeedInvestmentPlanner({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Expected Selling Price (₹/kg)</label>
+                  <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.expSellPriceLbl}</label>
                   <input
                     type="number"
                     step="1"
@@ -1086,17 +1228,17 @@ export function SeedInvestmentPlanner({
               {/* Editable 3-Variety Table */}
               <div className="space-y-2 pt-2">
                 <h5 className="font-bold text-zinc-900 dark:text-white">
-                  Editable Variety Comparison Parameters
+                  {L.editTableTitle}
                 </h5>
                 <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[10px] uppercase">
                       <tr>
-                        <th className="p-2.5">Variety Name</th>
-                        <th className="p-2.5">Seed Rate (kg/ac)</th>
-                        <th className="p-2.5">Price (₹/kg)</th>
-                        <th className="p-2.5">Yield (kg/ac)</th>
-                        <th className="p-2.5">Water / Resistance</th>
+                        <th className="p-2.5">{L.colVarName}</th>
+                        <th className="p-2.5">{L.colSeedRate}</th>
+                        <th className="p-2.5">{L.colPriceKg}</th>
+                        <th className="p-2.5">{L.colYieldAc}</th>
+                        <th className="p-2.5">{L.colWaterRes}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -1155,11 +1297,11 @@ export function SeedInvestmentPlanner({
               {/* Risk Scenario Adjustments */}
               <div className="space-y-3 pt-2">
                 <h5 className="font-bold text-zinc-900 dark:text-white">
-                  Risk Scenario Simulation Parameters
+                  {L.riskParamTitle}
                 </h5>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div>
-                    <label className="block text-[11px] text-zinc-500">Unfavourable Yield (kg/ac)</label>
+                    <label className="block text-[11px] text-zinc-500">{L.unfavYield}</label>
                     <input
                       type="number"
                       value={unfavYield}
@@ -1168,7 +1310,7 @@ export function SeedInvestmentPlanner({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-zinc-500">Unfavourable Price (₹/kg)</label>
+                    <label className="block text-[11px] text-zinc-500">{L.unfavPrice}</label>
                     <input
                       type="number"
                       value={unfavPrice}
@@ -1177,7 +1319,7 @@ export function SeedInvestmentPlanner({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-zinc-500">Favourable Yield (kg/ac)</label>
+                    <label className="block text-[11px] text-zinc-500">{L.favYield}</label>
                     <input
                       type="number"
                       value={favYield}
@@ -1186,7 +1328,7 @@ export function SeedInvestmentPlanner({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-zinc-500">Favourable Price (₹/kg)</label>
+                    <label className="block text-[11px] text-zinc-500">{L.favPrice}</label>
                     <input
                       type="number"
                       value={favPrice}
@@ -1203,7 +1345,7 @@ export function SeedInvestmentPlanner({
                       <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip />
-                      <Bar dataKey="estimatedProfitInr" radius={[6, 6, 0, 0]} name="Projected Profit (₹)">
+                      <Bar dataKey="estimatedProfitInr" radius={[6, 6, 0, 0]} name={L.projProfit}>
                         {riskScenarios.map((s, idx) => (
                           <Cell
                             key={idx}
@@ -1228,12 +1370,13 @@ export function SeedInvestmentPlanner({
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
                 <h3 className="text-base font-bold text-emerald-950 dark:text-white">
-                  Help Me Choose a Crop — Agronomic Matching
+                  {L.helpTitle}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsHelpModalOpen(false)}
+                aria-label={t('close')}
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-sm font-bold"
               >
                 ✕
@@ -1241,11 +1384,11 @@ export function SeedInvestmentPlanner({
             </div>
 
             <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              Evaluated against your <strong>{currentFarm?.soil_type || 'Red Sandy Loam'}</strong> soil, <strong>{waterAvailability}</strong> water level, and <strong>₹{budgetInr.toLocaleString('en-IN')}</strong> budget for <strong>{areaAcres} Acres</strong>.
+              {L.helpDescSoil} <strong>{localizeCondition(currentFarm?.soil_type || 'Red Sandy Loam', language)}</strong> · {L.helpDescWater} <strong>{L.waterLevels[waterAvailability]}</strong> · {L.helpDescBudget} <strong>{formatLocalizedCurrency(budgetInr, language)}</strong> ({areaAcres} {L.acresLbl})
             </p>
 
             <div className="space-y-3">
-              {cropSuggestions.map((item, idx) => (
+              {cropSuggestions.map((item) => (
                 <div
                   key={item.crop.id}
                   className="p-3.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-850 flex items-center justify-between gap-3 hover:border-emerald-500 transition-colors"
@@ -1253,16 +1396,16 @@ export function SeedInvestmentPlanner({
                   <div className="flex items-center gap-3">
                     <img
                       src={item.crop.imageUrl}
-                      alt={item.crop.name}
+                      alt={localizeCropName(item.crop.name, language)}
                       className="w-12 h-12 rounded-xl object-cover"
                     />
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-zinc-900 dark:text-white">
-                          {item.crop.name} ({item.crop.kannadaName})
+                          {localizeCropName(item.crop.name, language)}
                         </span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-                          {item.suitabilityScore}% Match
+                          {item.suitabilityScore}{L.matchSuffix}
                         </span>
                       </div>
                       <p className="text-[11px] text-zinc-500 mt-0.5">
@@ -1279,7 +1422,7 @@ export function SeedInvestmentPlanner({
                     }}
                     className="px-3 py-1.5 rounded-xl bg-emerald-800 text-white font-bold text-xs hover:bg-emerald-900 shrink-0"
                   >
-                    Select Crop
+                    {L.selectCropBtn}
                   </button>
                 </div>
               ))}
@@ -1291,7 +1434,7 @@ export function SeedInvestmentPlanner({
                 onClick={() => setIsHelpModalOpen(false)}
                 className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300"
               >
-                Close
+                {t('close')}
               </button>
             </div>
           </div>
@@ -1302,10 +1445,10 @@ export function SeedInvestmentPlanner({
       <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
         <div className="flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5 shrink-0 text-emerald-700" />
-          <span>Calculations strictly deterministic based on entered acreage, budget and benchmark costs. Not guaranteed financial return.</span>
+          <span>{L.disclaimerLeft}</span>
         </div>
         <span className="text-[10px] text-zinc-500 hidden sm:inline">
-          RaithaMitra Agricultural Decision Intelligence Engine
+          {L.disclaimerRight}
         </span>
       </div>
     </div>

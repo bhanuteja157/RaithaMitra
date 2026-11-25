@@ -2,12 +2,65 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFarm } from '@/context/FarmContext';
+import { explainScientificIndex, formatLocalizedDate, getIntlLocale } from '@/lib/translations';
+import { Language } from '@/types';
 import {
   fetchSatelliteTimelapse,
   SatelliteObservationFrame,
   SatelliteTimelapseResponse,
   syncMonitoredParcel,
 } from '@/lib/satelliteMonitoringApi';
+
+const SAT_PANEL_I18N: Record<Language, {
+  subMeta: string; syncing: string; toggleFsAria: string;
+  unavailable: string; cloudLbl: string; validLbl: string; pending: string; autoCheckSuffix: string;
+  toWord: string; fetchBtn: string; errRetrieve: string; loadingBands: string; noUsable: string;
+  obsNdvi: string; ndmiLbl: string; obsEvi: string; masked: string;
+  chartTitle: string; noChartPts: string; obsCurve: string; predCurve: string;
+  pause: string; frameWord: string; dayAfterSowing: string; trendWord: string;
+}> = {
+  en: {
+    subMeta: 'Copernicus Sentinel-2 L2A (10m RGB/NIR · 20m SWIR) · 5-day revisit (cloud dependent)',
+    syncing: 'Syncing Sentinel-2...', toggleFsAria: 'Toggle fullscreen satellite view',
+    unavailable: 'Unavailable', cloudLbl: '% cloud', validLbl: '% valid', pending: 'Pending', autoCheckSuffix: '(+24h auto)',
+    toWord: 'to', fetchBtn: 'Fetch', errRetrieve: 'Failed to retrieve Sentinel-2 observations.',
+    loadingBands: 'Retrieving real 10m Sentinel-2 satellite bands...', noUsable: 'No usable Sentinel-2 observation in selected date range.',
+    obsNdvi: 'Observed NDVI (Greenness)', ndmiLbl: 'NDMI (Leaf Moisture)', obsEvi: 'Observed EVI', masked: 'Cloud Masked',
+    chartTitle: 'Observed Sentinel-2 NDVI vs Modeled Crop Curve', noChartPts: 'No cloud-free NDVI points in this window yet.',
+    obsCurve: 'Observed NDVI', predCurve: 'Predicted Curve', pause: 'Pause', frameWord: 'Frame', dayAfterSowing: 'days after sowing', trendWord: 'Trend:',
+  },
+  kn: {
+    subMeta: 'Copernicus Sentinel-2 (10m ನೈಜ ಚಿತ್ರ) · ಪ್ರತಿ 5 ದಿನಗಳಿಗೊಮ್ಮೆ ಉಪಗ್ರಹ ಸುತ್ತು',
+    syncing: 'ಉಪಗ್ರಹ ಚಿತ್ರ ಪಡೆಯಲಾಗುತ್ತಿದೆ...', toggleFsAria: 'ಪೂರ್ಣ ಪರದೆ ಉಪಗ್ರಹ ನೋಟ',
+    unavailable: 'ಲಭ್ಯವಿಲ್ಲ', cloudLbl: '% ಮೋಡ', validLbl: '% ಸ್ಪಷ್ಟ', pending: 'ಬಾಕಿ ಇದೆ', autoCheckSuffix: '(+24ಗಂ ಸ್ವಯಂ)',
+    toWord: 'ರಿಂದ', fetchBtn: 'ಪಡೆಯಿರಿ', errRetrieve: 'Sentinel-2 ಉಪಗ್ರಹ ಚಿತ್ರಗಳನ್ನು ಪಡೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+    loadingBands: '10m Sentinel-2 ಉಪಗ್ರಹ ಚಿತ್ರಗಳನ್ನು ತರಲಾಗುತ್ತಿದೆ...', noUsable: 'ಆಯ್ದ ದಿನಾಂಕಗಳಲ್ಲಿ ಸ್ಪಷ್ಟ ಉಪಗ್ರಹ ಚಿತ್ರ ಲಭ್ಯವಿಲ್ಲ.',
+    obsNdvi: 'NDVI (ಬೆಳೆ ಹಸಿರು)', ndmiLbl: 'NDMI (ಎಲೆ ತೇವಾಂಶ)', obsEvi: 'EVI ಸೂಚ್ಯಂಕ', masked: 'ಮೋಡದಿಂದ ಮುಚ್ಚಿದೆ',
+    chartTitle: 'ನೈಜ ಉಪಗ್ರಹ NDVI ಮತ್ತು ಅಂದಾಜು ಬೆಳೆ ರೇಖೆ', noChartPts: 'ಈ ಅವಧಿಯಲ್ಲಿ ಮೋಡ-ರಹಿತ NDVI ಬಿಂದುಗಳಿಲ್ಲ.',
+    obsCurve: 'ನೈಜ NDVI', predCurve: 'ಅಂದಾಜು ರೇಖೆ', pause: 'ನಿಲ್ಲಿಸಿ', frameWord: 'ಚಿತ್ರ', dayAfterSowing: 'ದಿನಗಳು (ಬಿತ್ತನೆ ನಂತರ)', trendWord: 'ಸ್ಥಿತಿ:',
+  },
+  hi: {
+    subMeta: 'Copernicus Sentinel-2 L2A (10m उपग्रह चित्र) · हर 5 दिन उपग्रह पुनरावृत्ति',
+    syncing: 'उपग्रह डेटा लाया जा रहा है...', toggleFsAria: 'फ़ुलस्क्रीन उपग्रह दृश्य',
+    unavailable: 'उपलब्ध नहीं', cloudLbl: '% बादल', validLbl: '% स्पष्ट', pending: 'प्रतीक्षारत', autoCheckSuffix: '(+24घं ऑटो)',
+    toWord: 'से', fetchBtn: 'लाएं', errRetrieve: 'Sentinel-2 उपग्रह डेटा प्राप्त नहीं हो सका।',
+    loadingBands: 'असली 10m Sentinel-2 उपग्रह बैंड लोड हो रहे हैं...', noUsable: 'चुनी गई तिथियों में कोई स्पष्ट उपग्रह चित्र उपलब्ध नहीं है।',
+    obsNdvi: 'NDVI (हरियाली स्तर)', ndmiLbl: 'NDMI (पत्ती नमी)', obsEvi: 'EVI सूचकांक', masked: 'बादल से ढका',
+    chartTitle: 'प्रत्यक्ष उपग्रह NDVI बनाम अनुमानित फसल वक्र', noChartPts: 'इस अवधि में बादल-मुक्त NDVI बिंदु नहीं हैं।',
+    obsCurve: 'प्रत्यक्ष NDVI', predCurve: 'अनुमानित वक्र', pause: 'रोकें', frameWord: 'फ़्रेम', dayAfterSowing: 'दिन (बुवाई बाद)', trendWord: 'रुझान:',
+  },
+  te: {
+    subMeta: 'Copernicus Sentinel-2 L2A (10m ఉపగ్రహ చిత్రాలు) · ప్రతి 5 రోజులకు పునఃపరిశీలన',
+    syncing: 'ఉపగ్రహ చిత్రం లోడ్ అవుతోంది...', toggleFsAria: 'పూర్తి స్క్రీన్ ఉపగ్రహ వీక్షణం',
+    unavailable: 'అందుబాటులో లేదు', cloudLbl: '% మేఘాలు', validLbl: '% స్పష్టత', pending: 'వేచి ఉంది', autoCheckSuffix: '(+24గం ఆటో)',
+    toWord: 'నుండి', fetchBtn: 'తీసుకోండి', errRetrieve: 'Sentinel-2 ఉపగ్రహ డేటాను పొందడంలో విఫలమైంది.',
+    loadingBands: 'నిజమైన 10m Sentinel-2 ఉపగ్రహ చిత్రాలు లోడ్ అవుతున్నాయి...', noUsable: 'ఈ తేదీలలో స్పష్టమైన ఉపగ్రహ చిత్రం లేదు.',
+    obsNdvi: 'NDVI (పంట పచ్చదనం)', ndmiLbl: 'NDMI (ఆకు తేమ)', obsEvi: 'ప్రత్యక్ష EVI', masked: 'మేఘాలతో మూసివుంది',
+    chartTitle: 'నిజమైన ఉపగ్రహ NDVI vs అంచనా పంట వక్రం', noChartPts: 'ఈ వ్యవధిలో మేఘాలు లేని NDVI డేటా ఇంకా లేదు.',
+    obsCurve: 'నిజమైన NDVI', predCurve: 'అంచనా వక్రం', pause: 'ఆపు', frameWord: 'ఫ్రేమ్', dayAfterSowing: 'రోజులు (విత్తిన తర్వాత)', trendWord: 'ధోరణి:',
+  },
+};
 import { LatLonPoint } from '@/lib/digital-farming/geo';
 import {
   ResponsiveContainer,
@@ -57,6 +110,8 @@ export function RealSatelliteMonitorPanel({
   mode = 'timelapse',
   onObservationSelected,
 }: RealSatelliteMonitorPanelProps) {
+  const { t, language } = useFarm();
+  const L = SAT_PANEL_I18N[language] || SAT_PANEL_I18N.en;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [data, setData] = useState<SatelliteTimelapseResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -124,7 +179,7 @@ export function RealSatelliteMonitorPanel({
         onObservationSelected?.(res.observations[lastIdx]);
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to retrieve Sentinel-2 observations.');
+      setErrorMsg(err?.message || L.errRetrieve);
     } finally {
       setLoading(false);
     }
@@ -191,14 +246,14 @@ export function RealSatelliteMonitorPanel({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-sm font-bold text-[#20372A] dark:text-white">
-                Observed Satellite Data — Sentinel-2 Level-2A
+                {t('satObservedHeader')}
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-                {data?.data_quality || 'CONNECTING'}
+                {data?.data_quality || t('loadingText')}
               </span>
             </div>
             <p className="text-[11px] text-zinc-500">
-              Copernicus Sentinel-2 L2A (10m RGB/NIR · 20m SWIR/SCL) · Nominal 5-day revisit (cloud dependent)
+              {L.subMeta}
             </p>
           </div>
         </div>
@@ -211,12 +266,12 @@ export function RealSatelliteMonitorPanel({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#173C2B] hover:bg-[#102D20] text-white font-semibold"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Syncing Sentinel-2...' : 'Sync Latest Overpass'}
+            {loading ? L.syncing : t('satSyncOverpass')}
           </button>
           <button
             type="button"
             onClick={toggleFullscreen}
-            aria-label="Toggle fullscreen satellite view"
+            aria-label={L.toggleFsAria}
             className="p-1.5 rounded-xl border border-[#DCD8CA] dark:border-zinc-700 hover:bg-[#F7F5ED] dark:hover:bg-zinc-900"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -227,31 +282,31 @@ export function RealSatelliteMonitorPanel({
       {/* Monitoring Metadata Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] bg-[#F7F5ED] dark:bg-zinc-900 p-3 rounded-xl border border-[#DCD8CA] dark:border-zinc-800">
         <div>
-          <span className="text-zinc-500 block">Latest Acquisition</span>
+          <span className="text-zinc-500 block">{t('satLatestAcquisition')}</span>
           <strong>
-            {currentObs?.acquisition_date ? new Date(currentObs.acquisition_date).toLocaleDateString() : 'Unavailable'}
+            {currentObs?.acquisition_date ? formatLocalizedDate(currentObs.acquisition_date, language) : L.unavailable}
           </strong>
         </div>
         <div>
-          <span className="text-zinc-500 block">Data Freshness</span>
+          <span className="text-zinc-500 block">{t('satDataFreshness')}</span>
           <strong>
             {data?.data_freshness_days !== null && data?.data_freshness_days !== undefined
-              ? `${data.data_freshness_days} days ago`
-              : 'N/A'}
+              ? `${data.data_freshness_days} ${t('satDaysAgoSuffix')}`
+              : '—'}
           </strong>
         </div>
         <div>
-          <span className="text-zinc-500 block">Parcel Cloud / Clear</span>
+          <span className="text-zinc-500 block">{t('satParcelCloud')}</span>
           <strong>
             {currentObs
-              ? `${currentObs.parcel_cloud_cover_pct}% cloud · ${currentObs.valid_pixel_coverage_pct}% valid`
-              : 'N/A'}
+              ? `${currentObs.parcel_cloud_cover_pct}${L.cloudLbl} · ${currentObs.valid_pixel_coverage_pct}${L.validLbl}`
+              : '—'}
           </strong>
         </div>
         <div>
-          <span className="text-zinc-500 block">Sync / Next Check</span>
+          <span className="text-zinc-500 block">{t('satSyncSchedule')}</span>
           <strong>
-            {data?.last_sync_at ? `${new Date(data.last_sync_at).toLocaleTimeString()} (+24h auto)` : 'Pending'}
+            {data?.last_sync_at ? `${new Date(data.last_sync_at).toLocaleTimeString(getIntlLocale(language))} ${L.autoCheckSuffix}` : L.pending}
           </strong>
         </div>
       </div>
@@ -262,9 +317,9 @@ export function RealSatelliteMonitorPanel({
           <Layers className="w-4 h-4 text-[#36784D]" />
           {(
             [
-              { id: 'true_color', label: 'True-Color RGB' },
-              { id: 'false_color', label: 'False-Color (NIR-R-G)' },
-              { id: 'ndvi', label: 'NDVI Heatmap' },
+              { id: 'true_color', label: t('satLayerTrueColor') },
+              { id: 'false_color', label: t('satLayerFalseColor') },
+              { id: 'ndvi', label: t('satLayerNdvi') },
             ] as const
           ).map((item) => (
             <button
@@ -291,7 +346,7 @@ export function RealSatelliteMonitorPanel({
               }`}
             >
               <Columns className="w-3.5 h-3.5" />
-              Before / After
+              {t('satBeforeAfter')}
             </button>
           )}
         </div>
@@ -304,7 +359,7 @@ export function RealSatelliteMonitorPanel({
             onChange={(e) => setStartDate(e.target.value)}
             className="px-2 py-1 rounded-lg border border-[#DCD8CA] dark:border-zinc-700 bg-white dark:bg-zinc-900"
           />
-          <span>to</span>
+          <span>{L.toWord}</span>
           <input
             type="date"
             value={endDate}
@@ -316,7 +371,7 @@ export function RealSatelliteMonitorPanel({
             onClick={() => loadObservations(false)}
             className="px-2.5 py-1 rounded-lg bg-[#36784D] text-white font-semibold"
           >
-            Fetch
+            {L.fetchBtn}
           </button>
         </div>
       </div>
@@ -340,13 +395,13 @@ export function RealSatelliteMonitorPanel({
         <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-[#DCD8CA] dark:border-zinc-800 bg-zinc-900 aspect-square max-h-[360px] mx-auto w-full">
           {loading && !activeImgSrc ? (
             <div className="w-full h-full flex items-center justify-center text-zinc-400">
-              Retrieving real 10m Sentinel-2 GeoTIFF bands...
+              {L.loadingBands}
             </div>
           ) : activeImgSrc ? (
             <>
               <img
                 src={activeImgSrc}
-                alt={`Sentinel-2 ${layer} observation ${currentObs?.scene_id}`}
+                alt={`Sentinel-2 ${layer} ${currentObs?.scene_id}`}
                 className="w-full h-full object-contain"
               />
               {compareMode && beforeImgSrc && (
@@ -356,7 +411,7 @@ export function RealSatelliteMonitorPanel({
                 >
                   <img
                     src={beforeImgSrc}
-                    alt="Earlier Sentinel-2 observation"
+                    alt={t('satBeforeAfter')}
                     className="w-full h-full object-contain max-w-none"
                     style={{ width: '100%' }}
                   />
@@ -373,14 +428,14 @@ export function RealSatelliteMonitorPanel({
                   max={90}
                   value={compareSplitPct}
                   onChange={(e) => setCompareSplitPct(Number(e.target.value))}
-                  aria-label="Before and after split slider"
+                  aria-label={t('satBeforeAfter')}
                   className="absolute bottom-3 left-4 right-4 z-10"
                 />
               )}
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center p-6 text-center text-zinc-400">
-              {data?.insufficient_history_note || 'No usable Sentinel-2 observation in selected date range.'}
+              {data?.insufficient_history_note || L.noUsable}
             </div>
           )}
         </div>
@@ -389,30 +444,37 @@ export function RealSatelliteMonitorPanel({
         <div className="lg:col-span-6 space-y-3">
           <div className="grid grid-cols-3 gap-2">
             <div className="p-3 rounded-xl bg-[#F7F5ED] dark:bg-zinc-900 border border-[#DCD8CA] dark:border-zinc-800">
-              <div className="text-[11px] text-zinc-500">Observed NDVI</div>
+              <div className="text-[11px] text-zinc-500">{L.obsNdvi}</div>
               <div className="text-lg font-bold text-[#173C2B] dark:text-emerald-400">
                 {currentObs?.indices?.ndvi_mean !== null && currentObs?.indices?.ndvi_mean !== undefined
                   ? currentObs.indices.ndvi_mean.toFixed(3)
-                  : 'Masked'}
+                  : L.masked}
               </div>
             </div>
             <div className="p-3 rounded-xl bg-[#F7F5ED] dark:bg-zinc-900 border border-[#DCD8CA] dark:border-zinc-800">
-              <div className="text-[11px] text-zinc-500">NDMI (Moisture)</div>
+              <div className="text-[11px] text-zinc-500">{L.ndmiLbl}</div>
               <div className="text-lg font-bold text-sky-700 dark:text-sky-400">
                 {currentObs?.indices?.ndmi_mean !== null && currentObs?.indices?.ndmi_mean !== undefined
                   ? currentObs.indices.ndmi_mean.toFixed(3)
-                  : 'Masked'}
+                  : L.masked}
               </div>
             </div>
             <div className="p-3 rounded-xl bg-[#F7F5ED] dark:bg-zinc-900 border border-[#DCD8CA] dark:border-zinc-800">
-              <div className="text-[11px] text-zinc-500">Observed EVI</div>
+              <div className="text-[11px] text-zinc-500">{L.obsEvi}</div>
               <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
                 {currentObs?.indices?.evi_mean !== null && currentObs?.indices?.evi_mean !== undefined
                   ? currentObs.indices.evi_mean.toFixed(3)
-                  : 'Masked'}
+                  : L.masked}
               </div>
             </div>
           </div>
+
+          {currentObs?.indices && (
+            <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 text-[11px] text-zinc-700 dark:text-zinc-300 space-y-1">
+              <div>{explainScientificIndex('NDVI', currentObs.indices.ndvi_mean, language)}</div>
+              <div>{explainScientificIndex('NDMI', currentObs.indices.ndmi_mean, language)}</div>
+            </div>
+          )}
 
           {currentObs?.limitation_note && (
             <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 text-amber-800 dark:text-amber-200 text-[11px]">
@@ -423,11 +485,11 @@ export function RealSatelliteMonitorPanel({
           {/* Observation vs Prediction Comparison Chart */}
           <div className="p-3 rounded-xl border border-[#DCD8CA] dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <div className="font-bold text-[11px] text-[#20372A] dark:text-zinc-200 mb-2">
-              Observed Sentinel-2 NDVI vs Modeled Crop Curve
+              {L.chartTitle}
             </div>
             {chartData.length === 0 ? (
               <div className="h-40 flex items-center justify-center text-zinc-500 text-[11px]">
-                No cloud-free NDVI points in this window yet.
+                {L.noChartPts}
               </div>
             ) : (
               <div className="h-44 w-full">
@@ -441,7 +503,7 @@ export function RealSatelliteMonitorPanel({
                     <Line
                       type="monotone"
                       dataKey="observedNdvi"
-                      name="Observed NDVI"
+                      name={L.obsCurve}
                       stroke="#173C2B"
                       strokeWidth={2.5}
                       dot={{ r: 3 }}
@@ -449,7 +511,7 @@ export function RealSatelliteMonitorPanel({
                     <Line
                       type="monotone"
                       dataKey="predictedNdvi"
-                      name="Predicted Curve"
+                      name={L.predCurve}
                       stroke="#C9A35C"
                       strokeDasharray="4 4"
                       strokeWidth={2}
@@ -474,7 +536,7 @@ export function RealSatelliteMonitorPanel({
                   setFrameIdx(prev);
                   onObservationSelected?.(observations[prev]);
                 }}
-                aria-label="Previous observation"
+                aria-label={language === 'kn' ? 'ಹಿಂದಿನದು' : language === 'hi' ? 'पिछला' : language === 'te' ? 'మునుపటిది' : 'Previous'}
                 className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-[#DCD8CA] dark:border-zinc-700"
               >
                 <SkipBack className="w-3.5 h-3.5" />
@@ -482,11 +544,11 @@ export function RealSatelliteMonitorPanel({
               <button
                 type="button"
                 onClick={() => setPlaying((p) => !p)}
-                aria-label={playing ? 'Pause satellite timelapse' : 'Play satellite timelapse'}
+                aria-label={playing ? L.pause : t('satPlayTimeline')}
                 className="px-3 py-1.5 rounded-lg bg-[#173C2B] text-white font-semibold inline-flex items-center gap-1.5"
               >
                 {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                <span>{playing ? 'Pause' : 'Play Observed Timeline'}</span>
+                <span>{playing ? L.pause : t('satPlayTimeline')}</span>
               </button>
               <button
                 type="button"
@@ -495,7 +557,7 @@ export function RealSatelliteMonitorPanel({
                   setFrameIdx(next);
                   onObservationSelected?.(observations[next]);
                 }}
-                aria-label="Next observation"
+                aria-label={language === 'kn' ? 'ಮುಂದಿನದು' : language === 'hi' ? 'अगला' : language === 'te' ? 'తర్వాతిది' : 'Next'}
                 className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-[#DCD8CA] dark:border-zinc-700"
               >
                 <SkipForward className="w-3.5 h-3.5" />
@@ -504,11 +566,11 @@ export function RealSatelliteMonitorPanel({
 
             <div className="flex items-center gap-2 text-[11px]">
               <span>
-                Frame <strong>{frameIdx + 1}</strong> / {observations.length}
+                {L.frameWord} <strong>{frameIdx + 1}</strong> / {observations.length}
                 {currentObs?.days_after_sowing !== null && currentObs?.days_after_sowing !== undefined
-                  ? ` · Day ${currentObs.days_after_sowing} after sowing`
+                  ? ` · ${currentObs.days_after_sowing} ${L.dayAfterSowing}`
                   : ''}
-                {currentObs?.vegetation_trend ? ` · Trend: ${currentObs.vegetation_trend}` : ''}
+                {currentObs?.vegetation_trend ? ` · ${L.trendWord} ${currentObs.vegetation_trend}` : ''}
               </span>
               <select
                 value={speedMs}
@@ -532,7 +594,7 @@ export function RealSatelliteMonitorPanel({
               setFrameIdx(i);
               onObservationSelected?.(observations[i]);
             }}
-            aria-label="Satellite timeline slider"
+            aria-label={language === 'kn' ? 'ಉಪಗ್ರಹ ಟೈಮ್‌ಲೈನ್ ಸ್ಲೈಡರ್' : language === 'hi' ? 'उपग्रह टाइमलाइन स्लाइडर' : language === 'te' ? 'ఉపగ్రహ టైమ్‌లైన్ స్లైడర్' : 'Satellite timeline slider'}
             className="w-full accent-[#173C2B]"
           />
         </div>
