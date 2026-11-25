@@ -2,6 +2,7 @@
 'use client';
 
 import React from 'react';
+import { CinematicHero } from '@/components/dashboard/CinematicHero';
 import { FlagshipHub } from '@/components/dashboard/FlagshipHub';
 import { OverviewCards } from '@/components/dashboard/OverviewCards';
 import { ActionPlan } from '@/components/dashboard/ActionPlan';
@@ -14,7 +15,10 @@ import { DataProvenanceFooter } from '@/components/dashboard/DataProvenanceFoote
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      {/* 1. Flagship Innovations Showcase (AD-02) */}
+      {/* 0. Cinematic Farmland Hero (AD-10) */}
+      <CinematicHero />
+
+      {/* 1. Flagship Innovations Showcase (AD-02 / AD-10) */}
       <FlagshipHub />
 
       {/* 2. Farm Overview & 8 Analytics KPI Cards */}

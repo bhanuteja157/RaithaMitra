@@ -1,21 +1,58 @@
 // frontend/src/app/login/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
-import { UserRole } from '@/types';
-import { Sprout, ShieldCheck, UserCheck, ArrowRight, Sparkles, Building2, Users, Truck, Lock, Mail } from 'lucide-react';
+import { Language, UserRole } from '@/types';
+import {
+  Sprout,
+  ShieldCheck,
+  ArrowRight,
+  Building2,
+  Users,
+  Truck,
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+
+const LOGIN_SLIDES = [
+  '/images/agriculture/indian-farmland-sunrise.jpg',
+  '/images/crops/paddy.jpg',
+  '/images/agriculture/satellite-farmland.jpg',
+];
 
 export default function LoginPage() {
   const router = useRouter();
-  const { switchDemoUser, currentUser } = useFarm();
+  const { switchDemoUser, currentUser, language, setLanguage } = useFarm();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>('farmer');
+  const [slideIdx, setSlideIdx] = useState(0);
 
-  const DEMO_PERSONAS: { role: UserRole; name: string; email: string; label: string; desc: string; icon: any; redirect: string }[] = [
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setSlideIdx((i) => (i + 1) % LOGIN_SLIDES.length);
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const DEMO_PERSONAS: {
+    role: UserRole;
+    name: string;
+    email: string;
+    label: string;
+    desc: string;
+    icon: any;
+    redirect: string;
+  }[] = [
     {
       role: 'farmer',
       name: 'Suresh Gowda',
@@ -69,8 +106,9 @@ export default function LoginPage() {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Find matching persona or default to role
-    const persona = DEMO_PERSONAS.find((p) => p.email.toLowerCase() === email.toLowerCase()) || DEMO_PERSONAS.find((p) => p.role === selectedRole);
+    const persona =
+      DEMO_PERSONAS.find((p) => p.email.toLowerCase() === email.toLowerCase()) ||
+      DEMO_PERSONAS.find((p) => p.role === selectedRole);
     if (persona) {
       await switchDemoUser(persona.role);
       router.push(persona.redirect);
@@ -82,80 +120,80 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-10 px-4">
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-6 sm:p-10">
-        {/* Left Side: 1-Click Judging Personas */}
-        <div className="space-y-6 flex flex-col justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Judging Evaluation Quick-Access</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              RaithaMitra Auth
+    <div className="min-h-[82vh] flex items-center justify-center py-4 px-2 sm:px-4">
+      <div className="w-full max-w-6xl rounded-2xl border border-[#DCD8CA] dark:border-zinc-800 bg-[#F7F5ED] dark:bg-zinc-950 shadow-lg overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+        {/* Left Side: Agricultural Photography & Branding */}
+        <div className="lg:col-span-7 relative min-h-[280px] lg:min-h-[620px] flex flex-col justify-between bg-[#173C2B] text-white overflow-hidden">
+          <div className="absolute inset-0">
+            {LOGIN_SLIDES.map((src, idx) => (
+              <img
+                key={src}
+                src={src}
+                alt="Indian agricultural farmland landscape"
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+                  slideIdx === idx ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            ))}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#102D20]/90 via-[#173C2B]/45 to-[#173C2B]/25" />
+          </div>
+
+          <div className="relative z-10 p-6 sm:p-8 flex items-center justify-between">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#102D20]/70 border border-white/15 text-xs font-medium">
+              <Sprout className="w-4 h-4 text-[#65A76F]" />
+              RaithaMitra — ರೈತ ಮಿತ್ರ
+            </span>
+            <span className="text-[11px] text-[#F7F5ED]/85 bg-black/25 px-2.5 py-1 rounded-md">
+              Syntax Squad · HackWarts 2026
+            </span>
+          </div>
+
+          <div className="relative z-10 p-6 sm:p-10 space-y-3 max-w-xl">
+            <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+              RaithaMitra — ರೈತ ಮಿತ್ರ
             </h1>
-            <p className="text-slate-400 text-sm mt-2">
-              Select any verified persona below to immediately simulate realistic end-to-end multi-role workflows.
+            <p className="text-sm sm:text-base font-medium text-[#C9A35C]">
+              From Seed to Sale, One Intelligent Companion.
             </p>
-          </div>
-
-          <div className="space-y-3 my-4">
-            {DEMO_PERSONAS.map((p) => {
-              const Icon = p.icon;
-              const isCurrent = currentUser?.role === p.role;
-              return (
-                <button
-                  key={p.role}
-                  type="button"
-                  onClick={() => handle1ClickLogin(p.role, p.redirect)}
-                  disabled={isSubmitting}
-                  className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start gap-3 group ${
-                    isCurrent
-                      ? 'bg-emerald-950/40 border-emerald-500/60 ring-1 ring-emerald-500/50'
-                      : 'bg-slate-800/70 border-slate-700/80 hover:bg-slate-800 hover:border-emerald-500/40'
-                  }`}
-                >
-                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 group-hover:scale-105 transition-transform mt-0.5">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
-                        {p.name}
-                      </span>
-                      <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-700/80 text-emerald-400 border border-slate-600/60">
-                        {p.role}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-0.5 truncate">{p.desc}</p>
-                    <span className="text-[11px] font-mono text-slate-500 mt-1 block">{p.email}</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all self-center" />
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="text-xs text-slate-500 flex items-center gap-1.5 border-t border-slate-800 pt-4">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            <span>SQLite persistent backend (`database/raithamitra.db`) with active seed data.</span>
+            <p className="text-xs sm:text-sm text-[#F7F5ED]/90 leading-relaxed">
+              Scientific intelligence, agricultural opportunities and smarter decisions for every farmer.
+            </p>
           </div>
         </div>
 
-        {/* Right Side: Standard Login Form */}
-        <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-6 sm:p-8 flex flex-col justify-center">
-          <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-            <UserCheck className="w-5 h-5 text-emerald-400" />
-            Standard Credentials Sign In
-          </h2>
-          <p className="text-xs text-slate-400 mb-6">
-            Enter registered email and password to log in to your account.
-          </p>
-
-          <form onSubmit={handleFormSubmit} className="space-y-4">
+        {/* Right Side: Warm Cream Form + 1-Click Judging Personas */}
+        <div className="lg:col-span-5 p-6 sm:p-8 bg-[#F7F5ED] dark:bg-zinc-900 flex flex-col justify-between space-y-5">
+          <div className="flex items-center justify-between gap-2">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Select Persona Role
+              <h2 className="font-serif text-2xl font-semibold text-[#20372A] dark:text-white">
+                Welcome Back
+              </h2>
+              <p className="text-xs text-[#8D7357] dark:text-zinc-400">
+                Sign in or select a verified persona below.
+              </p>
+            </div>
+            <div className="flex gap-1 text-[11px]">
+              {(['en', 'kn', 'hi'] as Language[]).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLanguage(code)}
+                  className={`px-2 py-1 rounded-md font-semibold ${
+                    language === code
+                      ? 'bg-[#173C2B] text-white'
+                      : 'bg-white dark:bg-zinc-800 text-[#20372A] dark:text-zinc-300 border border-[#DCD8CA] dark:border-zinc-700'
+                  }`}
+                >
+                  {code === 'en' ? 'EN' : code === 'kn' ? 'ಕನ್ನಡ' : 'हिन्दी'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={handleFormSubmit} className="space-y-3 bg-white dark:bg-zinc-950 p-4 rounded-xl border border-[#DCD8CA] dark:border-zinc-800">
+            <div>
+              <label className="block text-xs font-semibold text-[#20372A] dark:text-zinc-300 mb-1">
+                Select Role
               </label>
               <select
                 value={selectedRole}
@@ -168,7 +206,7 @@ export default function LoginPage() {
                     setPassword('demo123');
                   }
                 }}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full bg-[#F7F5ED] dark:bg-zinc-900 border border-[#DCD8CA] dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-[#20372A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#36784D]"
               >
                 <option value="farmer">Farmer (ರೈತ)</option>
                 <option value="buyer">Produce Buyer (ಖರೀದಿದಾರ)</option>
@@ -178,51 +216,92 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-[#20372A] dark:text-zinc-300 mb-1">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <Mail className="w-4 h-4 text-[#8D7357] absolute left-3 top-2.5" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. farmer@raithamitra.in"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="farmer@raithamitra.in"
+                  className="w-full bg-[#F7F5ED] dark:bg-zinc-900 border border-[#DCD8CA] dark:border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-xs text-[#20372A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#36784D]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-[#20372A] dark:text-zinc-300 mb-1">
                 Password
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <Lock className="w-4 h-4 text-[#8D7357] absolute left-3 top-2.5" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-[#F7F5ED] dark:bg-zinc-900 border border-[#DCD8CA] dark:border-zinc-700 rounded-lg pl-9 pr-9 py-2 text-xs text-[#20372A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#36784D]"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-2.5 top-2 text-[#8D7357] hover:text-[#20372A]"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-emerald-950 transition-all flex items-center justify-center gap-2 mt-2"
+              className="w-full py-2.5 px-4 bg-[#173C2B] hover:bg-[#102D20] text-white font-semibold text-xs rounded-lg transition flex items-center justify-center gap-2"
             >
               {isSubmitting ? 'Authenticating...' : 'Sign In to Workspace'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <span className="text-xs text-slate-500">
-              Demo passwords default to <code className="text-emerald-400 bg-slate-900 px-1 py-0.5 rounded">farmer123</code>, <code className="text-emerald-400 bg-slate-900 px-1 py-0.5 rounded">buyer123</code>, etc.
-            </span>
+          {/* 1-Click Verified Role Personas */}
+          <div className="space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#8D7357]">
+              Quick Persona Access
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {DEMO_PERSONAS.map((p) => {
+                const Icon = p.icon;
+                const isCurrent = currentUser?.role === p.role;
+                return (
+                  <button
+                    key={p.role}
+                    type="button"
+                    onClick={() => handle1ClickLogin(p.role, p.redirect)}
+                    disabled={isSubmitting}
+                    className={`text-left p-2.5 rounded-lg border text-xs transition flex items-center gap-2.5 ${
+                      isCurrent
+                        ? 'bg-[#173C2B] text-white border-[#173C2B]'
+                        : 'bg-white dark:bg-zinc-950 border-[#DCD8CA] dark:border-zinc-800 hover:border-[#36784D]'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${isCurrent ? 'text-[#C9A35C]' : 'text-[#36784D]'}`} />
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">{p.name}</div>
+                      <div className={`text-[10px] capitalize ${isCurrent ? 'text-emerald-200' : 'text-[#8D7357]'}`}>
+                        {p.role}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="text-[11px] text-[#8D7357] flex items-center gap-1.5 border-t border-[#DCD8CA] dark:border-zinc-800 pt-3">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#36784D] shrink-0" />
+            <span>SQLite persistent backend (`database/raithamitra.db`) with active seed data.</span>
           </div>
         </div>
       </div>

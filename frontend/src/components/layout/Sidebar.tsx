@@ -1,7 +1,7 @@
 // frontend/src/components/layout/Sidebar.tsx
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
@@ -30,7 +30,10 @@ import {
   Store,
   Warehouse,
   Tractor,
-  Activity
+  Activity,
+  MapPin,
+  TrendingUp,
+  ChevronDown,
 } from 'lucide-react';
 
 interface NavItem {
@@ -49,11 +52,18 @@ interface NavGroup {
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { t, currentUser } = useFarm();
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (title: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
 
   const navigationGroups: NavGroup[] = [
     {
       title: "FLAGSHIP INNOVATIONS",
       items: [
+        { name: "Digital Farming", href: '/digital-farming', icon: MapPin, status: 'flagship', badge: 'Geospatial' },
+        { name: "Market Intelligence", href: '/market-intelligence', icon: TrendingUp, status: 'flagship', badge: 'Economics' },
         { name: "BioIntel Research", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Flagship' },
         { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
         { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
@@ -110,15 +120,15 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 transition-transform duration-200 ease-in-out md:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col w-72 bg-[#102D20] text-[#F7F5ED] border-r border-[#173C2B] transition-transform duration-200 ease-in-out md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-rm-primary to-rm-dark text-white shadow-md">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#173C2B] border border-white/15 text-white shadow-sm">
             <svg
-              className="w-7 h-7 text-rm-accent"
+              className="w-6 h-6 text-[#65A76F]"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -129,91 +139,116 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               <path d="M7 20h10" />
               <path d="M10 20c0-3.5-1.5-6-4-8 4-1 6-3 6-7 0 4 2 6 6 7-2.5 2-4 4.5-4 8" />
               <path d="M12 2v3" />
-              <circle cx="12" cy="2" r="1.5" fill="#22C55E" />
+              <circle cx="12" cy="2" r="1.5" fill="#C9A35C" />
             </svg>
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-lg tracking-tight text-rm-text dark:text-white">
+              <span className="font-serif font-semibold text-lg tracking-tight text-[#F7F5ED]">
                 RaithaMitra
               </span>
-              <span className="text-xs px-1.5 py-0.5 font-semibold rounded bg-rm-primary/10 text-rm-primary dark:bg-rm-accent/20 dark:text-rm-accent">
+              <span className="text-[11px] px-1.5 py-0.5 font-medium rounded bg-white/10 text-[#C9A35C]">
                 ರೈತ ಮಿತ್ರ
               </span>
             </div>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+            <span className="text-[11px] text-[#F7F5ED]/65 font-normal">
               Syntax Squad • HackWarts 2026
             </span>
           </div>
         </div>
 
         {/* Navigation List */}
-        <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto scrollbar-thin">
-          {navigationGroups.map((group) => (
-            <div key={group.title} className="space-y-1">
-              <h3 className="px-3 text-[11px] font-bold tracking-wider text-zinc-400 dark:text-zinc-500 uppercase flex items-center justify-between">
-                <span>{group.title}</span>
-                {group.title.includes("FLAGSHIP") && (
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                )}
-              </h3>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const isActive = pathname === item.href;
-                  const Icon = item.icon;
-                  const isFlagship = item.status === 'flagship';
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onClose}
-                      className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-rm-primary text-white shadow-sm'
-                          : isFlagship
-                          ? 'text-zinc-900 dark:text-zinc-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold'
-                          : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className={`w-4 h-4 ${
-                          isActive
-                            ? 'text-white'
-                            : isFlagship
-                            ? 'text-rm-primary dark:text-rm-accent'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                        }`} />
-                        <span>{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+        <nav className="flex-1 px-3.5 py-4 space-y-5 overflow-y-auto scrollbar-thin">
+          {navigationGroups.map((group) => {
+            const isGroupCollapsed = Boolean(collapsedGroups[group.title]);
+            return (
+              <div key={group.title} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.title)}
+                  className="w-full px-3 py-1 text-[10px] font-semibold tracking-wider text-[#F7F5ED]/55 uppercase flex items-center justify-between hover:text-[#F7F5ED]/85 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    {group.title}
+                    {group.title.includes("FLAGSHIP") && (
+                      <Sparkles className="w-3 h-3 text-[#C9A35C]" />
+                    )}
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${isGroupCollapsed ? '-rotate-90' : ''}`}
+                  />
+                </button>
+                {!isGroupCollapsed && (
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      const Icon = item.icon;
+                      const isFlagship = item.status === 'flagship';
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={onClose}
+                          className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                             isActive
-                              ? 'bg-white/20 text-white'
+                              ? 'bg-[#526B38] text-[#F7F5ED] shadow-sm'
                               : isFlagship
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
-                              : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                              ? 'text-[#F7F5ED] hover:bg-white/10'
+                              : 'text-[#F7F5ED]/80 hover:bg-white/10 hover:text-[#F7F5ED]'
                           }`}
                         >
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Icon
+                              className={`w-4 h-4 shrink-0 ${
+                                isActive
+                                  ? 'text-[#F7F5ED]'
+                                  : isFlagship
+                                  ? 'text-[#65A76F]'
+                                  : 'text-[#F7F5ED]/60'
+                              }`}
+                            />
+                            <span className="truncate">{item.name}</span>
+                          </div>
+                          {item.badge && (
+                            <span
+                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                                isActive
+                                  ? 'bg-[#F7F5ED]/20 text-[#F7F5ED]'
+                                  : isFlagship
+                                  ? 'bg-white/10 text-[#C9A35C]'
+                                  : 'bg-white/10 text-[#F7F5ED]/70'
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
-        {/* Active Role Indicator */}
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40">
-          <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="capitalize font-semibold text-zinc-800 dark:text-zinc-200">
+        {/* Subtle Agricultural Landscape Accent & Role Indicator */}
+        <div className="border-t border-white/10">
+          <div className="relative h-14 overflow-hidden opacity-45">
+            <img
+              src="/images/agriculture/indian-farmland-sunrise.jpg"
+              alt="Agricultural landscape"
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#102D20] via-[#102D20]/60 to-transparent" />
+          </div>
+          <div className="px-4 py-3 bg-[#102D20] flex items-center justify-between text-xs text-[#F7F5ED]/75">
+            <span className="capitalize font-medium text-[#F7F5ED]">
               Role: {currentUser.role}
             </span>
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex items-center gap-1.5 text-[#65A76F] font-medium">
+              <span className="w-2 h-2 rounded-full bg-[#65A76F]" />
               SQLite DB Sync
             </span>
           </div>

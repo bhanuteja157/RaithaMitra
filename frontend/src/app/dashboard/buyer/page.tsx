@@ -45,23 +45,30 @@ export default function BuyerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Banner */}
-      <div className="p-6 md:p-8 bg-gradient-to-r from-emerald-950 via-zinc-900 to-teal-950 border border-emerald-800/60 rounded-3xl shadow-xl text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+      {/* Natural Editorial Banner */}
+      <div className="relative p-6 md:p-8 bg-[#173C2B] border border-[#DCD8CA] dark:border-zinc-800 rounded-2xl shadow-sm text-white flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-hidden">
+        <img
+          src="/images/crops/wheat.jpg"
+          alt="Harvested agricultural produce"
+          className="absolute inset-0 w-full h-full object-cover opacity-35"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/90 via-[#173C2B]/75 to-transparent" />
+        <div className="relative z-10">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-[#C9A35C]">
             Wholesale Procurement Portal
           </span>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-2">
+          <h1 className="font-serif text-2xl md:text-3xl font-semibold tracking-tight mt-1">
             Welcome, {currentUser.name}
           </h1>
-          <p className="text-sm text-zinc-300 mt-1">
+          <p className="text-xs sm:text-sm text-[#F7F5ED]/85 mt-1 max-w-xl">
             Browse verified farm-gate produce lots, participate in transparent competitive auctions, and generate compliant purchase orders.
           </p>
         </div>
 
         <Link
           href="/bidding"
-          className="px-5 py-3 rounded-xl bg-rm-accent hover:bg-emerald-400 text-zinc-950 font-bold text-sm shadow-md transition-transform hover:scale-105 self-start md:self-auto shrink-0"
+          className="relative z-10 px-5 py-2.5 rounded-xl bg-[#F7F5ED] hover:bg-white text-[#173C2B] font-semibold text-xs sm:text-sm shadow-sm transition self-start md:self-auto shrink-0"
         >
           View Live Auction Desk
         </Link>

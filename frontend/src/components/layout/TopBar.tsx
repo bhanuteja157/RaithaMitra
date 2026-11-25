@@ -56,7 +56,7 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-8 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-8 bg-[#F7F5ED]/95 backdrop-blur-sm dark:bg-zinc-950 border-b border-[#DCD8CA] dark:border-zinc-800">
       {/* Left: Mobile hamburger & Farm Selector */}
       <div className="flex items-center gap-3">
         <button

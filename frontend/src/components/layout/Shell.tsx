@@ -11,7 +11,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-rm-bg dark:bg-zinc-900 text-rm-text dark:text-zinc-100 font-sans transition-colors">
+    <div className="min-h-screen bg-[#F7F5ED] dark:bg-zinc-900 text-[#20372A] dark:text-zinc-100 font-sans transition-colors">
       {/* Sidebar Navigation */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

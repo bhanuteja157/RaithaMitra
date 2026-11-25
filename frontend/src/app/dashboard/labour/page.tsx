@@ -43,18 +43,24 @@ export default function LabourDashboardPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Mobile-Friendly Greeting Header */}
-      <div className="p-6 bg-gradient-to-r from-blue-950 via-zinc-900 to-blue-900 border border-blue-800/60 rounded-3xl shadow-xl text-white space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-blue-500/20 text-blue-300 border border-blue-500/40">
-            Labour Portal
+      {/* Mobile-Friendly Natural Greeting Header */}
+      <div className="relative p-6 sm:p-8 bg-[#173C2B] border border-[#DCD8CA] dark:border-zinc-800 rounded-2xl shadow-sm text-white space-y-2 overflow-hidden">
+        <img
+          src="/images/roles/role-labour.jpg"
+          alt="Agricultural workers in farmland"
+          className="absolute inset-0 w-full h-full object-cover opacity-35"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/90 via-[#173C2B]/75 to-transparent" />
+        <div className="relative z-10 flex items-center gap-2">
+          <span className="text-[11px] font-semibold tracking-widest uppercase text-[#C9A35C]">
+            Labour Portal • Direct Rural Wage Employment
           </span>
-          <span className="text-xs text-zinc-400">Direct Rural Wage Employment</span>
         </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+        <h1 className="relative z-10 font-serif text-2xl md:text-3xl font-semibold tracking-tight">
           ನಮಸ್ಕಾರ / Hello, {currentUser.name}
         </h1>
-        <p className="text-sm text-zinc-300">
+        <p className="relative z-10 text-xs sm:text-sm text-[#F7F5ED]/85 max-w-xl">
           Find daily agricultural work nearby, track your confirmed jobs, and receive guaranteed wages directly from farmers.
         </p>
       </div>

@@ -42,18 +42,24 @@ export default function DriverDashboardPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Driver Greeting Header */}
-      <div className="p-6 bg-gradient-to-r from-purple-950 via-zinc-900 to-purple-900 border border-purple-800/60 rounded-3xl shadow-xl text-white space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40">
-            Logistics Console
+      {/* Natural Driver Greeting Header */}
+      <div className="relative p-6 sm:p-8 bg-[#173C2B] border border-[#DCD8CA] dark:border-zinc-800 rounded-2xl shadow-sm text-white space-y-2 overflow-hidden">
+        <img
+          src="/images/agriculture/indian-farmland-sunrise.jpg"
+          alt="Rural agricultural logistics corridor"
+          className="absolute inset-0 w-full h-full object-cover opacity-35"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/90 via-[#173C2B]/75 to-transparent" />
+        <div className="relative z-10 flex items-center gap-2">
+          <span className="text-[11px] font-semibold tracking-widest uppercase text-[#C9A35C]">
+            Logistics Console • Direct Farm-Gate Freight Dispatch
           </span>
-          <span className="text-xs text-zinc-400">Direct Farm-Gate Freight Dispatch</span>
         </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+        <h1 className="relative z-10 font-serif text-2xl md:text-3xl font-semibold tracking-tight">
           ನಮಸ್ಕಾರ / Hello, {currentUser.name}
         </h1>
-        <p className="text-sm text-zinc-300">
+        <p className="relative z-10 text-xs sm:text-sm text-[#F7F5ED]/85 max-w-xl">
           Accept farm produce freight requests directly from local farmers, update trip milestones, and track guaranteed delivery earnings.
         </p>
       </div>
