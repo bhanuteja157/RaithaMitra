@@ -2,7 +2,9 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useFarm } from '@/context/FarmContext';
+import { saveSeedToDigitalFarmTransfer } from '@/lib/workflowBridge';
 import {
   SeedInvestmentInput,
   VarietyComparisonInput,
@@ -52,11 +54,18 @@ import {
 interface SeedInvestmentPlannerProps {
   selectedCrop?: string;
   onSelectCrop?: (crop: string) => void;
+  onVarietySelectedForNursery?: (payload: {
+    crop: string;
+    varietyName: string;
+    requiredSeedKg: number;
+    budgetInr: number;
+  }) => void;
 }
 
 export function SeedInvestmentPlanner({
   selectedCrop = 'Tomato',
   onSelectCrop,
+  onVarietySelectedForNursery,
 }: SeedInvestmentPlannerProps) {
   const { currentFarm, language } = useFarm();
   const planSectionRef = useRef<HTMLDivElement | null>(null);
@@ -221,6 +230,21 @@ export function SeedInvestmentPlanner({
       seedPricePerKg: v.seedPricePerKg,
       expectedYieldPerAcreKg: v.expectedYieldPerAcreKg,
     }));
+    onVarietySelectedForNursery?.({
+      crop,
+      varietyName: v.varietyName,
+      requiredSeedKg: Number((areaAcres * v.seedQtyPerAcreKg).toFixed(2)),
+      budgetInr,
+    });
+    saveSeedToDigitalFarmTransfer({
+      crop,
+      varietyName: v.varietyName,
+      areaAcres,
+      budgetInr,
+      waterAvailability,
+      seedRequiredKg: Number((areaAcres * v.seedQtyPerAcreKg).toFixed(2)),
+      transferredAt: new Date().toISOString(),
+    });
   };
 
   const updateVarietyField = (
@@ -783,15 +807,36 @@ export function SeedInvestmentPlanner({
                     {isSelected ? (
                       <>
                         <Check className="w-3.5 h-3.5" />
-                        <span>Active in Plan</span>
+                        <span>Selected for Nursery &amp; Farm</span>
                       </>
                     ) : (
-                      <span>Use This Variety</span>
+                      <span>Select This Variety</span>
                     )}
                   </button>
                 </div>
               );
             })}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+            <Link
+              href="/digital-farming"
+              onClick={() =>
+                saveSeedToDigitalFarmTransfer({
+                  crop,
+                  varietyName: input.variety,
+                  areaAcres,
+                  budgetInr,
+                  waterAvailability,
+                  seedRequiredKg: Number((areaAcres * input.seedQtyPerAcreKg).toFixed(2)),
+                  transferredAt: new Date().toISOString(),
+                })
+              }
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold shadow-sm"
+            >
+              <span>Cultivate {crop} in Digital Farm</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
           {/* Variety Profit Chart */}

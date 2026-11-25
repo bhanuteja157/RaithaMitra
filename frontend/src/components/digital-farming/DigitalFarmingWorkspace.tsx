@@ -51,6 +51,13 @@ import {
 } from '@/lib/digital-farming/simulator';
 import { DF_I18N, DFLanguage } from '@/lib/digital-farming/i18n';
 import {
+  loadSeedToDigitalFarmTransfer,
+  saveFarmToCareTransfer,
+  saveFinanceSnapshot,
+  saveHarvestToBiddingDraft,
+  saveHarvestToLabourTransfer,
+} from '@/lib/workflowBridge';
+import {
   CheckCircle2,
   Droplets,
   Sprout,
@@ -127,6 +134,23 @@ export function DigitalFarmingWorkspace() {
   const [cropMode, setCropMode] = useState<'recommend' | 'manual'>('recommend');
   const [sortBy, setSortBy] = useState<CropSortOption>('suitability');
   const [selectedCropId, setSelectedCropId] = useState<string>('tomato');
+
+  // Auto-load crop & budget transferred from BioIntel (Workflow A)
+  useEffect(() => {
+    const seedTransfer = loadSeedToDigitalFarmTransfer();
+    if (seedTransfer?.crop) {
+      const matched = CROP_CATALOG.find(
+        (c) => c.name.toLowerCase() === seedTransfer.crop.toLowerCase() || c.id === seedTransfer.crop.toLowerCase()
+      );
+      if (matched) {
+        setSelectedCropId(matched.id);
+        setProfile((p) => ({
+          ...p,
+          budgetInr: seedTransfer.budgetInr || p.budgetInr,
+        }));
+      }
+    }
+  }, []);
   const selectedCrop: CropCatalogItem = useMemo(
     () => CROP_CATALOG.find((c) => c.id === selectedCropId) || CROP_CATALOG[0],
     [selectedCropId]
@@ -985,13 +1009,76 @@ export function DigitalFarmingWorkspace() {
                       <CheckCircle2 className="w-5 h-5 text-emerald-700" />
                       {sim.harvested ? 'Digital Harvest Summary' : 'Crop Ready for Harvest'}
                     </h3>
-                    <button
-                      type="button"
-                      onClick={handleAnalyzeBestSelling}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
-                    >
-                      {t.analyzeBestSelling} <ArrowRight className="w-4 h-4" />
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveFarmToCareTransfer({
+                            farmName: confirmedFarm.name,
+                            locationLabel: confirmedFarm.locationLabel,
+                            latitude: activeLat,
+                            longitude: activeLon,
+                            crop: selectedCrop.name,
+                            growthStage: sim.stage,
+                            soilType: profile.soilType,
+                            soilMoisturePct: sim.soilMoisturePct,
+                            transferredAt: new Date().toISOString(),
+                          });
+                          router.push('/farm-management');
+                        }}
+                        className="px-3 py-2 rounded-xl border border-emerald-700 text-emerald-800 bg-white text-xs font-semibold hover:bg-emerald-50"
+                      >
+                        Farm Care
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveHarvestToLabourTransfer({
+                            crop: selectedCrop.name,
+                            locationLabel: confirmedFarm.locationLabel,
+                            expectedHarvestDate: estimatedHarvestDate,
+                            areaAcres: activeAreaAcres,
+                            recommendedWorkers: Math.max(2, Math.round(activeAreaAcres * 3)),
+                            transferredAt: new Date().toISOString(),
+                          });
+                          router.push('/labour');
+                        }}
+                        className="px-3 py-2 rounded-xl border border-emerald-700 text-emerald-800 bg-white text-xs font-semibold hover:bg-emerald-50"
+                      >
+                        Hire Harvest Labour
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveHarvestToBiddingDraft({
+                            cropName: selectedCrop.name,
+                            quantityKg: liveFinancialSummary.expectedProductionKg,
+                            location: confirmedFarm.locationLabel,
+                            expectedPricePerKg: finInputs.expectedSellingPricePerKgInr,
+                            cultivationExpensesInr: liveFinancialSummary.totalInvestmentInr,
+                            transferredAt: new Date().toISOString(),
+                          });
+                          saveFinanceSnapshot({
+                            cropName: selectedCrop.name,
+                            projectedCultivationCostInr: liveFinancialSummary.totalInvestmentInr,
+                            projectedRevenueInr: liveFinancialSummary.grossRevenueInr,
+                            projectedProfitInr: liveFinancialSummary.netProfitInr,
+                            updatedAt: new Date().toISOString(),
+                          });
+                          router.push('/smart-market');
+                        }}
+                        className="px-3 py-2 rounded-xl border border-emerald-700 text-emerald-800 bg-white text-xs font-semibold hover:bg-emerald-50"
+                      >
+                        Draft Produce Listing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAnalyzeBestSelling}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
+                      >
+                        {t.analyzeBestSelling} <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl">
