@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
+import { SeedInvestmentPlanner } from '@/components/biointel/SeedInvestmentPlanner';
 import {
   fetchBiotechResearch,
   fetchBiotechRecommendations,
@@ -211,6 +212,9 @@ export default function BioIntelPage() {
           </Link>
         </div>
       </div>
+
+      {/* AD-07: Intelligent Seed Investment Planner */}
+      <SeedInvestmentPlanner selectedCrop={selectedCrop} />
 
       {/* Control Strip & Crop Context Selection */}
       <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-4">
