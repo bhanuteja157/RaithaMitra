@@ -14,6 +14,7 @@ import {
 const LOC_I18N: Record<Language, {
   labourSub: string; mainSub: string; searchMin: string; noMatch: string;
   geoUnsupported: string; gpsDenied: string; gpsUnavail: string; gpsTimeout: string; gpsFailed: string;
+  gpsInsecure: string; retryGps: string; defaultMapCenter: string;
   locConfirmed: string; searchBtn: string; searchingBtn: string;
   gpsDetected: string; villageLabel: string; districtLabel: string; stateLabel: string; pinLabel: string;
   resolvedTitle: string; lookingUp: string; addressLabel: string; sourceLabel: string; selectedLabel: string;
@@ -28,6 +29,9 @@ const LOC_I18N: Record<Language, {
     gpsUnavail: 'Device location unavailable. Please search or click on the map.',
     gpsTimeout: 'Location request timed out. Please try again or enter coordinates manually.',
     gpsFailed: 'Unable to detect device location.',
+    gpsInsecure: 'GPS requires HTTPS or localhost. Please select your location on the map or enter coordinates.',
+    retryGps: 'Retry GPS',
+    defaultMapCenter: 'Map Center (Not GPS)',
     locConfirmed: 'Location confirmed and saved.',
     searchBtn: 'Search',
     searchingBtn: 'Searching...',
@@ -52,6 +56,9 @@ const LOC_I18N: Record<Language, {
     gpsUnavail: 'ಸಾಧನದ ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ಹುಡುಕಿ ಅಥವಾ ನಕ್ಷೆಯಲ್ಲಿ ಒತ್ತಿ.',
     gpsTimeout: 'ಸ್ಥಳ ಹುಡುಕಾಟ ಸಮಯ ಮೀರಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
     gpsFailed: 'ಸ್ಥಳ ಪತ್ತೆಹಚ್ಚಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+    gpsInsecure: 'GPS ಗಾಗಿ HTTPS ಅಥವಾ localhost ಅಗತ್ಯವಿದೆ. ದಯವಿಟ್ಟು ನಕ್ಷೆಯಲ್ಲಿ ಆಯ್ಕೆಮಾಡಿ.',
+    retryGps: 'ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ',
+    defaultMapCenter: 'ನಕ್ಷೆ ಕೇಂದ್ರ (GPS ಅಲ್ಲ)',
     locConfirmed: 'ಸ್ಥಳವನ್ನು ದೃಢೀಕರಿಸಿ ಉಳಿಸಲಾಗಿದೆ.',
     searchBtn: 'ಹುಡುಕಿ',
     searchingBtn: 'ಹುಡುಕಲಾಗುತ್ತಿದೆ...',
@@ -76,6 +83,9 @@ const LOC_I18N: Record<Language, {
     gpsUnavail: 'डिवाइस स्थान उपलब्ध नहीं है। कृपया खोजें या मानचित्र पर क्लिक करें।',
     gpsTimeout: 'स्थान अनुरोध का समय समाप्त। कृपया पुनः प्रयास करें।',
     gpsFailed: 'डिवाइस स्थान पता लगाने में असमर्थ।',
+    gpsInsecure: 'GPS के लिए HTTPS या localhost आवश्यक है। कृपया मानचित्र पर चुनें।',
+    retryGps: 'GPS पुनः प्रयास करें',
+    defaultMapCenter: 'मानचित्र केंद्र (GPS नहीं)',
     locConfirmed: 'स्थान की पुष्टि हो गई और सहेजा गया।',
     searchBtn: 'खोजें',
     searchingBtn: 'खोज रहे हैं...',
@@ -100,6 +110,9 @@ const LOC_I18N: Record<Language, {
     gpsUnavail: 'పరికర స్థానం అందుబాటులో లేదు. మ్యాప్‌లో ఎంచుకోండి.',
     gpsTimeout: 'స్థానం అభ్యర్థన సమయం ముగిసింది. మళ్ళీ ప్రయత్నించండి.',
     gpsFailed: 'స్థానాన్ని గుర్తించడం సాధ్యం కాలేదు.',
+    gpsInsecure: 'GPS కోసం HTTPS లేదా localhost అవసరం. దయచేసి మ్యాప్‌లో ఎంచుకోండి.',
+    retryGps: 'GPS మళ్ళీ ప్రయత్నించండి',
+    defaultMapCenter: 'మ్యాప్ కేంద్రం (GPS కాదు)',
     locConfirmed: 'స్థానం నిర్ధారించబడి సేవ్ చేయబడింది.',
     searchBtn: 'వెతకండి',
     searchingBtn: 'వెతుకుతోంది...',
@@ -180,6 +193,9 @@ export function SmartLocationSelector({
   const [formattedAddress, setFormattedAddress] = useState<string>(initialLocation?.formatted_address ?? '');
 
   // Source & accuracy metadata
+  const [hasExplicitSelection, setHasExplicitSelection] = useState<boolean>(
+    initialLocation?.latitude !== undefined && initialLocation?.longitude !== undefined
+  );
   const [locationSource, setLocationSource] = useState<LocationSource>(
     initialLocation?.location_source ?? 'map'
   );
@@ -208,6 +224,13 @@ export function SmartLocationSelector({
       setLon(initialLocation.longitude);
       setLatInput(String(initialLocation.latitude));
       setLonInput(String(initialLocation.longitude));
+      setHasExplicitSelection(true);
+    }
+    if (initialLocation?.location_source !== undefined) {
+      setLocationSource(initialLocation.location_source);
+    }
+    if (initialLocation?.location_accuracy_m !== undefined) {
+      setAccuracyMeters(initialLocation.location_accuracy_m);
     }
     if (initialLocation?.village !== undefined) setVillage(initialLocation.village);
     if (initialLocation?.district !== undefined) setDistrict(initialLocation.district);
@@ -287,6 +310,7 @@ export function SmartLocationSelector({
     setLon(newLon);
     setLatInput(String(newLat));
     setLonInput(String(newLon));
+    setHasExplicitSelection(true);
     setLocationSource('map');
     setAccuracyMeters(undefined);
     setCoordError(null);
@@ -294,8 +318,8 @@ export function SmartLocationSelector({
     performReverseGeocode(newLat, newLon);
   };
 
-  // Method 3: Use My Current Location (one-shot GPS)
-  const handleUseCurrentLocation = () => {
+  // Method 3: Use My Current Location (permission-aware, two-stage GPS with network fallback)
+  const handleUseCurrentLocation = async () => {
     setGpsError(null);
     setSavedFeedback(null);
 
@@ -304,39 +328,76 @@ export function SmartLocationSelector({
       return;
     }
 
+    const isLocalhost =
+      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!window.isSecureContext && !isLocalhost) {
+      setGpsError(L.gpsInsecure);
+      return;
+    }
+
+    if (navigator.permissions?.query) {
+      try {
+        const perm = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+        if (perm.state === 'denied') {
+          setGpsError(L.gpsDenied);
+          return;
+        }
+      } catch {
+        // Permissions API unsupported or threw; proceed to getCurrentPosition
+      }
+    }
+
+    const onGpsSuccess = (position: GeolocationPosition) => {
+      const detectedLat = Number(position.coords.latitude.toFixed(6));
+      const detectedLon = Number(position.coords.longitude.toFixed(6));
+      const acc = Number.isFinite(position.coords.accuracy)
+        ? Math.round(position.coords.accuracy)
+        : undefined;
+
+      setLat(detectedLat);
+      setLon(detectedLon);
+      setLatInput(String(detectedLat));
+      setLonInput(String(detectedLon));
+      setAccuracyMeters(acc);
+      setHasExplicitSelection(true);
+      setLocationSource('gps');
+      setCoordError(null);
+      setIsLocatingGps(false);
+
+      performReverseGeocode(detectedLat, detectedLon);
+    };
+
+    const onGpsFinalError = (err: GeolocationPositionError) => {
+      setIsLocatingGps(false);
+      if (err.code === err.PERMISSION_DENIED) {
+        setGpsError(L.gpsDenied);
+      } else if (err.code === err.POSITION_UNAVAILABLE) {
+        setGpsError(L.gpsUnavail);
+      } else if (err.code === err.TIMEOUT) {
+        setGpsError(L.gpsTimeout);
+      } else {
+        setGpsError(L.gpsFailed);
+      }
+    };
+
     setIsLocatingGps(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const detectedLat = Number(position.coords.latitude.toFixed(6));
-        const detectedLon = Number(position.coords.longitude.toFixed(6));
-        const acc = Math.round(position.coords.accuracy);
-
-        setLat(detectedLat);
-        setLon(detectedLon);
-        setLatInput(String(detectedLat));
-        setLonInput(String(detectedLon));
-        setAccuracyMeters(acc);
-        setLocationSource('gps');
-        setCoordError(null);
-        setIsLocatingGps(false);
-
-        performReverseGeocode(detectedLat, detectedLon);
-      },
+      onGpsSuccess,
       (err) => {
-        setIsLocatingGps(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setGpsError(L.gpsDenied);
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setGpsError(L.gpsUnavail);
-        } else if (err.code === err.TIMEOUT) {
-          setGpsError(L.gpsTimeout);
-        } else {
-          setGpsError(L.gpsFailed);
+        if (err.code === err.TIMEOUT || err.code === err.POSITION_UNAVAILABLE) {
+          // Fallback to standard-accuracy (Wi-Fi/IP) geolocation for laptops/desktops
+          navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsFinalError, {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 60000,
+          });
+          return;
         }
+        onGpsFinalError(err);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 8000,
         maximumAge: 0,
       }
     );
@@ -552,11 +613,21 @@ export function SmartLocationSelector({
         )}
       </div>
 
-      {/* GPS Status / Error */}
+      {/* GPS Status / Error with Retry */}
       {gpsError && (
-        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{gpsError}</span>
+        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{gpsError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={isLocatingGps}
+            className="px-3 py-1 rounded-lg bg-rose-700 hover:bg-rose-600 text-white font-semibold text-[11px] transition shrink-0 disabled:opacity-60"
+          >
+            {L.retryGps}
+          </button>
         </div>
       )}
 
@@ -691,7 +762,7 @@ export function SmartLocationSelector({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="text-[11px] text-zinc-500 flex items-center gap-2 flex-wrap">
           <span>
-            {L.sourceLabel}: <strong className="uppercase">{locationSource}</strong>
+            {L.sourceLabel}: <strong className="uppercase">{hasExplicitSelection ? locationSource : L.defaultMapCenter}</strong>
           </span>
           <span>•</span>
           <span>{L.selectedLabel}: {lat.toFixed(5)}, {lon.toFixed(5)}</span>

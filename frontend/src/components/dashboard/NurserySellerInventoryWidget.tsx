@@ -11,12 +11,14 @@ import {
 import {
   NurseryProduct,
   NurseryProductCreate,
+  SelectedLocation,
   Language,
 } from '@/types';
 import { localizeCropName, formatLocalizedCurrency } from '@/lib/translations';
 import {
   Store,
   PlusCircle,
+  MapPin,
   X,
 } from 'lucide-react';
 
@@ -69,8 +71,10 @@ const NURSERY_WIDGET_I18N: Record<Language, {
 };
 
 export function NurserySellerInventoryWidget() {
-  const { language, t } = useFarm();
+  const { language, t, currentUser } = useFarm();
   const L = NURSERY_WIDGET_I18N[language] || NURSERY_WIDGET_I18N.en;
+  const buyerLocKey = `rm_buyer_location_${currentUser?.id || 'default'}`;
+  const [buyerLocation, setBuyerLocation] = useState<SelectedLocation | null>(null);
   const [products, setProducts] = useState<NurseryProduct[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -103,6 +107,25 @@ export function NurserySellerInventoryWidget() {
   useEffect(() => {
     loadSellerProducts();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(buyerLocKey);
+      if (raw) {
+        setBuyerLocation(JSON.parse(raw));
+      }
+    } catch {
+      // ignore malformed local storage
+    }
+  }, [buyerLocKey]);
+
+  const handleConfirmBuyerLocation = (loc: SelectedLocation) => {
+    setBuyerLocation(loc);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(buyerLocKey, JSON.stringify(loc));
+    }
+  };
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,13 +210,26 @@ export function NurserySellerInventoryWidget() {
       )}
 
       {/* Buyer Delivery / Procurement Location Selector */}
-      <div className="pt-2">
+      <div className="pt-2 space-y-2">
+        {buyerLocation && (
+          <div className="px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-900 dark:text-emerald-200 flex flex-wrap items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              {buyerLocation.village}, {buyerLocation.district}, {buyerLocation.state}
+            </span>
+            <span className="font-mono text-[11px]">
+              {buyerLocation.latitude.toFixed(5)}, {buyerLocation.longitude.toFixed(5)}
+              {buyerLocation.location_accuracy_m ? ` (±${buyerLocation.location_accuracy_m}m)` : ''}
+            </span>
+          </div>
+        )}
         <SmartLocationSelector
           role="buyer"
           compactMap={true}
+          initialLocation={buyerLocation || undefined}
           title={L.buyerLocTitle}
           subtitle={L.buyerLocSub}
-          onConfirmLocation={() => {}}
+          onConfirmLocation={handleConfirmBuyerLocation}
         />
       </div>
 
