@@ -4,7 +4,7 @@ import json
 import os
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 from backend.app.main import app
 from backend.app.features.crop_diagnostics import model_registry
@@ -204,3 +204,55 @@ def test_multi_image_disagreement_and_history_isolation():
         },
     )
     assert bad_surv.status_code == 400
+
+
+@pytest.mark.skipif(_SKIP_MODEL_TESTS, reason=_SKIP_REASON)
+def test_blurry_crop_image_rejected_honestly():
+    img = Image.open(os.path.join(FIXTURES_DIR, "sample_3.jpg")).filter(ImageFilter.GaussianBlur(radius=8))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+    res = client.post(
+        "/api/v1/crop-diagnostics/analyze",
+        data={"crop": "auto"},
+        files={"file": ("blurry_leaf.jpg", buf.read(), "image/jpeg")},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["image_quality"]["suitable_for_diagnosis"] is False
+    assert body["diagnosis_status"] == "uncertain"
+    assert body["predicted_disease"] is None
+
+
+@pytest.mark.skipif(_SKIP_MODEL_TESTS, reason=_SKIP_REASON)
+def test_unrelated_non_leaf_image_rejected():
+    img = Image.new("RGB", (256, 256), color=(35, 75, 185))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([30, 30, 220, 220], fill=(215, 220, 235))
+    draw.line([(0, 0), (255, 255)], fill=(20, 40, 120), width=4)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+    res = client.post(
+        "/api/v1/crop-diagnostics/analyze",
+        data={"crop": "auto"},
+        files={"file": ("unrelated.jpg", buf.read(), "image/jpeg")},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["diagnosis_status"] == "uncertain"
+    assert body["predicted_disease"] is None
+
+
+@pytest.mark.skipif(_SKIP_MODEL_TESTS, reason=_SKIP_REASON)
+def test_rice_crop_rejected_honestly_as_unsupported():
+    with open(os.path.join(FIXTURES_DIR, "sample_3.jpg"), "rb") as img_f:
+        res = client.post(
+            "/api/v1/crop-diagnostics/analyze",
+            data={"crop": "Rice"},
+            files={"file": ("rice_leaf.jpg", img_f, "image/jpeg")},
+        )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["diagnosis_status"] == "unsupported_crop"
+    assert body["predicted_disease"] is None

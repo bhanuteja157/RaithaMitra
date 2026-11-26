@@ -76,7 +76,7 @@ const UI_STRINGS: Record<string, Record<string, string>> = {
 };
 
 const DIAG_I18N: Record<Language, {
-  onnxReady: string; checkingModel: string; selectCropAria: string;
+  onnxReady: string; modelUnavailable: string; checkingModel: string; selectCropAria: string;
   uploadHint: string; uploadSubHint: string; cameraBtn: string;
   needPhotoErr: string; unsupportedFmt: string; sizeLimitErr: string; analyzeErr: string;
   noPhotosHint: string; tip1: string; tip2: string;
@@ -90,7 +90,7 @@ const DIAG_I18N: Record<Language, {
   spokenCrop: string; spokenDiag: string; spokenPct: string; spokenRecs: string;
 }> = {
   en: {
-    onnxReady: 'Offline AI Ready (38 Diseases)', checkingModel: 'Checking AI Model...', selectCropAria: 'Select crop',
+    onnxReady: 'Offline AI Ready (38 Diseases)', modelUnavailable: 'AI Model Unavailable', checkingModel: 'Checking AI Model...', selectCropAria: 'Select crop',
     uploadHint: 'Click to upload leaf photo(s) (JPEG, PNG, WEBP · max 3 images)',
     uploadSubHint: 'Whole leaf, close-up lesion, or another affected leaf in natural daylight.',
     cameraBtn: 'Use Camera Capture',
@@ -115,7 +115,7 @@ const DIAG_I18N: Record<Language, {
     scoreLbl: 'Confidence:', spokenCrop: 'Crop:', spokenDiag: 'Diagnosis:', spokenPct: 'percent confidence', spokenRecs: 'Recommended actions:',
   },
   kn: {
-    onnxReady: 'ಆಫ್‌ಲೈನ್ AI ಸಿದ್ಧವಾಗಿದೆ (38 ರೋಗಗಳು)', checkingModel: 'AI ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...', selectCropAria: 'ಬೆಳೆ ಆಯ್ಕೆಮಾಡಿ',
+    onnxReady: 'ಆಫ್‌ಲೈನ್ AI ಸಿದ್ಧವಾಗಿದೆ (38 ರೋಗಗಳು)', modelUnavailable: 'AI ಮಾದರಿ ಲಭ್ಯವಿಲ್ಲ', checkingModel: 'AI ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...', selectCropAria: 'ಬೆಳೆ ಆಯ್ಕೆಮಾಡಿ',
     uploadHint: 'ಎಲೆಯ ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಇಲ್ಲಿ ಒತ್ತಿ (JPEG, PNG · ಗರಿಷ್ಠ 3 ಚಿತ್ರಗಳು)',
     uploadSubHint: 'ಸಂಪೂರ್ಣ ಎಲೆ ಅಥವಾ ರೋಗವಿರುವ ಭಾಗವನ್ನು ಹಗಲು ಬೆಳಕಿನಲ್ಲಿ ಸ್ಪಷ್ಟವಾಗಿ ತೆಗೆಯಿರಿ.',
     cameraBtn: 'ಕ್ಯಾಮೆರಾ ಬಳಸಿ ಫೋಟೋ ತೆಗೆಯಿರಿ',
@@ -140,7 +140,7 @@ const DIAG_I18N: Record<Language, {
     scoreLbl: 'ವಿಶ್ವಾಸ:', spokenCrop: 'ಬೆಳೆ:', spokenDiag: 'ರೋಗ ಪತ್ತೆ:', spokenPct: 'ಶೇಕಡಾ ವಿಶ್ವಾಸ', spokenRecs: 'ಸಲಹೆ ಕ್ರಮಗಳು:',
   },
   hi: {
-    onnxReady: 'ऑफलाइन AI तैयार (38 रोग पहचान)', checkingModel: 'AI मॉडल जांच रहे हैं...', selectCropAria: 'फसल चुनें',
+    onnxReady: 'ऑफलाइन AI तैयार (38 रोग पहचान)', modelUnavailable: 'AI मॉडल अनुपलब्ध', checkingModel: 'AI मॉडल जांच रहे हैं...', selectCropAria: 'फसल चुनें',
     uploadHint: 'पत्ती की फोटो अपलोड करने के लिए क्लिक करें (JPEG, PNG · अधिकतम 3 फोटो)',
     uploadSubHint: 'दिन के उजाले में पूरी पत्ती या रोगग्रस्त हिस्से की साफ फोटो लें।',
     cameraBtn: 'कैमरे से फोटो लें',
@@ -165,7 +165,7 @@ const DIAG_I18N: Record<Language, {
     scoreLbl: 'विश्वास:', spokenCrop: 'फसल:', spokenDiag: 'रोग पहचान:', spokenPct: 'प्रतिशत विश्वास', spokenRecs: 'अनुशंसित कदम:',
   },
   te: {
-    onnxReady: 'ఆఫ్‌లైన్ AI సిద్ధంగా ఉంది (38 వ్యాధులు)', checkingModel: 'AI తనిఖీ చేస్తోంది...', selectCropAria: 'పంటను ఎంచుకోండి',
+    onnxReady: 'ఆఫ్‌లైన్ AI సిద్ధంగా ఉంది (38 వ్యాధులు)', modelUnavailable: 'AI మోడల్ అందుబాటులో లేదు', checkingModel: 'AI తనిఖీ చేస్తోంది...', selectCropAria: 'పంటను ఎంచుకోండి',
     uploadHint: 'ఆకు ఫోటో అప్‌లోడ్ చేయడానికి ఇక్కడ నొక్కండి (JPEG, PNG · గరిష్టంగా 3 ఫోటోలు)',
     uploadSubHint: 'పగటి వెలుతురులో పూర్తి ఆకు లేదా మచ్చ ఉన్న భాగాన్ని స్పష్టంగా తీయండి.',
     cameraBtn: 'కెమెరాతో ఫోటో తీయండి',
@@ -377,7 +377,11 @@ export default function DiagnosticsPage() {
                 : 'bg-amber-50 text-amber-800 border-amber-200'
             }`}
           >
-            {modelMeta?.model_available ? L.onnxReady : L.checkingModel}
+            {modelMeta === null
+              ? L.checkingModel
+              : modelMeta.model_available
+                ? L.onnxReady
+                : L.modelUnavailable}
           </span>
         </div>
       </div>

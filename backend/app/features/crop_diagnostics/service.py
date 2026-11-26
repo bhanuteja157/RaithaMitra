@@ -245,6 +245,12 @@ def analyze_single_image(
 
     # 5. Image suitability check
     if not quality.get("suitable_for_diagnosis", True):
+        warn_detail = "; ".join(quality.get("warnings") or [])
+        uncertainty_text = (
+            f"Unable to identify the disease reliably ({warn_detail}). Please upload another clear image or consult an agricultural expert."
+            if warn_detail
+            else "Unable to identify the disease reliably. Please upload another clear image or consult an agricultural expert."
+        )
         return {
             "request_id": req_id,
             "farm_id": farm_id,
@@ -260,12 +266,12 @@ def analyze_single_image(
             "confidence": None,
             "top_predictions": [],
             "severity": {"available": False, "reason": "Image quality too low for reliable diagnosis."},
-            "uncertainty": "Unable to identify the disease reliably. Please upload another clear image or consult an agricultural expert.",
+            "uncertainty": uncertainty_text,
             "recommended_actions": quality.get("capture_tips", []),
             "preventive_measures": [],
             "weather_risk": None,
             "evidence_sources": [],
-            "limitations": ["Image failed minimum resolution or brightness checks."],
+            "limitations": ["Image failed minimum resolution, sharpness, or brightness checks."],
             "timestamp": now_iso,
         }
 
@@ -274,14 +280,23 @@ def analyze_single_image(
     top3 = inf["top_predictions"]
     best = top3[0]
     top_score = best["score"]
+    second_score = top3[1]["score"] if len(top3) > 1 else 0.0
     pred_crop = best["crop"]
     pred_disease = best["disease"]
     is_healthy = best["is_healthy"]
 
+    foliage_ratio = float(quality.get("foliage_like_ratio", quality.get("green_foliage_heuristic_ratio", 0.0)))
+    unrelated_image = foliage_ratio < 0.04 and top_score < 0.75
+    narrow_margin = top_score < 0.50 and (top_score - second_score) < 0.08
     crop_mismatch = bool(canonical_requested and canonical_requested.lower() != pred_crop.lower())
-    low_confidence = top_score < CONFIDENCE_THRESHOLD
+    low_confidence = top_score < CONFIDENCE_THRESHOLD or unrelated_image or narrow_margin
 
-    if low_confidence:
+    if unrelated_image:
+        status_str = "uncertain"
+        uncertainty_msg = (
+            "The uploaded image does not appear to show a clear crop leaf. Please upload a close-up photo of a single crop leaf in natural daylight."
+        )
+    elif low_confidence:
         status_str = "uncertain"
         uncertainty_msg = (
             "Unable to identify the disease reliably. Please upload another clear image or consult an agricultural expert."

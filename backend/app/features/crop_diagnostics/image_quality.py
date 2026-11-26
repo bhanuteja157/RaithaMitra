@@ -12,6 +12,7 @@ Image.MAX_IMAGE_PIXELS = 25_000_000  # Decompression bomb guard
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
 MIN_DIMENSION_PX = 120
+MIN_SHARPNESS_SUITABLE = 2.5
 
 
 def validate_image_bytes(
@@ -60,9 +61,12 @@ def decode_and_assess_quality(data: bytes) -> Tuple[Optional[Image.Image], Dict[
     gy = np.abs(np.diff(gray, axis=0)).mean()
     sharpness = float(gx + gy)
 
-    # Simple green-channel dominance ratio (heuristic only, not a validated leaf detector)
+    # Simple green & foliage-tone dominance ratios (heuristic only, not a validated leaf detector)
     r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
     green_ratio = float(np.mean((g > r * 1.02) & (g > b * 1.02)))
+    foliage_like_ratio = float(
+        np.mean(((g > r * 0.92) & (g > b * 1.02)) | ((r > b * 1.15) & (g > b * 1.05)))
+    )
 
     warnings = []
     if min(width, height) < MIN_DIMENSION_PX:
@@ -71,11 +75,13 @@ def decode_and_assess_quality(data: bytes) -> Tuple[Optional[Image.Image], Dict[
         warnings.append("Image appears very dark. Capture the leaf in natural daylight.")
     elif brightness > 235.0:
         warnings.append("Image appears overexposed. Avoid harsh direct glare on the leaf.")
-    if sharpness < 4.5:
-        warnings.append("Image appears blurry. Hold the camera steady and focus on the leaf.")
+    if sharpness < MIN_SHARPNESS_SUITABLE:
+        warnings.append("Image is too blurry for reliable diagnosis. Hold the camera steady and focus on the leaf.")
+    elif sharpness < 4.5:
+        warnings.append("Image appears slightly blurry. Hold the camera steady and focus on the leaf.")
 
     quality_label = "good"
-    if len(warnings) >= 2 or min(width, height) < 64:
+    if len(warnings) >= 2 or min(width, height) < 64 or sharpness < MIN_SHARPNESS_SUITABLE:
         quality_label = "poor"
     elif len(warnings) == 1:
         quality_label = "fair"
@@ -87,8 +93,13 @@ def decode_and_assess_quality(data: bytes) -> Tuple[Optional[Image.Image], Dict[
         "brightness_mean": round(brightness, 1),
         "sharpness_score": round(sharpness, 2),
         "green_foliage_heuristic_ratio": round(green_ratio, 3),
+        "foliage_like_ratio": round(foliage_like_ratio, 3),
         "quality_rating": quality_label,
-        "suitable_for_diagnosis": min(width, height) >= 64 and brightness >= 20.0,
+        "suitable_for_diagnosis": (
+            min(width, height) >= 64
+            and 20.0 <= brightness <= 245.0
+            and sharpness >= MIN_SHARPNESS_SUITABLE
+        ),
         "warnings": warnings,
         "capture_tips": [
             "Capture one affected leaf filling most of the frame.",
