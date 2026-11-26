@@ -92,7 +92,7 @@ export function CinematicHero() {
             style={{ transitionProperty: 'opacity, transform', transitionDuration: '1200ms' }}
           />
         ))}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/85 via-[#173C2B]/55 to-[#173C2B]/25" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/70 via-[#173C2B]/35 to-transparent" />
       </div>
 
       {/* Editorial Hero Content */}

@@ -170,7 +170,7 @@ export function OverviewCards() {
             <span className="text-xs font-semibold">{t('cropHealth')}</span>
             <HeartPulse className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400 truncate">
+          <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400 leading-snug break-words">
             {summary?.crop_health_status ? localizeCondition(summary.crop_health_status, language) : L.vigorous}
           </div>
           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">

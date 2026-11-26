@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useFarm } from '@/context/FarmContext';
 import { fetchNearbyNurseries, fetchNurseryProducts } from '@/lib/biointelApi';
-import { localizeCropName, formatLocalizedCurrency } from '@/lib/translations';
+import { localizeCropName, formatLocalizedCurrency, localizeAvailability } from '@/lib/translations';
 import { Nursery, NurseryProduct, Language } from '@/types';
 import {
   Store,
@@ -242,7 +242,7 @@ export function BioIntelNurseryFinder({
                     <div className="text-zinc-600 dark:text-zinc-400">
                       {L.supplier} {prod.nursery_name || L.verified} ·{' '}
                       <span className="text-emerald-700 font-medium">
-                        {prod.availability_status.replace(/_/g, ' ')}
+                        {localizeAvailability(prod.availability_status, language)}
                       </span>
                     </div>
                   </div>

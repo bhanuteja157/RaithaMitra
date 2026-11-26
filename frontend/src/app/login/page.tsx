@@ -489,15 +489,9 @@ export default function LoginPage() {
           <img
             src="/images/agriculture/indian-farmland-sunrise.jpg"
             alt="Aerial green agricultural fields"
-            className="w-full h-full object-cover object-center opacity-55 scale-105"
+            className="w-full h-full object-cover object-center opacity-85"
           />
-          <img
-            src="/images/agriculture/satellite-farmland.jpg"
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-overlay"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-sky-400/15 via-[#0b2b1d]/65 to-[#04110b]/95" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0b2b1d]/35 to-[#04110b]/75" />
         </div>
       </div>
 

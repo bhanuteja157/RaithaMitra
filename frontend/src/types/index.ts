@@ -131,6 +131,9 @@ export interface FarmRecommendation {
   title?: string;
   action: string;
   reason: string;
+  localized_title?: string;
+  localized_action?: string;
+  localized_reason?: string;
   supporting_data: SupportingData;
   alternative_action?: string;
   action_deadline?: string;

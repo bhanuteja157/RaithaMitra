@@ -444,7 +444,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       }
 
       // 3. Fetch centralized agronomic recommendations
-      const recRes = await fetch(`${backendUrl}/recommendations?farm_id=${activeFarm.id}`);
+      const recRes = await fetch(`${backendUrl}/recommendations?farm_id=${activeFarm.id}&lang=${language}`);
       if (recRes.ok && seq === fetchSeqRef.current) {
         const recData = await recRes.json();
         setRecommendations(recData);
@@ -592,7 +592,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchBackendData();
-  }, [currentFarmId]);
+  }, [currentFarmId, language]);
 
   const createFarm = async (data: FarmCreate): Promise<boolean> => {
     try {

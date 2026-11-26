@@ -21,7 +21,13 @@ import {
   BiotechCategoryType,
   Language,
 } from '@/types';
-import { localizeCropName, formatLocalizedCurrency, localizeCondition } from '@/lib/translations';
+import {
+  localizeCropName,
+  formatLocalizedCurrency,
+  localizeCondition,
+  localizeBioIntelCategory,
+  localizeBioIntelText,
+} from '@/lib/translations';
 
 const BIOINTEL_PAGE_I18N: Record<Language, {
   bannerTitle: string; bannerBadge: string; bannerSub: string; marketBtn: string;
@@ -630,13 +636,13 @@ export default function BioIntelPage() {
                       {L.decEngine}
                     </span>
                     <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 font-semibold">
-                      {recommendationsData.centralized_decision_payload.budget_compatibility}
+                      {localizeBioIntelText(recommendationsData.centralized_decision_payload.budget_compatibility, language)}
                     </span>
                   </div>
                   <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5">
                     {L.recVariety} <strong>{recommendationsData.centralized_decision_payload.recommended_crop_variety}</strong> |{' '}
-                    {L.intervention} {recommendationsData.centralized_decision_payload.biotechnology_intervention} |{' '}
-                    {L.evidence} {recommendationsData.centralized_decision_payload.evidence_strength}
+                    {L.intervention} {localizeBioIntelCategory(recommendationsData.centralized_decision_payload.biotechnology_intervention, language)} |{' '}
+                    {L.evidence} {localizeBioIntelText(recommendationsData.centralized_decision_payload.evidence_strength, language)}
                   </p>
                 </div>
               </div>
@@ -663,10 +669,10 @@ export default function BioIntelPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300">
-                          {rec.category_label}
+                          {localizeBioIntelCategory(rec.category_label, language)}
                         </span>
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300">
-                          {L.evidence} {rec.evidence_strength}
+                          {L.evidence} {localizeBioIntelText(rec.evidence_strength, language)}
                         </span>
                         {rec.is_established_practice && (
                           <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
@@ -684,7 +690,7 @@ export default function BioIntelPage() {
                         <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                           {formatLocalizedCurrency(rec.estimated_cost_inr, language)}
                         </div>
-                        <div className="text-[10px] text-zinc-400">{rec.estimated_cost_unit}</div>
+                        <div className="text-[10px] text-zinc-400">{localizeBioIntelText(rec.estimated_cost_unit, language)}</div>
                       </div>
                     )}
                   </div>
@@ -698,7 +704,7 @@ export default function BioIntelPage() {
                       {(rec.expected_agricultural_benefits || []).map((benefit, i) => (
                         <li key={i} className="flex items-start gap-1.5">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                          <span>{benefit}</span>
+                          <span>{localizeBioIntelText(benefit, language)}</span>
                         </li>
                       ))}
                     </ul>
@@ -708,15 +714,15 @@ export default function BioIntelPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl text-xs">
                     <div>
                       <span className="text-zinc-400 block text-[10px] font-semibold uppercase">{L.soilSuit}</span>
-                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{rec.suitable_soil_conditions}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{localizeBioIntelText(rec.suitable_soil_conditions, language)}</span>
                     </div>
                     <div>
                       <span className="text-zinc-400 block text-[10px] font-semibold uppercase">{L.waterReq}</span>
-                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{rec.water_requirements}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{localizeBioIntelText(rec.water_requirements, language)}</span>
                     </div>
                     <div>
                       <span className="text-zinc-400 block text-[10px] font-semibold uppercase">{L.pathogenProt}</span>
-                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{rec.disease_resistance || 'General bio-vigor'}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{localizeBioIntelText(rec.disease_resistance || 'General bio-vigor', language)}</span>
                     </div>
                   </div>
 
@@ -732,7 +738,7 @@ export default function BioIntelPage() {
                     <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-300 border border-amber-100 dark:border-amber-900/40">
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <strong>{L.agroLim}</strong> {rec.limitations}
+                        <strong>{L.agroLim}</strong> {localizeBioIntelText(rec.limitations, language)}
                       </div>
                     </div>
                   </div>
@@ -910,7 +916,7 @@ export default function BioIntelPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300">
-                    {v.category_label}
+                    {localizeBioIntelCategory(v.category_label, language)}
                   </span>
                   <h4 className="text-base font-bold text-zinc-900 dark:text-white mt-1">
                     {v.variety_name}

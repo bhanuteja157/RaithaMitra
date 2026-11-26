@@ -5,7 +5,12 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarm } from '@/context/FarmContext';
 import { fetchBiotechRecommendations } from '@/lib/biointelApi';
-import { localizeCropName, formatLocalizedCurrency } from '@/lib/translations';
+import {
+  localizeCropName,
+  formatLocalizedCurrency,
+  localizeBioIntelCategory,
+  localizeBioIntelText,
+} from '@/lib/translations';
 import { BiotechRecommendation, Language } from '@/types';
 import { Dna, Store, ChevronRight } from 'lucide-react';
 
@@ -116,14 +121,14 @@ export function BioIntelWidget() {
               className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-2.5 flex flex-col justify-between"
             >
               <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300">
-                  {rec.category_label}
+                <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300">
+                  {localizeBioIntelCategory(rec.category_label, language)}
                 </span>
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-white leading-snug">
                   {rec.variety_or_intervention_name}
                 </h3>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                  {rec.expected_agricultural_benefits[0] || rec.scientific_evidence}
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-3">
+                  {localizeBioIntelText(rec.expected_agricultural_benefits[0] || rec.scientific_evidence, language)}
                 </p>
               </div>
 

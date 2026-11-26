@@ -207,11 +207,11 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                       key={item.href}
                       href={item.href}
                       onClick={onClose}
-                      className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      className={`flex items-center justify-between px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
                         isActive
                           ? 'bg-rm-primary text-white shadow-sm'
                           : isFlagship
-                          ? 'text-zinc-900 dark:text-zinc-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold'
+                          ? 'text-zinc-900 dark:text-zinc-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
                           : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900'
                       }`}
                     >

@@ -3,7 +3,14 @@
 
 import React from 'react';
 import { useFarm } from '@/context/FarmContext';
-import { formatLocalizedCurrency } from '@/lib/translations';
+import {
+  formatLocalizedCurrency,
+  localizePriority,
+  localizeUrgency,
+  localizeCategory,
+  localizeCondition,
+  localizeRecommendationText,
+} from '@/lib/translations';
 import { Language } from '@/types';
 import {
   Compass,
@@ -93,9 +100,9 @@ export function ActionPlan() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
             {recommendations.conflicts_resolved.map((c, i) => (
               <div key={i} className="p-2.5 rounded-lg bg-white/80 dark:bg-zinc-900/80 border border-amber-200 dark:border-amber-900/50 space-y-1">
-                <div className="font-bold text-zinc-900 dark:text-white">{c.conflict_type}</div>
-                <div className="text-[11px] text-zinc-600 dark:text-zinc-400"><strong>{L.tradeoff}</strong> {c.tradeoff_analysis}</div>
-                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">✓ <strong>{L.resolution}</strong> {c.decision_outcome}</div>
+                <div className="font-bold text-zinc-900 dark:text-white">{localizeRecommendationText(c.conflict_type, language)}</div>
+                <div className="text-[11px] text-zinc-600 dark:text-zinc-400"><strong>{L.tradeoff}</strong> {localizeRecommendationText(c.tradeoff_analysis, language)}</div>
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">✓ <strong>{L.resolution}</strong> {localizeRecommendationText(c.decision_outcome, language)}</div>
               </div>
             ))}
           </div>
@@ -127,11 +134,11 @@ export function ActionPlan() {
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${priorityBadge}`}>
-                      {rec.priority} {L.priority}
+                      {localizePriority(rec.priority, language)} {L.priority}
                     </span>
                     {rec.urgency && (
                       <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                        {rec.urgency}
+                        {localizeUrgency(rec.urgency, language)}
                       </span>
                     )}
                     {rec.estimated_cost_inr !== undefined && (
@@ -139,22 +146,26 @@ export function ActionPlan() {
                         {L.estCost} {formatLocalizedCurrency(rec.estimated_cost_inr, language)}
                       </span>
                     )}
-                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 capitalize">
-                      {L.category} {rec.category.replace('_', ' ')}
+                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      {L.category} {localizeCategory(rec.category, language)}
                     </span>
                   </div>
 
                   <h3 className="text-base font-bold text-zinc-900 dark:text-white">
-                    {rec.action}
+                    {language !== 'en' && rec.localized_action && rec.localized_action !== rec.action
+                      ? rec.localized_action
+                      : localizeRecommendationText(rec.action, language)}
                   </h3>
 
                   <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                    {rec.reason}
+                    {language !== 'en' && rec.localized_reason && rec.localized_reason !== rec.reason
+                      ? rec.localized_reason
+                      : localizeRecommendationText(rec.reason, language)}
                   </p>
 
                   {/* Supporting Grounded Evidence Accordion Card */}
                   <div className="mt-3 p-3 rounded-lg bg-white/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800 text-xs space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold text-zinc-700 dark:text-zinc-300">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-zinc-700 dark:text-zinc-300">
                       <span>{t('evidenceGrounding')}:</span>
                       <span className="text-zinc-500 font-normal">
                         {t('uncertainty')}: <strong className="text-zinc-800 dark:text-zinc-200">{rec.supporting_data.uncertainty}</strong>
@@ -163,15 +174,15 @@ export function ActionPlan() {
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-600 dark:text-zinc-400">
                       <span>{L.source} <strong>{rec.supporting_data.source}</strong></span>
-                      <span>{L.quality} <strong className="uppercase">{rec.supporting_data.data_quality}</strong></span>
+                      <span>{L.quality} <strong className="uppercase">{localizeCondition(rec.supporting_data.data_quality, language)}</strong></span>
                     </div>
 
                     {rec.alternative_action && (
-                      <div className="pt-2 mt-2 border-t border-zinc-100 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 flex items-start gap-1.5">
+                      <div className="pt-2 mt-2 border-t border-zinc-100 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 flex flex-wrap items-start gap-1.5">
                         <span className="font-semibold text-rm-primary dark:text-rm-accent whitespace-nowrap">
                           {t('alternativeAction')}:
                         </span>
-                        <span>{rec.alternative_action}</span>
+                        <span>{localizeRecommendationText(rec.alternative_action, language)}</span>
                       </div>
                     )}
                   </div>

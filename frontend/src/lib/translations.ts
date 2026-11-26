@@ -6,6 +6,7 @@ import { MODULES_B_ENTRIES } from './i18n/modulesB';
 
 export * from './i18n/types';
 export * from './i18n/dynamicTerms';
+export * from './i18n/biointelAndRecs';
 
 export const ALL_ENTRIES: Record<string, QuadEntry> = {
   ...NAV_AUTH_ENTRIES,

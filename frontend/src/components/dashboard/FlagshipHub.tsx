@@ -146,7 +146,7 @@ export function FlagshipHub() {
                   <div className="text-[11px] font-semibold text-[#526B38] dark:text-emerald-400">
                     {f.tagline}
                   </div>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-3">
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                     {f.description}
                   </p>
                 </div>
@@ -174,7 +174,7 @@ export function FlagshipHub() {
             loading="lazy"
             className="absolute inset-0 w-full h-full object-cover rm-img-zoom"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/90 via-[#173C2B]/75 to-[#173C2B]/35" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#102D20]/75 via-[#173C2B]/40 to-transparent" />
           <div className="relative z-10 space-y-1.5 max-w-lg">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#C9A35C]">
               <MapPin className="w-3.5 h-3.5" /> {L.dfBadge}
