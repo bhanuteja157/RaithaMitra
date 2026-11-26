@@ -60,18 +60,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   if (currentUser.role === 'buyer') {
     navigationGroups = [
       {
-        title: "BUYER PORTAL",
+        title: t('buyerPortal'),
         items: [
-          { name: "Buyer Overview", href: '/dashboard/buyer', icon: LayoutDashboard, status: 'role', badge: 'Buyer' },
-          { name: "Browse Produce Lots", href: '/bidding', icon: ShoppingBag, status: 'flagship', badge: 'Flagship' },
-          { name: "Active Auctions & Bids", href: '/dashboard/buyer#bids', icon: Gavel, status: 'flagship' },
-          { name: "Confirmed Purchases", href: '/dashboard/buyer#orders', icon: ShieldCheck, status: 'operational' },
-          { name: "Delivery Tracking", href: '/transport', icon: Truck, status: 'flagship' },
-          { name: "Nursery Marketplace", href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: 'Bio-Market' },
+          { name: t('buyerOverview'), href: '/dashboard/buyer', icon: LayoutDashboard, status: 'role', badge: t('roleBuyer') },
+          { name: t('browseLots'), href: '/bidding', icon: ShoppingBag, status: 'flagship', badge: t('flagshipTag') },
+          { name: t('activeAuctions'), href: '/dashboard/buyer#bids', icon: Gavel, status: 'flagship' },
+          { name: t('confirmedPurchases'), href: '/dashboard/buyer#orders', icon: ShieldCheck, status: 'operational' },
+          { name: t('deliveryTracking'), href: '/transport', icon: Truck, status: 'flagship' },
+          { name: t('nurseryMarketplace'), href: '/nursery-marketplace', icon: Store, status: 'flagship', badge: t('bioMarketTag') },
         ],
       },
       {
-        title: "SYSTEM PREFERENCES",
+        title: t('systemPrefs'),
         items: [
           { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
           { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
@@ -81,16 +81,16 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   } else if (currentUser.role === 'labour') {
     navigationGroups = [
       {
-        title: "LABOUR PORTAL",
+        title: t('labourPortal'),
         items: [
-          { name: "Labour Overview", href: '/dashboard/labour', icon: HardHat, status: 'role', badge: 'Labour' },
-          { name: "Find Agricultural Work", href: '/labour', icon: Users2, status: 'flagship', badge: 'Flagship' },
-          { name: "My Jobs & Schedule", href: '/dashboard/labour#my-jobs', icon: CheckCircle2, status: 'operational' },
-          { name: "My Daily Earnings", href: '/dashboard/labour#earnings', icon: Coins, status: 'operational' },
+          { name: t('labourOverview'), href: '/dashboard/labour', icon: HardHat, status: 'role', badge: t('roleLabour') },
+          { name: t('findAgriWork'), href: '/labour', icon: Users2, status: 'flagship', badge: t('flagshipTag') },
+          { name: t('myJobsSchedule'), href: '/dashboard/labour#my-jobs', icon: CheckCircle2, status: 'operational' },
+          { name: t('myDailyEarnings'), href: '/dashboard/labour#earnings', icon: Coins, status: 'operational' },
         ],
       },
       {
-        title: "SYSTEM PREFERENCES",
+        title: t('systemPrefs'),
         items: [
           { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
           { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
@@ -100,18 +100,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   } else if (currentUser.role === 'driver') {
     navigationGroups = [
       {
-        title: "LOGISTICS CONSOLE",
+        title: t('driverConsole'),
         items: [
-          { name: "Driver Console", href: '/dashboard/driver', icon: Truck, status: 'role', badge: 'Driver' },
-          { name: "Find Agri Cargo Loads", href: '/transport', icon: Search, status: 'flagship', badge: 'Flagship' },
-          { name: "Booking Requests", href: '/dashboard/driver#requests', icon: Clock, status: 'operational' },
-          { name: "My Trips & Deliveries", href: '/dashboard/driver#trips', icon: CalendarCheck, status: 'operational' },
-          { name: "My Vehicle & Capacity", href: '/dashboard/driver#vehicle', icon: ShieldCheck, status: 'operational' },
-          { name: "My Freight Earnings", href: '/dashboard/driver#earnings', icon: Coins, status: 'operational' },
+          { name: t('driverConsoleTitle'), href: '/dashboard/driver', icon: Truck, status: 'role', badge: t('roleDriver') },
+          { name: t('findCargoLoads'), href: '/transport', icon: Search, status: 'flagship', badge: t('flagshipTag') },
+          { name: t('bookingRequests'), href: '/dashboard/driver#requests', icon: Clock, status: 'operational' },
+          { name: t('myTripsDeliveries'), href: '/dashboard/driver#trips', icon: CalendarCheck, status: 'operational' },
+          { name: t('myVehicleCapacity'), href: '/dashboard/driver#vehicle', icon: ShieldCheck, status: 'operational' },
+          { name: t('myFreightEarnings'), href: '/dashboard/driver#earnings', icon: Coins, status: 'operational' },
         ],
       },
       {
-        title: "SYSTEM PREFERENCES",
+        title: t('systemPrefs'),
         items: [
           { name: t('profile'), href: '/profile', icon: User, status: 'operational' },
           { name: t('settings'), href: '/settings', icon: Settings, status: 'operational' },
@@ -119,22 +119,22 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       },
     ];
   } else {
-    // Simplified Farmer Navigation (AD-16: 10 clean farmer-friendly entries)
+    // Unified Farmer Navigation (AD-16 / AD-32 / AD-38 / AD-40A) with uniform font-weight 600
     navigationGroups = [
       {
-        title: "FARMER WORKSPACE",
+        title: t('farmerWorkspace'),
         items: [
-          { name: "Home", href: '/', icon: LayoutDashboard, status: 'role' },
-          { name: "Seed-to-Sale Journey", href: '/journey', icon: Compass, status: 'flagship', badge: 'Lifecycle' },
-          { name: "BioIntel", href: '/biointel', icon: Dna, status: 'flagship', badge: 'Seeds' },
-          { name: "Digital Farm", href: '/digital-farming', icon: Layers, status: 'flagship', badge: 'Map & Twin' },
-          { name: "Farm Management", href: '/farm-management', icon: CloudSun, status: 'operational' },
-          { name: "Crop Health", href: '/crop-health', icon: Microscope, status: 'operational' },
-          { name: "Labour Connect", href: '/labour', icon: Users2, status: 'flagship', badge: 'Workers' },
-          { name: "Smart Bidding & Market", href: '/smart-market', icon: Gavel, status: 'flagship', badge: 'Sell' },
-          { name: "Transport Connect", href: '/transport', icon: Truck, status: 'flagship', badge: 'Transport' },
-          { name: "Finance & Benefits", href: '/finance-benefits', icon: Coins, status: 'operational' },
-          { name: "Profile & Settings", href: '/profile', icon: User, status: 'operational' },
+          { name: t('navHome'), href: '/', icon: LayoutDashboard, status: 'role' },
+          { name: t('navJourney'), href: '/journey', icon: Compass, status: 'flagship', badge: t('badgeLifecycle') },
+          { name: t('navBiointel'), href: '/biointel', icon: Dna, status: 'flagship', badge: t('badgeSeeds') },
+          { name: t('navDigitalFarm'), href: '/digital-farming', icon: Layers, status: 'flagship', badge: t('badgeMapTwin') },
+          { name: t('navFarmMgmt'), href: '/farm-management', icon: CloudSun, status: 'operational' },
+          { name: t('navCropHealth'), href: '/crop-health', icon: Microscope, status: 'operational' },
+          { name: t('navLabour'), href: '/labour', icon: Users2, status: 'flagship', badge: t('badgeWorkers') },
+          { name: t('navSmartMarket'), href: '/smart-market', icon: Gavel, status: 'flagship', badge: t('badgeSell') },
+          { name: t('navTransport'), href: '/transport', icon: Truck, status: 'flagship', badge: t('badgeTransport') },
+          { name: t('navFinanceBenefits'), href: '/finance-benefits', icon: Coins, status: 'operational' },
+          { name: t('navProfileSettings'), href: '/profile', icon: User, status: 'operational' },
         ],
       },
     ];
@@ -208,11 +208,11 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                       key={item.href}
                       href={item.href}
                       onClick={onClose}
-                      className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      className={`flex items-center justify-between px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
                         isActive
                           ? 'bg-rm-primary text-white shadow-sm'
                           : isFlagship
-                          ? 'text-zinc-900 dark:text-zinc-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold'
+                          ? 'text-zinc-900 dark:text-zinc-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
                           : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900'
                       }`}
                     >

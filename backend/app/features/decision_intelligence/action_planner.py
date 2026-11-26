@@ -19,10 +19,17 @@ def build_decision_graph(ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
     has_bid = len(ctx["bidding"]["active_listings"]) > 0
     outstanding = float(ctx["finance"]["outstanding_payments_inr"])
 
+    latest_diag = (ctx.get("crop_doctor") or {}).get("latest_diagnosis")
+    diag_detail = (
+        f"Latest AD-22 scan: {latest_diag.get('predicted_disease') or latest_diag.get('diagnosis_status')}"
+        if latest_diag
+        else "Verify actual field health via AD-22 Crop Doctor before chemical/harvest actions"
+    )
+
     return [
         {"step": 1, "node": "Crop Growth & Maturity", "status": "active", "detail": f"{ctx['farm'].primary_crop} ({ctx['farm'].crop_stage})", "depends_on": []},
         {"step": 2, "node": "Weather & Irrigation Check", "status": "ready" if wx_ok else "pending_data", "detail": f"48h Rain: {ctx['weather']['rain_48h_mm']} mm" if wx_ok else "Weather unavailable", "depends_on": [1]},
-        {"step": 3, "node": "Field Inspection / Crop Doctor", "status": "recommended", "detail": "Verify actual field health before chemical/harvest actions", "depends_on": [1, 2]},
+        {"step": 3, "node": "Field Inspection / Crop Doctor", "status": "ready" if latest_diag else "recommended", "detail": diag_detail, "depends_on": [1, 2]},
         {"step": 4, "node": "Equipment & Labour Prep", "status": "ready" if has_eq_bk else "pending_action", "detail": f"{len(ctx['equipment']['bookings'])} eq bookings, {len(ctx['labour']['open_jobs'])} labour jobs", "depends_on": [3]},
         {"step": 5, "node": "Harvest & Post-Harvest Inventory", "status": "ready" if has_lots else "pending_action", "detail": f"{ctx['post_harvest']['summary']['total_available_kg']:,.0f} kg available", "depends_on": [4]},
         {"step": 6, "node": "Market & Bidding Comparison", "status": "ready" if (has_lots and (has_mkt or has_bid)) else "blocked_by_prereq", "detail": f"{len(ctx['market']['observations'])} market obs, {len(ctx['bidding']['active_listings'])} active listings", "depends_on": [5]},
@@ -194,7 +201,40 @@ def build_prioritized_action_plan(
         },
     })
 
-    # 5. Monitoring & Crop Doctor Inspection Task
+    # 5. Monitoring & Crop Doctor Inspection Task (AD-22 Integrated)
+    crop_doc = ctx.get("crop_doctor") or {}
+    latest_diag = crop_doc.get("latest_diagnosis")
+    if latest_diag and latest_diag.get("diagnosis_status") == "diseased" and latest_diag.get("predicted_disease"):
+        pred_dis = latest_diag["predicted_disease"]
+        conf = latest_diag.get("confidence")
+        conf_txt = f" ({float(conf) * 100:.1f}% model confidence)" if conf is not None else ""
+        candidates.append({
+            "id": f"act_{uuid.uuid4().hex[:8]}",
+            "title": f"Targeted Management for {pred_dis}",
+            "description": f"AD-22 Crop Doctor detected {pred_dis} on {farm.primary_crop}{conf_txt}. Review ICAR-grounded treatment guidance and confirm before spraying.",
+            "category": "crop_protection",
+            "priority": "critical",
+            "action_group": "immediate_attention",
+            "route": "/crop-health",
+            "estimated_cost_inr": 650.0,
+            "estimated_benefit_inr": 4500.0,
+            "profit_score": 82,
+            "cost_saving_score": 70,
+            "water_score": 60,
+            "risk_reduction_score": 98,
+            "dependencies": ["AD-22 Crop Doctor Scan"],
+            "explanation": {
+                "what": f"Inspect affected plants and apply targeted treatment for {pred_dis}.",
+                "why": f"Verified leaf scan on {(latest_diag.get('created_at') or '')[:10]} flagged {pred_dis}{conf_txt}.",
+                "modules_contributed": ["AD-22 AI Crop Doctor", "AD-24 Financial Ledger"],
+                "data_used": f"Scan ID {latest_diag.get('id')} ({latest_diag.get('diagnosis_status')}).",
+                "alternatives_considered": ["Blanket fungicide/bactericide spray without targeted diagnosis."],
+                "assumptions": ["Visual leaf symptoms represent active field infection."],
+                "what_could_change": "Expert agronomic verification or lab assay.",
+                "unavailable_info": "In-situ spore trap / laboratory PCR confirmation.",
+            },
+        })
+
     sat_msg = (
         f"Cached NDVI {sat['ndvi']:.3f} ({sat['acquisition_date'][:10]})."
         if sat and sat.get("ndvi") is not None
@@ -218,12 +258,12 @@ def build_prioritized_action_plan(
         "explanation": {
             "what": "Perform physical crop scouting and upload leaf photos if symptoms appear.",
             "why": "Early visual detection avoids unnecessary blanket spraying.",
-            "modules_contributed": ["AD-25 Satellite", "AD-22 Crop Doctor Adapter"],
+            "modules_contributed": ["AD-25 Satellite", "AD-22 AI Crop Doctor"],
             "data_used": sat_msg,
             "alternatives_considered": ["Preventive chemical spray without diagnosis (discouraged)."],
             "assumptions": ["Visual inspection covers representative field corners."],
             "what_could_change": "Confirmation of pest/pathogen symptoms.",
-            "unavailable_info": "AD-22 ML disease classifier & AD-26 community surveillance.",
+            "unavailable_info": "None for AD-22" if crop_doc.get("model_available") else "AD-22 ONNX model weights not loaded locally.",
         },
     })
 

@@ -4,14 +4,14 @@ Implements driver & vehicle registration, search & filtering by capacity and dis
 direct booking requests, state machine transitions, prefill from Smart Bidding,
 and shared transportation optimization via Google OR-Tools.
 """
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import uuid
 from datetime import datetime, timezone
 
 from backend.app.db.database import get_db_connection
-from backend.app.features.auth.router import verify_user_role_in_db
+from backend.app.features.auth.security import require_roles, resolve_authenticated_user
 
 router = APIRouter(prefix="/transport", tags=["Transport Connect"])
 
@@ -78,9 +78,16 @@ def search_drivers(min_capacity_kg: Optional[float] = None, vehicle_type: Option
     return drivers
 
 @router.post("/vehicles")
-def register_vehicle(veh: VehicleRegister):
-    if not verify_user_role_in_db(veh.driver_id, ["driver", "admin"]):
-        raise HTTPException(status_code=403, detail="Unauthorized: Only registered drivers can register transport vehicles")
+def register_vehicle(veh: VehicleRegister, authorization: Optional[str] = Header(None)):
+    user = require_roles(
+        authorization,
+        ["driver"],
+        detail="Unauthorized: Only registered drivers can register transport vehicles",
+    )
+    if user["role"] != "admin" and veh.driver_id and veh.driver_id != user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized: Cannot register a vehicle for another driver.")
+    actor_id = user["id"]
+    actor_name = user.get("name") or veh.driver_name
     conn = get_db_connection()
     cursor = conn.cursor()
     veh_id = f"veh_{uuid.uuid4().hex[:6]}"
@@ -94,17 +101,24 @@ def register_vehicle(veh: VehicleRegister):
         capacity_kg = excluded.capacity_kg,
         base_fare_per_km = excluded.base_fare_per_km,
         service_area = excluded.service_area
-    """, (veh_id, veh.driver_id, veh.driver_name, veh.driver_phone, veh.vehicle_type, veh.vehicle_reg_number, veh.capacity_kg, veh.base_fare_per_km, veh.service_area))
+    """, (veh_id, actor_id, actor_name, veh.driver_phone, veh.vehicle_type, veh.vehicle_reg_number, veh.capacity_kg, veh.base_fare_per_km, veh.service_area))
     
     conn.commit()
-    created = cursor.execute("SELECT * FROM transport_vehicles WHERE driver_id = ?", (veh.driver_id,)).fetchone()
+    created = cursor.execute("SELECT * FROM transport_vehicles WHERE driver_id = ?", (actor_id,)).fetchone()
     conn.close()
     return dict(created)
 
 @router.post("/bookings", status_code=status.HTTP_201_CREATED)
-def create_booking(booking: BookingCreate):
-    if not verify_user_role_in_db(booking.farmer_id, ["farmer", "buyer", "admin"]):
-        raise HTTPException(status_code=403, detail="Unauthorized: Only registered farmers or buyers can book transport")
+def create_booking(booking: BookingCreate, authorization: Optional[str] = Header(None)):
+    user = require_roles(
+        authorization,
+        ["farmer", "buyer"],
+        detail="Unauthorized: Only registered farmers or buyers can book transport",
+    )
+    if user["role"] != "admin" and booking.farmer_id and booking.farmer_id != user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized: Cannot create transport bookings for another user.")
+    actor_id = user["id"]
+    actor_name = user.get("name") or booking.farmer_name
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -127,7 +141,7 @@ def create_booking(booking: BookingCreate):
         vehicle_type, estimated_distance_km, total_fare, status, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'requested', ?, ?)
     """, (
-        booking_id, booking.farmer_id, booking.farmer_name, booking.driver_id, booking.driver_name,
+        booking_id, actor_id, actor_name, booking.driver_id, booking.driver_name,
         booking.driver_phone, booking.purchase_order_id, booking.produce_type, booking.weight_kg,
         booking.pickup_location, booking.delivery_destination, booking.pickup_time,
         booking.vehicle_type, booking.estimated_distance_km, booking.total_fare, now, now
@@ -143,30 +157,39 @@ def create_booking(booking: BookingCreate):
     return dict(created)
 
 @router.get("/bookings")
-def list_bookings(user_id: Optional[str] = None, role: Optional[str] = None):
+def list_bookings(user_id: Optional[str] = None, role: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    user = resolve_authenticated_user(authorization)
     conn = get_db_connection()
     cursor = conn.cursor()
     query = "SELECT * FROM transport_bookings"
     params = []
-    
-    if user_id:
-        if role == "driver":
-            query += " WHERE driver_id = ?"
-            params.append(user_id)
-        elif role == "farmer":
-            query += " WHERE farmer_id = ?"
-            params.append(user_id)
-        else:
-            query += " WHERE farmer_id = ? OR driver_id = ?"
-            params.extend([user_id, user_id])
-            
+
+    if user["role"] == "admin":
+        if user_id:
+            if role == "driver":
+                query += " WHERE driver_id = ?"
+                params.append(user_id)
+            elif role == "farmer":
+                query += " WHERE farmer_id = ?"
+                params.append(user_id)
+            else:
+                query += " WHERE farmer_id = ? OR driver_id = ?"
+                params.extend([user_id, user_id])
+    else:
+        if user_id and user_id != user["id"]:
+            conn.close()
+            raise HTTPException(status_code=403, detail="Unauthorized: Cannot view another user's transport bookings.")
+        query += " WHERE farmer_id = ? OR driver_id = ?"
+        params.extend([user["id"], user["id"]])
+
     query += " ORDER BY created_at DESC"
     rows = cursor.execute(query, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 @router.patch("/bookings/{booking_id}/status")
-def update_booking_status(booking_id: str, payload: StatusUpdate):
+def update_booking_status(booking_id: str, payload: StatusUpdate, authorization: Optional[str] = Header(None)):
+    user = resolve_authenticated_user(authorization)
     VALID_TRANSITIONS = {
         "requested": ["accepted", "rejected"],
         "accepted": ["pickup_scheduled", "cancelled"],
@@ -181,6 +204,19 @@ def update_booking_status(booking_id: str, payload: StatusUpdate):
     if not booking:
         conn.close()
         raise HTTPException(status_code=404, detail="Booking not found")
+
+    if user["role"] != "admin":
+        is_driver = booking["driver_id"] == user["id"]
+        is_farmer = booking["farmer_id"] == user["id"]
+        if not (is_driver or is_farmer):
+            conn.close()
+            raise HTTPException(status_code=403, detail="Unauthorized: You are not assigned to this transport booking.")
+        if payload.status in ("accepted", "rejected", "pickup_scheduled", "picked_up", "in_transit", "delivered") and not is_driver:
+            conn.close()
+            raise HTTPException(status_code=403, detail="Unauthorized: Only the assigned driver can update transit status.")
+        if payload.status == "cancelled" and not (is_farmer or is_driver):
+            conn.close()
+            raise HTTPException(status_code=403, detail="Unauthorized: Only the booking owner or driver can cancel.")
         
     cur_status = booking["status"]
     new_status = payload.status

@@ -3,7 +3,7 @@ Flagship 1: Labour Connect.
 Implements complete agricultural labour discovery, job posting, application,
 hiring confirmation, wage recording, and worker-job matching.
 """
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import uuid
@@ -11,7 +11,7 @@ import json
 from datetime import datetime, timezone
 
 from backend.app.db.database import get_db_connection
-from backend.app.features.auth.router import verify_user_role_in_db
+from backend.app.features.auth.security import require_roles, resolve_authenticated_user, verify_farm_ownership_row
 
 router = APIRouter(prefix="/labour", tags=["Labour Connect"])
 
@@ -59,11 +59,23 @@ def list_jobs(status_filter: Optional[str] = "open", job_type: Optional[str] = N
     return [dict(r) for r in rows]
 
 @router.post("/jobs", status_code=status.HTTP_201_CREATED)
-def create_job(job: JobCreate):
-    if not verify_user_role_in_db(job.farmer_id, ["farmer", "admin"]):
-        raise HTTPException(status_code=403, detail="Unauthorized: Only registered farmers can post agricultural jobs")
+def create_job(job: JobCreate, authorization: Optional[str] = Header(None)):
+    user = require_roles(
+        authorization,
+        ["farmer"],
+        detail="Unauthorized: Only registered farmers can post agricultural jobs",
+    )
+    if user["role"] != "admin" and job.farmer_id and job.farmer_id != user["id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: Cannot post agricultural jobs on behalf of another user.",
+        )
+    actor_id = user["id"]
+    actor_name = user.get("name") or job.farmer_name
     conn = get_db_connection()
     cursor = conn.cursor()
+    if job.farm_id:
+        verify_farm_ownership_row(cursor, job.farm_id, actor_id, user["role"])
     job_id = f"job_{uuid.uuid4().hex[:6]}"
     now = datetime.now(timezone.utc).isoformat()
     
@@ -71,7 +83,7 @@ def create_job(job: JobCreate):
     INSERT INTO labour_jobs (id, farmer_id, farmer_name, farm_id, title, job_type, crop_type, work_location, work_date, working_hours, wage_per_day, required_workers, hired_workers_count, status, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'open', ?)
     """, (
-        job_id, job.farmer_id, job.farmer_name, job.farm_id, job.title, job.job_type,
+        job_id, actor_id, actor_name, job.farm_id, job.title, job.job_type,
         job.crop_type, job.work_location, job.work_date, job.working_hours, job.wage_per_day,
         job.required_workers, now
     ))
@@ -102,9 +114,21 @@ def get_job_details(job_id: str):
     return res
 
 @router.post("/jobs/{job_id}/apply")
-def apply_for_job(job_id: str, labour_id: str = Query(...), labour_name: str = Query("Basavaraj Koravara")):
-    if not verify_user_role_in_db(labour_id, ["labour", "admin"]):
-        raise HTTPException(status_code=403, detail="Unauthorized: Only registered agricultural labourers can apply for jobs")
+def apply_for_job(
+    job_id: str,
+    labour_id: Optional[str] = Query(None),
+    labour_name: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+):
+    user = require_roles(
+        authorization,
+        ["labour"],
+        detail="Unauthorized: Only registered agricultural labourers can apply for jobs",
+    )
+    if user["role"] != "admin" and labour_id and labour_id != user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized: Cannot apply on behalf of another worker.")
+    actor_id = user["id"]
+    actor_name = labour_name or user.get("name") or "Agricultural Worker"
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -117,7 +141,7 @@ def apply_for_job(job_id: str, labour_id: str = Query(...), labour_name: str = Q
         raise HTTPException(status_code=400, detail="This job is no longer accepting applications")
         
     # Check duplicate application
-    existing = cursor.execute("SELECT id FROM labour_applications WHERE job_id = ? AND labour_id = ?", (job_id, labour_id)).fetchone()
+    existing = cursor.execute("SELECT id FROM labour_applications WHERE job_id = ? AND labour_id = ?", (job_id, actor_id)).fetchone()
     if existing:
         conn.close()
         raise HTTPException(status_code=400, detail="You have already applied for this job")
@@ -128,13 +152,18 @@ def apply_for_job(job_id: str, labour_id: str = Query(...), labour_name: str = Q
     cursor.execute("""
     INSERT INTO labour_applications (id, job_id, labour_id, labour_name, status, applied_at, wages_earned)
     VALUES (?, ?, ?, ?, 'applied', ?, 0.0)
-    """, (app_id, job_id, labour_id, labour_name, now))
+    """, (app_id, job_id, actor_id, actor_name, now))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Application submitted successfully", "application_id": app_id}
 
 @router.post("/jobs/{job_id}/accept/{labour_id}")
-def accept_application(job_id: str, labour_id: str):
+def accept_application(job_id: str, labour_id: str, authorization: Optional[str] = Header(None)):
+    user = require_roles(
+        authorization,
+        ["farmer"],
+        detail="Unauthorized: Only the job-owning farmer can accept applications",
+    )
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -142,6 +171,9 @@ def accept_application(job_id: str, labour_id: str):
     if not job:
         conn.close()
         raise HTTPException(status_code=404, detail="Job not found")
+    if user["role"] != "admin" and job["farmer_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Unauthorized: You can only accept workers for your own job.")
         
     if job["hired_workers_count"] >= job["required_workers"]:
         conn.close()
@@ -163,13 +195,21 @@ def accept_application(job_id: str, labour_id: str):
     return {"status": "success", "message": "Worker hired successfully", "hired_count": new_hired, "job_status": new_job_status}
 
 @router.post("/jobs/{job_id}/complete")
-def complete_job(job_id: str):
+def complete_job(job_id: str, authorization: Optional[str] = Header(None)):
+    user = require_roles(
+        authorization,
+        ["farmer"],
+        detail="Unauthorized: Only the job-owning farmer can mark a job completed",
+    )
     conn = get_db_connection()
     cursor = conn.cursor()
     job = cursor.execute("SELECT * FROM labour_jobs WHERE id = ?", (job_id,)).fetchone()
     if not job:
         conn.close()
         raise HTTPException(status_code=404, detail="Job not found")
+    if user["role"] != "admin" and job["farmer_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Unauthorized: You can only complete your own labour job.")
         
     # Mark accepted applications as completed and credit earnings
     wage = job["wage_per_day"]
@@ -201,10 +241,14 @@ def list_workers(skill: Optional[str] = None):
     return workers
 
 @router.get("/my-profile")
-def get_my_profile(user_id: str = "usr_labour"):
+def get_my_profile(user_id: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    user = require_roles(authorization, ["labour"], detail="Unauthorized: Restricted to registered workers.")
+    target_id = user_id if (user["role"] == "admin" and user_id) else user["id"]
+    if user["role"] != "admin" and user_id and user_id != user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized: Cannot access another worker's profile.")
     conn = get_db_connection()
     cursor = conn.cursor()
-    row = cursor.execute("SELECT * FROM labour_profiles WHERE user_id = ?", (user_id,)).fetchone()
+    row = cursor.execute("SELECT * FROM labour_profiles WHERE user_id = ?", (target_id,)).fetchone()
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="Labour profile not found")
@@ -213,7 +257,11 @@ def get_my_profile(user_id: str = "usr_labour"):
     return res
 
 @router.get("/my-jobs")
-def get_my_jobs(labour_id: str = "usr_labour"):
+def get_my_jobs(labour_id: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    user = require_roles(authorization, ["labour"], detail="Unauthorized: Restricted to registered workers.")
+    target_id = labour_id if (user["role"] == "admin" and labour_id) else user["id"]
+    if user["role"] != "admin" and labour_id and labour_id != user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized: Cannot access another worker's job applications.")
     conn = get_db_connection()
     cursor = conn.cursor()
     apps = cursor.execute("""
@@ -223,6 +271,6 @@ def get_my_jobs(labour_id: str = "usr_labour"):
     JOIN labour_jobs j ON a.job_id = j.id
     WHERE a.labour_id = ?
     ORDER BY a.applied_at DESC
-    """, (labour_id,)).fetchall()
+    """, (target_id,)).fetchall()
     conn.close()
     return [dict(a) for a in apps]

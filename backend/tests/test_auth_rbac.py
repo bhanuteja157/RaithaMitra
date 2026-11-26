@@ -157,8 +157,11 @@ def test_session_token_and_logout():
 
 
 def test_rbac_privilege_escalation_rejected():
+    buyer_headers = {"Authorization": "Bearer rm_demo_token_buyer"}
+    farmer_headers = {"Authorization": "Bearer rm_demo_token_farmer"}
+
     # 1. Non-farmer (buyer1) cannot post agricultural job
-    r_post_job = client.post("/api/v1/labour/jobs", json={
+    r_post_job = client.post("/api/v1/labour/jobs", headers=buyer_headers, json={
         "farmer_id": "usr_buyer1",
         "farmer_name": "Bengaluru Fresh Foods Co",
         "title": "Unauthorized Job",
@@ -174,7 +177,7 @@ def test_rbac_privilege_escalation_rejected():
     assert "Only registered farmers" in r_post_job.json()["detail"]
 
     # 2. Non-buyer (farmer) cannot submit bidding offer
-    r_bid = client.post("/api/v1/bidding/listings/list_001/bid", json={
+    r_bid = client.post("/api/v1/bidding/listings/list_001/bid", headers=farmer_headers, json={
         "buyer_id": "usr_farmer",
         "buyer_name": "Suresh Gowda",
         "bid_per_kg": 35.0
@@ -183,6 +186,6 @@ def test_rbac_privilege_escalation_rejected():
     assert "Only registered buyers" in r_bid.json()["detail"]
 
     # 3. Non-labour (buyer) cannot apply for agricultural labour job
-    r_apply = client.post("/api/v1/labour/jobs/job_001/apply?labour_id=usr_buyer1&labour_name=FakeLabour")
+    r_apply = client.post("/api/v1/labour/jobs/job_001/apply?labour_id=usr_buyer1&labour_name=FakeLabour", headers=buyer_headers)
     assert r_apply.status_code == 403
     assert "Only registered agricultural labourers" in r_apply.json()["detail"]

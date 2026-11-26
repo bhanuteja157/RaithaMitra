@@ -41,6 +41,11 @@ export default function SmartBiddingPage() {
     bidding_deadline: "2026-11-28T18:00:00Z"
   });
 
+  const getAuthHeaders = (): Record<string, string> => {
+    const t = typeof window !== 'undefined' ? localStorage.getItem('rm_token') : null;
+    return t ? { Authorization: `Bearer ${t}` } : {};
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -53,7 +58,7 @@ export default function SmartBiddingPage() {
           fetchListingDetails(lData[0].id);
         }
       }
-      const ordersRes = await fetch(`${backendUrl}/bidding/orders`);
+      const ordersRes = await fetch(`${backendUrl}/bidding/orders`, { headers: getAuthHeaders() });
       if (ordersRes.ok) setOrders(await ordersRes.json());
     } catch (e) {
       console.warn("Bidding fetch error:", e);
@@ -86,7 +91,7 @@ export default function SmartBiddingPage() {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/bidding/listings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           farmer_id: currentUser.id,
           farmer_name: currentUser.name,
@@ -111,7 +116,7 @@ export default function SmartBiddingPage() {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/bidding/listings/${selectedListing.id}/bid`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           buyer_id: currentUser.id,
           buyer_name: currentUser.name,
@@ -137,7 +142,8 @@ export default function SmartBiddingPage() {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/bidding/listings/${listingId}/confirm?farmer_id=${currentUser.id}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         const confirmed = await res.json().catch(() => null);

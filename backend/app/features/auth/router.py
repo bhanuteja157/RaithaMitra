@@ -3,7 +3,7 @@ Feature: Authentication & Role-Based Access Control (RBAC).
 Provides registration, login, user profiling, session management, and quick demo switching for judging.
 Enforces password hashing (SHA-256 + Salt) and role authorization checks.
 """
-from fastapi import APIRouter, HTTPException, Header, Depends, status
+from fastapi import APIRouter, HTTPException, Header, Depends, Request, status
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, Literal, List
 import uuid
@@ -11,7 +11,7 @@ import hashlib
 import secrets
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from backend.app.db.database import get_db_connection, normalize_phone_e164
 from backend.app.features.auth.otp_service import (
@@ -21,6 +21,13 @@ from backend.app.features.auth.otp_service import (
     mask_phone,
     verify_submitted_otp,
 )
+from backend.app.features.auth.security import (
+    check_rate_limit,
+    is_demo_auth_allowed,
+    is_production_env,
+)
+
+SESSION_TTL_DAYS = 7
 
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
@@ -125,7 +132,9 @@ class UserResponse(BaseModel):
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(user_in: UserRegister):
+def register(user_in: UserRegister, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(f"auth_register:{client_ip}", max_requests=30, window_seconds=60)
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -181,12 +190,13 @@ def register(user_in: UserRegister):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
         """, (veh_id, user_id, user_in.name, user_in.phone, veh_type, reg_num, cap, fare, service_area))
         
-    # Create persistent session token
+    # Create persistent session token with explicit expiry
     session_token = f"rm_token_{user_id}_{secrets.token_hex(12)}"
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)).isoformat()
     cursor.execute("""
-    INSERT INTO user_sessions (token, user_id, role, created_at)
-    VALUES (?, ?, ?, ?)
-    """, (session_token, user_id, user_in.role, now))
+    INSERT INTO user_sessions (token, user_id, role, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+    """, (session_token, user_id, user_in.role, now, expires_at))
     
     conn.commit()
     row = cursor.execute("""
@@ -206,7 +216,9 @@ def register(user_in: UserRegister):
 
 
 @router.post("/login")
-def login(credentials: UserLogin):
+def login(credentials: UserLogin, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(f"auth_login:{client_ip}", max_requests=60, window_seconds=60)
     conn = get_db_connection()
     cursor = conn.cursor()
     user = cursor.execute("""
@@ -237,11 +249,12 @@ def login(credentials: UserLogin):
         cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (migrated_hash, user["id"]))
         
     now = datetime.now(timezone.utc).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)).isoformat()
     session_token = f"rm_token_{user['id']}_{secrets.token_hex(12)}"
     cursor.execute("""
-    INSERT INTO user_sessions (token, user_id, role, created_at)
-    VALUES (?, ?, ?, ?)
-    """, (session_token, user["id"], user["role"], now))
+    INSERT INTO user_sessions (token, user_id, role, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+    """, (session_token, user["id"], user["role"], now, expires_at))
     conn.commit()
     conn.close()
     
@@ -284,10 +297,23 @@ def get_current_user(authorization: Optional[str] = Header(None)):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    session = cursor.execute("SELECT user_id, role FROM user_sessions WHERE token = ?", (token,)).fetchone()
+    session = cursor.execute("SELECT user_id, role, expires_at FROM user_sessions WHERE token = ?", (token,)).fetchone()
     if not session:
         conn.close()
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
+
+    if session["expires_at"]:
+        try:
+            exp_dt = datetime.fromisoformat(session["expires_at"])
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+            if exp_dt < datetime.now(timezone.utc):
+                cursor.execute("DELETE FROM user_sessions WHERE token = ?", (token,))
+                conn.commit()
+                conn.close()
+                raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
+        except ValueError:
+            pass
         
     user = cursor.execute("""
     SELECT id, email, name, phone, role, preferred_language, village, district, state, created_at
@@ -318,7 +344,12 @@ def logout(authorization: Optional[str] = Header(None)):
 
 @router.get("/demo-accounts")
 def get_demo_accounts():
-    """Returns safe demonstration accounts for 1-click judging evaluation."""
+    """Returns demonstration account metadata (never passwords) in non-production dev/test mode only."""
+    if is_production_env() or not is_demo_auth_allowed():
+        raise HTTPException(
+            status_code=403,
+            detail="Demo accounts are disabled in production environments.",
+        )
     conn = get_db_connection()
     phone_by_id = {}
     try:
@@ -335,7 +366,6 @@ def get_demo_accounts():
             "role": "farmer",
             "name": "Suresh Gowda",
             "email": "farmer@raithamitra.in",
-            "password": "farmer123",
             "phone": phone_by_id.get("usr_farmer", ""),
             "description": "Mandya Organic Farmer (Tomato, Drip, 2.5 ha)",
             "redirect_url": "/"
@@ -345,7 +375,6 @@ def get_demo_accounts():
             "role": "buyer",
             "name": "Bengaluru Fresh Foods Co",
             "email": "buyer1@raithamitra.in",
-            "password": "buyer123",
             "phone": phone_by_id.get("usr_buyer1", ""),
             "description": "APMC Licensed Wholesale Buyer A",
             "redirect_url": "/dashboard/buyer"
@@ -355,7 +384,6 @@ def get_demo_accounts():
             "role": "buyer",
             "name": "Mysuru Organic Retail Ltd",
             "email": "buyer2@raithamitra.in",
-            "password": "buyer123",
             "phone": phone_by_id.get("usr_buyer2", ""),
             "description": "Retail Supermarket Chain Buyer B",
             "redirect_url": "/dashboard/buyer"
@@ -365,7 +393,6 @@ def get_demo_accounts():
             "role": "labour",
             "name": "Basavaraj Koravara",
             "email": "labour@raithamitra.in",
-            "password": "labour123",
             "phone": phone_by_id.get("usr_labour", ""),
             "description": "Skilled Agricultural Worker (Harvesting, Sowing)",
             "redirect_url": "/dashboard/labour"
@@ -375,7 +402,6 @@ def get_demo_accounts():
             "role": "driver",
             "name": "Manjunath Transport",
             "email": "driver@raithamitra.in",
-            "password": "driver123",
             "phone": phone_by_id.get("usr_driver", ""),
             "description": "Local Goods Carrier (Tata Ace, 1500kg Capacity)",
             "redirect_url": "/dashboard/driver"
@@ -438,7 +464,9 @@ def _build_user_response(row) -> dict:
 
 
 @router.post("/otp/send")
-async def send_otp(payload: OtpSendRequest):
+async def send_otp(payload: OtpSendRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(f"otp_send:{client_ip}", max_requests=30, window_seconds=60)
     try:
         phone_norm = normalize_phone_e164(payload.phone, payload.country_code)
     except ValueError as exc:
@@ -458,7 +486,9 @@ async def send_otp(payload: OtpSendRequest):
 
 
 @router.post("/otp/verify")
-async def verify_otp(payload: OtpVerifyRequest):
+async def verify_otp(payload: OtpVerifyRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(f"otp_verify:{client_ip}", max_requests=40, window_seconds=60)
     try:
         phone_norm = normalize_phone_e164(payload.phone, payload.country_code)
     except ValueError as exc:
@@ -486,9 +516,10 @@ async def verify_otp(payload: OtpVerifyRequest):
                     (existing["id"],),
                 )
             session_token = f"rm_token_{existing['id']}_{secrets.token_hex(12)}"
+            expires_at = (datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)).isoformat()
             cursor.execute(
-                "INSERT INTO user_sessions (token, user_id, role, created_at) VALUES (?, ?, ?, ?)",
-                (session_token, existing["id"], existing["role"], now),
+                "INSERT INTO user_sessions (token, user_id, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+                (session_token, existing["id"], existing["role"], now, expires_at),
             )
             conn.commit()
             refreshed = cursor.execute(
@@ -615,9 +646,10 @@ def register_with_otp(payload: OtpRegisterRequest):
             )
 
         session_token = f"rm_token_{user_id}_{secrets.token_hex(12)}"
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)).isoformat()
         cursor.execute(
-            "INSERT INTO user_sessions (token, user_id, role, created_at) VALUES (?, ?, ?, ?)",
-            (session_token, user_id, payload.role, now),
+            "INSERT INTO user_sessions (token, user_id, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+            (session_token, user_id, payload.role, now, expires_at),
         )
         conn.commit()
 

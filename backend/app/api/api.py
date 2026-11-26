@@ -14,6 +14,8 @@ from backend.app.features.market_intelligence import router as market_router
 from backend.app.features.decision_intelligence import router as decision_router
 from backend.app.features.synchronization import router as sync_router
 from backend.app.features.journey import router as journey_router
+from backend.app.features.crop_diagnostics import router as crop_diagnostics_router
+from backend.app.features.satellite_monitoring import router as satellite_monitoring_router
 
 api_router = APIRouter()
 
@@ -48,3 +50,6 @@ api_router.include_router(market_router.router)
 api_router.include_router(decision_router.router)
 api_router.include_router(sync_router.router)
 api_router.include_router(journey_router.router)
+api_router.include_router(crop_diagnostics_router)
+api_router.include_router(satellite_monitoring_router)
+

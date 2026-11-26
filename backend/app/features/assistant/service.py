@@ -39,6 +39,50 @@ from backend.app.features.assistant.tool_registry import TOOL_METADATA, execute_
 from backend.app.services.http_client import fetch_json_with_resilience
 
 
+from backend.app.features.assistant.gemini_voice import generate_gemini_text
+from backend.app.features.assistant.general_qa import generate_general_or_followup_reply
+
+
+def _resolve_navigation_target(message: str, role: str) -> Dict[str, str]:
+    q = (message or "").lower()
+    if any(w in q for w in ("crop doctor", "leaf scan", "diagnostics", "disease", "crop health", "ರೋಗ", "रोग", "తెగులు")):
+        route = "/crop-health?section=diagnostics"
+        label = "Crop Doctor & Health Diagnostics"
+    elif any(w in q for w in ("digital farm", "simulation", "growth", "ಡಿಜಿಟಲ್", "सिमुलेशन", "డిజిటల్")):
+        route = "/digital-farming"
+        label = "Digital Farming Simulator"
+    elif any(w in q for w in ("biointel", "seed planner", "seed investment", "ಬಯೋಇಂಟೆಲ್", "बायोइंटेल", "బయోఇంటెల్")):
+        route = "/biointel"
+        label = "BioIntel Seed Investment Planner"
+    elif any(w in q for w in ("today's market", "todays market", "market price", "mandi", "ಮಾರುಕಟ್ಟೆ", "मंडी", "మార్కెట్")):
+        route = "/smart-market?section=today_prices"
+        label = "Smart Market — Today's Prices"
+    elif any(w in q for w in ("buyer", "direct sale", "ಖರೀದಿದಾರ", "खरीदार", "కొనుగోలుదారు")):
+        route = "/smart-market?section=find_buyers"
+        label = "Smart Market — Find Buyers"
+    elif any(w in q for w in ("bidding", "auction", "ಬಿಡ್ಡಿಂಗ್", "बोली", "బిడ్డింగ్")):
+        route = "/smart-market?section=auction"
+        label = "Smart Market — Auction & Bidding"
+    elif any(w in q for w in ("financ", "ledger", "expense", "profit", "ಹಣಕಾಸು", "वित्त", "ఆర్థిక")):
+        route = "/finance-benefits?section=finance" if role in ("farmer", "admin") else "/"
+        label = "Financial Intelligence"
+    elif any(w in q for w in ("decision", "today", "priority", "ನಿರ್ಧಾರ", "निर्णय", "నిర్ణయ")):
+        route = "/decision-intelligence" if role in ("farmer", "admin") else "/"
+        label = "Centralized Decision Intelligence"
+    elif any(w in q for w in ("post harvest", "post-harvest", "storage", "packaging", "passport")):
+        route = "/post-harvest"
+        label = "Post-Harvest & Cold-Chain"
+    elif any(w in q for w in ("dashboard", "home", "ಡ್ಯಾಶ್", "डैशबोर्ड", "డ్యాష్")):
+        role_dash = {"farmer": "/", "buyer": "/dashboard/buyer", "labour": "/dashboard/labour", "driver": "/dashboard/driver"}
+        route = role_dash.get(role, "/")
+        label = f"{role.title()} Dashboard"
+    else:
+        role_dash = {"farmer": "/", "buyer": "/dashboard/buyer", "labour": "/dashboard/labour", "driver": "/dashboard/driver"}
+        route = role_dash.get(role, "/")
+        label = "RaithaMitra Workspace"
+    return {"route": route, "label": label}
+
+
 async def _synthesize_with_gemini(
     *,
     user_message: str,
@@ -63,22 +107,8 @@ async def _synthesize_with_gemini(
         f"Tool used ({tool_name} — {provenance}):\n{json.dumps(tool_data, default=str)[:2500]}\n"
         "Write a clear, helpful 2–4 sentence response grounded strictly in this data."
     )
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-    data = await fetch_json_with_resilience(
-        provider_key="gemini_assistant",
-        url=url,
-        method="POST",
-        json_body={"contents": [{"parts": [{"text": prompt}]}]},
-        timeout_s=6.0,
-        max_retries=1,
-        cache_ttl_s=0,
-    )
-    candidates = (data or {}).get("candidates", [])
-    if candidates:
-        parts = candidates[0].get("content", {}).get("parts", [])
-        if parts and parts[0].get("text"):
-            return parts[0]["text"].strip()
-    return None
+    res = await generate_gemini_text(prompt=prompt, timeout_ms=10000)
+    return res[0] if res else None
 
 
 def _localized_prompt(key: str, lang: SupportedLang, **kw: Any) -> str:
@@ -188,8 +218,34 @@ def _build_local_reply(
         if lang == "hi":
             return f"{comm} बाजार जानकारी: {price_txt} परिवहन खर्च के बाद शुद्ध लाभ की तुलना के लिए /market-intelligence खोलें।"
         if lang == "te":
-            return f"{comm} మార్కెట్ సమాచారం: {price_txt} రవాణా ఖర్చు తర్వాత నికర ఆదాయాన్ని పోల్చడానికి /market-intelligence తెరవండి."
-        return f"{price_txt} Open /market-intelligence to compare transportation-adjusted net returns across markets or import AGMARKNET CSV data."
+            return f"{comm} మార్కెట్ సమాచారం: {price_txt} రవాణా ఖర్చు తర్వాత నికర ఆదాయాన్ని పోల్చడానికి /smart-market తెరవండి."
+        return f"{price_txt} Open /smart-market?section=today_prices to compare transportation-adjusted net returns across markets."
+
+    if intent == "buyer_discovery_query":
+        comm = d.get("crop", "Tomato")
+        cnt = d.get("count", 0)
+        buyers = d.get("buyers", [])
+        top_txt = f" Top match: {buyers[0]['business_name']} ({buyers[0]['district']})." if buyers else ""
+        if lang == "kn":
+            return f"{comm} ಗಾಗಿ {cnt} ನೋಂದಾಯಿತ ಖರೀದಿದಾರರು ಲಭ್ಯವಿದ್ದಾರೆ.{top_txt} ನೇರ ಮಾರಾಟಕ್ಕಾಗಿ /smart-market?section=find_buyers ತೆರೆಯಿರಿ."
+        if lang == "hi":
+            return f"{comm} के लिए {cnt} पंजीकृत खरीदार मिले हैं।{top_txt} सीधी बिक्री के लिए /smart-market?section=find_buyers खोलें।"
+        if lang == "te":
+            return f"{comm} కోసం {cnt} నమోదిత కొనుగోలుదారులు ఉన్నారు.{top_txt} /smart-market?section=find_buyers తెరవండి."
+        return f"Found {cnt} registered buyer(s) interested in {comm}.{top_txt} Open /smart-market?section=find_buyers to send a direct sale proposal."
+
+    if intent == "packaging_query":
+        comm = d.get("crop_name", "Tomato")
+        units = d.get("recommended_units_count", 0)
+        cost = d.get("estimated_packaging_cost_inr", 0)
+        temp = d.get("target_temperature_guidance", "")
+        if lang == "kn":
+            return f"{comm} ಪ್ಯಾಕೇಜಿಂಗ್ ಅಂದಾಜು: {units} ಘಟಕಗಳು ಅಗತ್ಯವಿದೆ (ಅಂದಾಜು ವೆಚ್ಚ ₹{cost:,.0f}, ತಾಪಮಾನ: {temp}). ವಿವರಗಳಿಗಾಗಿ /post-harvest ತೆರೆಯಿರಿ."
+        if lang == "hi":
+            return f"{comm} पैकेजिंग अनुमान: {units} यूनिट आवश्यक हैं (अनुमानित लागत ₹{cost:,.0f}, तापमान: {temp})। /post-harvest खोलें।"
+        if lang == "te":
+            return f"{comm} ప్యాకేజింగ్ అంచనా: {units} యూనిట్లు అవసరం (అంచనా ఖర్చు ₹{cost:,.0f}, ఉష్ణోగ్రత: {temp}). /post-harvest తెరవండి."
+        return f"Packaging estimate for {comm}: {units} crate/bag units needed (est. ₹{cost:,.0f}, target {temp}). Open /post-harvest for full layers and QR passport."
 
     if intent == "equipment_query":
         cnt = d.get("available_count", 0)
@@ -421,6 +477,85 @@ async def handle_assistant_chat(
     classified = classify_intent(message, user["role"])
     intent = classified["intent"]
 
+    # Handle incremental BioIntel voice/chat form controls ("Select tomato", "Set my budget to ₹50,000", "Calculate my cultivation investment")
+    if intent == "biointel_slot":
+        if user["role"] not in ("farmer", "admin"):
+            reply_text = "Seed investment planning is restricted to Farmer accounts."
+            messages = (messages + [{"role": "user", "text": message}, {"role": "assistant", "text": reply_text}])[-30:]
+            _save_conversation(cursor, conv_id, user["user_id"], None, lang, message[:48], messages, None, now_iso)
+            return AssistantChatResponse(
+                conversation_id=conv_id,
+                reply=reply_text,
+                language=lang,
+                mode="local_intelligence",
+                intent=intent,
+                provenance="RBAC Authorization Check",
+            )
+
+        existing_form = pending_task if (pending_task and pending_task.get("kind") in ("biointel_form", "biointel_plan")) else {}
+        default_area = round(float(farm["land_area_ha"]) * 2.471, 1) if farm and farm.get("land_area_ha") else 2.0
+        default_budget = float(farm["cultivation_budget_inr"]) if farm and farm.get("cultivation_budget_inr") else 50000.0
+        draft = {
+            "kind": "biointel_form",
+            "crop": classified.get("crop") or existing_form.get("crop") or (farm["primary_crop"] if farm else "Tomato"),
+            "area_acres": classified.get("area_acres") if classified.get("area_acres") is not None else (existing_form.get("area_acres") or default_area),
+            "budget_inr": classified.get("budget_inr") if classified.get("budget_inr") is not None else (existing_form.get("budget_inr") or default_budget),
+            "water": classified.get("water") or existing_form.get("water") or "Moderate",
+        }
+        if classified.get("auto_generate"):
+            tool_res = await execute_tool(
+                "generate_seed_investment_plan",
+                cursor=cursor,
+                user=user,
+                farm=farm,
+                params=draft,
+                conversation_id=conv_id,
+            )
+            reply_text = _build_local_reply("biointel_plan", lang, tool_res, user["role"], draft)
+            messages = (messages + [{"role": "user", "text": message}, {"role": "assistant", "text": reply_text}])[-30:]
+            _save_conversation(cursor, conv_id, user["user_id"], farm["id"] if farm else None, lang, message[:48], messages, None, now_iso)
+            return AssistantChatResponse(
+                conversation_id=conv_id,
+                reply=reply_text,
+                language=lang,
+                mode="local_intelligence",
+                intent=intent,
+                tools_used=["generate_seed_investment_plan"],
+                provenance=tool_res["provenance"],
+                sources=tool_res.get("sources", []),
+                cards=tool_res.get("cards", []),
+                client_directive=tool_res.get("client_directive"),
+            )
+
+        partial_payload: Dict[str, Any] = {"userId": user["user_id"], "autoGenerate": False}
+        if classified.get("crop"):
+            partial_payload["crop"] = classified["crop"]
+        if classified.get("area_acres") is not None:
+            partial_payload["areaAcres"] = classified["area_acres"]
+        if classified.get("budget_inr") is not None:
+            partial_payload["budgetInr"] = classified["budget_inr"]
+        if classified.get("water"):
+            partial_payload["waterAvailability"] = classified["water"]
+
+        reply_map = {
+            "kn": f"BioIntel ನವೀಕರಿಸಲಾಗಿದೆ — ಬೆಳೆ: {draft['crop']}, ವಿಸ್ತೀರ್ಣ: {draft['area_acres']} ಎಕರೆ, ಬಜೆಟ್: ₹{draft['budget_inr']:,.0f}. 'Calculate my cultivation investment' ಎಂದು ಹೇಳಿ.",
+            "hi": f"BioIntel अपडेट किया गया — फसल: {draft['crop']}, क्षेत्रफल: {draft['area_acres']} एकड़, बजट: ₹{draft['budget_inr']:,.0f}। 'Calculate my cultivation investment' कहें।",
+            "te": f"BioIntel నవీకరించబడింది — పంట: {draft['crop']}, విస్తీర్ణం: {draft['area_acres']} ఎకరాలు, బడ్జెట్: ₹{draft['budget_inr']:,.0f}. 'Calculate my cultivation investment' అని చెప్పండి.",
+            "en": f"Updated BioIntel planner — Crop: {draft['crop']}, Area: {draft['area_acres']} acres, Budget: ₹{draft['budget_inr']:,.0f}. Say 'Calculate my cultivation investment' to run the full calculation.",
+        }
+        reply_text = reply_map[lang]
+        messages = (messages + [{"role": "user", "text": message}, {"role": "assistant", "text": reply_text}])[-30:]
+        _save_conversation(cursor, conv_id, user["user_id"], farm["id"] if farm else None, lang, message[:48], messages, draft, now_iso)
+        return AssistantChatResponse(
+            conversation_id=conv_id,
+            reply=reply_text,
+            language=lang,
+            mode="local_intelligence",
+            intent=intent,
+            provenance="BioIntel Incremental Form Control",
+            client_directive={"directive_type": "biointel_fill", "route": "/biointel", "payload": partial_payload},
+        )
+
     # Start multiturn BioIntel planning if user intends crop planning
     if intent == "biointel_plan":
         if user["role"] not in ("farmer", "admin"):
@@ -476,6 +611,8 @@ async def handle_assistant_chat(
         "post_harvest_query": ("get_post_harvest_intelligence", {"crop": classified.get("crop")}),
         "equipment_query": ("get_equipment_intelligence", {"crop": classified.get("crop")}),
         "market_intelligence_query": ("get_market_intelligence", {"crop": classified.get("crop")}),
+        "buyer_discovery_query": ("discover_buyers_tool", {"crop": classified.get("crop"), "weight_kg": classified.get("weight_kg")}),
+        "packaging_query": ("get_packaging_recommendation", {"crop": classified.get("crop"), "weight_kg": classified.get("weight_kg")}),
         "decision_intelligence_query": ("get_farm_decision_summary", {}),
         "crop_journey_query": ("get_active_crop_journey", {"crop": classified.get("crop")}),
         "schemes": ("find_government_schemes", {}),
@@ -483,16 +620,44 @@ async def handle_assistant_chat(
     }
 
     if intent not in tool_map:
-        reply_text = _build_local_reply(intent, lang, {"authorized": True, "data": {}}, user["role"], {})
+        if intent == "navigate":
+            target = _resolve_navigation_target(message, user["role"])
+            nav_msg = {
+                "kn": f"{target['label']} ತೆರೆಯಲಾಗುತ್ತಿದೆ.",
+                "hi": f"{target['label']} खोला जा रहा है।",
+                "te": f"{target['label']} తెరుస్తోంది.",
+                "en": f"Opening {target['label']}.",
+            }[lang]
+            messages = (messages + [{"role": "user", "text": message}, {"role": "assistant", "text": nav_msg}])[-30:]
+            _save_conversation(cursor, conv_id, user["user_id"], farm["id"] if farm else None, lang, message[:48], messages, None, now_iso)
+            return AssistantChatResponse(
+                conversation_id=conv_id,
+                reply=nav_msg,
+                language=lang,
+                mode="local_intelligence",
+                intent="navigate",
+                provenance="Role-Authorized Voice Navigation",
+                client_directive={"directive_type": "navigate", "route": target["route"], "payload": {"route": target["route"], "label": target["label"]}},
+            )
+
+        eff_lang = classified.get("target_lang") or lang
+        reply_text, mode_val, prov_val = await generate_general_or_followup_reply(
+            intent=intent,
+            message=message,
+            eff_lang=eff_lang,
+            role=user["role"],
+            farm=farm,
+            history=messages,
+        )
         messages = (messages + [{"role": "user", "text": message}, {"role": "assistant", "text": reply_text}])[-30:]
-        _save_conversation(cursor, conv_id, user["user_id"], farm["id"] if farm else None, lang, message[:48], messages, None, now_iso)
+        _save_conversation(cursor, conv_id, user["user_id"], farm["id"] if farm else None, eff_lang, message[:48], messages, None, now_iso)
         return AssistantChatResponse(
             conversation_id=conv_id,
             reply=reply_text,
-            language=lang,
-            mode="local_intelligence",
+            language=eff_lang,
+            mode=mode_val,
             intent=intent,
-            provenance="Local Intelligence Mode",
+            provenance=prov_val,
         )
 
     tool_name, tool_params = tool_map[intent]

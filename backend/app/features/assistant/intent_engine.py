@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Optional
 
+from backend.app.features.assistant.gemini_voice import detect_spoken_language
 from backend.app.features.assistant.schemas import SupportedLang
 
 SPOKEN_NUMBERS: Dict[str, int] = {
@@ -44,23 +45,21 @@ CROP_ALIASES = [
     ("Groundnut", ["groundnut", "peanut", "ಕಡಲೆಕಾಯಿ", "मूंगफली", "వేరుశెనగ"]),
     ("Cotton", ["cotton", "ಹತ್ತಿ", "कपास", "పత్తి"]),
     ("Sugarcane", ["sugarcane", "ಕಬ್ಬು", "गन्ना", "చెరకు"]),
-    ("Onion", ["onion", "ಈರುಳ್ಳಿ", "प्याज", "ఉల్లిపాయ"]),
-    ("Potato", ["potato", "ಆಲೂಗಡ್ಡೆ", "आलू", "బంగాళాదుంప"]),
+    ("Onion", ["onion", "onions", "ಈರುಳ್ಳಿ", "प्याज", "ఉల్లిపాయ"]),
+    ("Potato", ["potato", "potatoes", "ಆಲೂಗಡ್ಡೆ", "आलू", "బంగాళాదుంప"]),
+    ("Green Chilli", ["green chilli", "green chillies", "green chili", "ಹಸಿರು ಮೆಣಸಿನಕಾಯಿ", "हरी मिर्च", "పచ్చి మిర్చి"]),
+    ("Dry Chilli", ["dry chilli", "dry chillies", "red chilli", "ಒಣ ಮೆಣಸಿನಕಾಯಿ", "लाल मिर्च", "ఎండు మిర్చి"]),
+    ("Capsicum", ["capsicum", "bell pepper", "ದೊಡ್ಡ ಮೆಣಸಿನಕಾಯಿ", "शिमला मिर्च"]),
+    ("Black Pepper", ["black pepper", "ಕರಿಮೆಣಸು", "काली मिर्च"]),
+    ("White Pepper", ["white pepper"]),
     ("Chilli", ["chilli", "chili", "ಮೆಣಸಿನಕಾಯಿ", "मिर्च", "మిర్చి"]),
     ("Banana", ["banana", "ಬಾಳೆ", "केला", "అరటి"]),
 ]
 
 
 def detect_language(text: str, preferred: Optional[str] = None) -> SupportedLang:
-    if re.search(r"[\u0C80-\u0CFF]", text):
-        return "kn"
-    if re.search(r"[\u0900-\u097F]", text):
-        return "hi"
-    if re.search(r"[\u0C00-\u0C7F]", text):
-        return "te"
-    if preferred in ("en", "kn", "hi", "te"):
-        return preferred  # type: ignore[return-value]
-    return "en"
+    lang, _ = detect_spoken_language(text, preferred=preferred)
+    return lang
 
 
 def extract_crop(text: str) -> Optional[str]:
@@ -118,7 +117,7 @@ def extract_budget_inr(text: str) -> Optional[float]:
                     if re.search(rf"(?:^|\s){re.escape(num_word)}\s*{re.escape(w)}", q):
                         return float(val * mult)
 
-    raw = re.search(r"(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये|రూపాయలు)?", q)
+    raw = re.search(r"(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?!kg|kgs|kilo|kilogram|kilograms|ton|tons|tonne|tonnes|quintal|quintals|qtl|acre|acres|ha|hectare|km)(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये|రూపాయలు)?\b", q)
     if raw:
         val = float(raw.group(1).replace(",", ""))
         if val >= 500:
@@ -170,8 +169,21 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
     workers = extract_workers_count(q)
     price_drop = extract_price_drop_pct(q)
 
-    # 1. Digital Farm simulation controls
+    # 0. Explicit target language detection (for "Explain that in Kannada", etc.)
+    target_lang: Optional[str] = None
+    if re.search(r"\b(in kannada|to kannada|kannada)\b|ಕನ್ನಡದಲ್ಲಿ|ಕನ್ನಡ|कन्नड़ में|కన్నడలో", q):
+        target_lang = "kn"
+    elif re.search(r"\b(in hindi|to hindi|hindi)\b|ಹಿಂದಿಯಲ್ಲಿ|हिंदी में|हिन्दी में|హిందీలో", q):
+        target_lang = "hi"
+    elif re.search(r"\b(in telugu|to telugu|telugu)\b|ತೆಲುಗಿನಲ್ಲಿ|तेलुगु में|తెలుగులో|తెలుగు", q):
+        target_lang = "te"
+    elif re.search(r"\b(in english|to english|english)\b|ಇಂಗ್ಲಿಷ್|अंग्रेजी|ఇంగ్లీష్", q):
+        target_lang = "en"
+
+    # 1. Digital Farm simulation controls vs opening workspace
     if any(w in q for w in ("simulation", "digital farm", "crop growth")) or re.match(r"^(play|pause|resume|explain harvest)", q):
+        if re.search(r"\b(open|go to|navigate|take me)\b", q) and not re.search(r"\b(start|play|pause|stop|resume|run|harvest)\b", q):
+            return {"intent": "navigate", "route_hint": "digital-farming"}
         action = "summary"
         if re.search(r"\b(pause|stop)\b", q):
             action = "pause"
@@ -181,11 +193,27 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
             action = "play"
         return {"intent": "digital_farm_control", "action": action}
 
+    # 1b. Incremental BioIntel Voice Form Control ("Select tomato", "Set my budget to ₹50,000", "Calculate my cultivation investment")
+    if (
+        re.search(r"\b(set|change|update|make)\s+(?:my\s+)?(budget|area|land|crop|water)\b", q)
+        or (re.match(r"^(?:select|choose|pick)\s+", q) and (crop is not None or water is not None))
+        or any(w in q for w in ("cultivation investment", "calculate my cultivation", "calculate investment", "seed investment"))
+    ):
+        auto_gen = bool(re.search(r"\b(calculate|generate|compute|run|estimate)\b", q))
+        return {
+            "intent": "biointel_slot",
+            "crop": crop,
+            "area_acres": area_acres,
+            "budget_inr": budget_inr,
+            "water": water,
+            "auto_generate": auto_gen,
+        }
+
     # 2. Financial what-if & AD-24 live finance queries
     if price_drop is not None or ("what if" in q and any(w in q for w in ("price", "profit", "cost"))):
         return {"intent": "finance_what_if", "price_drop_pct": price_drop or 20.0}
 
-    if any(w in q for w in ("spent", "expenditure", "expense", "expenses", "remaining budget", "budget", "profit", "roi", "break-even", "break even", "outstanding", "payment", "payments", "ಖರ್ಚು", "ಬಜೆಟ್", "ಲಾಭ", "खर्च", "बजट", "लाभ", "ఖర్చు", "బడ్జెట్", "లాభం")):
+    if any(w in q for w in ("financial summary", "finance summary", "financial", "income", "revenue", "ledger", "spent", "expenditure", "expense", "expenses", "remaining budget", "budget", "profit", "roi", "break-even", "break even", "outstanding", "payment", "payments", "ಖರ್ಚು", "ಬಜೆಟ್", "ಲಾಭ", "खर्च", "बजट", "लाभ", "ఖర్చు", "బడ్జెట్", "లాభం")):
         # Distinguish planning with budget ("I have 2 acres and 50000 budget, grow tomato") vs querying recorded finance
         if not (crop or area_acres or any(w in q for w in ("grow", "plant", "plan", "variety", "ಸಸಿ", "उगाना", "పెంచాలి"))):
             return {"intent": "finance_query"}
@@ -212,9 +240,17 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
     if any(w in q for w in ("tractor", "rotavator", "harvester", "thresher", "sprayer", "drone", "seed drill", "transplanter", "machinery", "equipment", "share a tractor", "shared rental", "ಟ್ರ್ಯಾಕ್ಟರ್", "ಯಂತ್ರ", "ट्रैक्टर", "मशीन", "ట్రాక్టర్", "యంత్రం")):
         return {"intent": "equipment_query", "crop": crop}
 
-    # 4e. Market Intelligence & Price Prediction (AD-29)
-    if any(w in q for w in ("market price", "mandi", "agmarknet", "modal price", "price forecast", "next week", "where should i sell", "best market", "best price", "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ", "ಮಂಡಿ", "मंडी भाव", "बाजार भाव", "మార్కెట్ ధర", "మండి")):
+    # 4e. Market Intelligence & Price Prediction (AD-29 / AD-38)
+    if any(w in q for w in ("market price", "mandi", "agmarknet", "modal price", "price forecast", "next week", "where should i sell", "best market", "best price", "chilli price", "tomato price", "onion price", "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ", "ಮಂಡಿ", "मंडी भाव", "बाजार भाव", "మార్కెట్ ధర", "మండి")):
         return {"intent": "market_intelligence_query", "crop": crop}
+
+    # 4e2. Registered Buyer Discovery (AD-38 / AD-39)
+    if any(w in q for w in ("who wants to buy", "find buyers", "registered buyers", "buy my", "buyers for", "ಖರೀದಿದಾರರು", "खरीदार", "కొనుగోలుదారులు")):
+        return {"intent": "buyer_discovery_query", "crop": crop, "weight_kg": weight_kg}
+
+    # 4e3. Packaging & Cold-Chain Intelligence (AD-38 / AD-39)
+    if any(w in q for w in ("how should i pack", "pack my", "packaging", "crate", "cold chain", "ಪ್ಯಾಕೇಜಿಂಗ್", "पैकेजिंग", "ప్యాకేజింగ్")):
+        return {"intent": "packaging_query", "crop": crop, "weight_kg": weight_kg or 1000.0}
 
     # 4f. Centralized Decision Intelligence & Daily Action Plan (AD-30)
     if any(w in q for w in ("what should i do", "daily action", "action plan", "biggest risk", "farm risk", "explain decision", "why did you recommend", "decision summary", "ನನ್ನ ಜಮೀನಿನಲ್ಲಿ ಇಂದು", "आज खेत में", "ఈ రోజు పొలంలో")):
@@ -228,8 +264,8 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
     if any(w in q for w in ("irrigate", "irrigation", "water today", "water my", "rain", "weather", "forecast", "climate", "ನೀರಾವರಿ", "ಹವಾಮಾನ", "ಮಳೆ", "सिंचाई", "मौसम", "बारिश", "నీటిపారుదల", "వాతావరణం")):
         return {"intent": "irrigation_weather"}
 
-    # 6. Soil & Nutrients
-    if any(w in q for w in ("soil", "npk", "fertilizer", "ph", "ಮಣ್ಣು", "ಗೊಬ್ಬರ", "मिट्टी", "खाद", "నేల", "ఎరువు")):
+    # 6. Soil & Nutrients (use word-boundary for 'ph' so words like 'photosynthesis' never collide)
+    if any(w in q for w in ("soil", "npk", "fertilizer", "ಮಣ್ಣು", "ಗೊಬ್ಬರ", "मिट्टी", "खाद", "నేల", "ఎరువు")) or re.search(r"\bph\b", q):
         return {"intent": "soil"}
 
     # 7. Scientific research / BioIntel literature
@@ -284,7 +320,26 @@ def classify_intent(text: str, role: str) -> Dict[str, Any]:
         return {"intent": "crop_recommend"}
 
     # 13. Explicit navigation
-    if any(w in q for w in ("open ", "go to ", "navigate ", "show me ")):
+    if any(w in q for w in ("open ", "go to ", "navigate ", "show me ", "take me", "back to", "go back", "today's market", "todays market", "today market")):
+        if any(w in q for w in ("today's market", "todays market", "today market", "market price", "mandi")):
+            return {"intent": "market_intelligence_query", "crop": crop}
         return {"intent": "navigate"}
 
-    return {"intent": "general_agri", "crop": crop}
+    # 14. Conversational Follow-up ("Explain that in Kannada", "Tell me more", "Repeat that")
+    is_followup_phrase = bool(
+        re.search(r"\b(that|this|it|more|again|simply|repeat|elaborate|summarize|translate)\b", q)
+        or (target_lang and len(q.split()) <= 7)
+    )
+    has_direct_science_topic = any(
+        kw in q for kw in ("photosynthesis", "chlorophyll", "soil ph", "drip irrigation", "crop rotation", "mulch", "vermicompost", "npk")
+    )
+    if target_lang and is_followup_phrase and not has_direct_science_topic:
+        return {"intent": "followup_context", "target_lang": target_lang}
+    if re.match(r"^(explain (?:that|this|more|it)|tell me more|repeat that|elaborate|translate|say that)\b", q):
+        return {"intent": "followup_context", "target_lang": target_lang}
+
+    # 15. General Agricultural & Educational Q&A ("Explain photosynthesis", "What is...", etc.)
+    if any(w in q for w in ("explain", "what is", "how does", "how do", "why do", "define", "photosynthesis", "soil ph", "npk", "crop rotation")) or target_lang:
+        return {"intent": "general_question", "crop": crop, "target_lang": target_lang}
+
+    return {"intent": "general_agri", "crop": crop, "target_lang": target_lang}

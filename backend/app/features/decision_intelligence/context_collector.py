@@ -17,6 +17,11 @@ from backend.app.db.database import get_db_connection
 from backend.app.engines.biophysical import calculate_crop_water_demand, estimate_root_zone_moisture
 from backend.app.engines.decision_engine import decision_engine
 from backend.app.features.assistant.security import verify_authorized_farm
+from backend.app.features.crop_diagnostics.model_registry import check_model_availability as check_ad22_model
+from backend.app.features.crop_diagnostics.service import (
+    get_surveillance_summary,
+    get_user_diagnostic_history,
+)
 from backend.app.features.decision_intelligence.evidence_registry import make_evidence
 from backend.app.features.equipment.booking import list_user_bookings
 from backend.app.features.equipment.service import discover_equipment, get_equipment_financial_summary
@@ -67,8 +72,8 @@ async def collect_unified_farm_context(
             soil_type=str(farm_row.get("soil_type") or "Loamy"),
             irrigation_method=farm_row.get("irrigation_method") or "Drip Irrigation",
             water_source=farm_row.get("water_source") or "Borewell",
-            available_water_m3=float(farm_row.get("available_water_m3") or 10000.0),
-            cultivation_budget_inr=float(farm_row.get("cultivation_budget_inr") or 50000.0),
+            available_water_m3=float(farm_row["available_water_m3"]) if farm_row.get("available_water_m3") is not None else 0.0,
+            cultivation_budget_inr=float(farm_row["cultivation_budget_inr"]) if farm_row.get("cultivation_budget_inr") is not None else 0.0,
             created_at=farm_row.get("created_at") or now_iso,
             updated_at=farm_row.get("updated_at") or now_iso,
         )
@@ -91,6 +96,14 @@ async def collect_unified_farm_context(
                 (user_id,),
             ).fetchall()
         ]
+        available_workers_row = cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM labour_profiles WHERE availability_status = 'available'"
+        ).fetchone()
+        available_workers_count = int(available_workers_row["cnt"] if available_workers_row else 0)
+        available_vehicles_row = cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM transport_vehicles WHERE availability_status = 'available'"
+        ).fetchone()
+        available_vehicles_count = int(available_vehicles_row["cnt"] if available_vehicles_row else 0)
     finally:
         conn.close()
 
@@ -271,11 +284,59 @@ async def collect_unified_farm_context(
             limitations="DATA_GOV_IN_API_KEY not configured and no CSV/manual price entered for this crop.",
         ))
 
-    # 7. Crop Doctor (AD-22) & Disease Surveillance (AD-26) Read-Only Adapters
-    diag_status = diagnostics_service.check_model_availability()
-    if not diag_status.get("available"):
+    # 7. Crop Doctor (AD-22) & Community Disease Surveillance
+    ad22_status = check_ad22_model()
+    ad22_available = bool(ad22_status.get("model_available"))
+    diag_history = get_user_diagnostic_history(user_id, limit=5)
+    farm_diags = [d for d in diag_history if d.get("farm_id") in (farm_id, None)]
+    latest_diag = farm_diags[0] if farm_diags else None
+
+    if latest_diag:
+        evidence.append(make_evidence(
+            farm_id=farm_id,
+            source_module="crop_doctor",
+            source_provider=f"AD-22 {ad22_status.get('model_name', 'ONNX Plant Disease Classifier')}",
+            observed_value={
+                "diagnosis_status": latest_diag.get("diagnosis_status"),
+                "predicted_disease": latest_diag.get("predicted_disease"),
+                "confidence": latest_diag.get("confidence"),
+            },
+            unit="classification",
+            classification="model_prediction",
+            data_quality="verified_scan",
+            freshness=(latest_diag.get("created_at") or "")[:10] or "current",
+            observation_timestamp=latest_diag.get("created_at"),
+            applicable_crop=latest_diag.get("predicted_crop") or farm_model.primary_crop,
+            limitations="Visual leaf classification does not replace laboratory pathology confirmation.",
+        ))
+    elif not ad22_available:
         unavailable_modules.append("crop_doctor_ad22")
-    unavailable_modules.append("disease_surveillance_ad26")
+        evidence.append(make_evidence(
+            farm_id=farm_id,
+            source_module="crop_doctor",
+            source_provider="AD-22 ONNX Classifier",
+            observed_value="Crop Doctor model unavailable and no diagnostic scans recorded",
+            unit=None,
+            classification="unavailable",
+            data_quality="unavailable",
+            freshness="unavailable",
+        ))
+
+    surveillance_reports = get_surveillance_summary()
+    if surveillance_reports:
+        evidence.append(make_evidence(
+            farm_id=farm_id,
+            source_module="disease_surveillance",
+            source_provider="AD-22 Community Disease Reports",
+            observed_value={"active_reports_count": len(surveillance_reports)},
+            unit="reports",
+            classification="user_entered",
+            data_quality="community_unverified",
+            freshness="current",
+            limitations="Community reports are farmer-submitted and require local verification.",
+        ))
+    else:
+        unavailable_modules.append("disease_surveillance_ad26")
 
     return {
         "farm": farm_model,
@@ -295,10 +356,12 @@ async def collect_unified_farm_context(
         "equipment": {"listings": eq_listings, "bookings": eq_bookings, "financial": eq_fin},
         "market": {"observations": mkt_obs},
         "bidding": {"active_listings": active_listings},
-        "labour": {"open_jobs": open_labour_jobs},
+        "labour": {"open_jobs": open_labour_jobs, "available_workers_count": available_workers_count},
+        "transport": {"available_vehicles_count": available_vehicles_count},
+        "crop_doctor": {"model_available": ad22_available, "latest_diagnosis": latest_diag, "recent_count": len(farm_diags)},
         "adapters": {
-            "crop_doctor_ad22_available": bool(diag_status.get("available")),
-            "disease_surveillance_ad26_available": False,
+            "crop_doctor_ad22_available": ad22_available,
+            "disease_surveillance_ad26_available": len(surveillance_reports) > 0,
         },
         "schemes": [{"name": s.name, "benefit": s.financial_benefit, "portal": s.application_portal} for s in INDIAN_GOVERNMENT_SCHEMES[:3]],
         "evidence": evidence,

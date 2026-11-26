@@ -45,6 +45,11 @@ function TransportConnectContent() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const getAuthHeaders = (): Record<string, string> => {
+    const t = typeof window !== 'undefined' ? localStorage.getItem('rm_token') : null;
+    return t ? { Authorization: `Bearer ${t}` } : {};
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -54,7 +59,7 @@ function TransportConnectContent() {
       if (driversRes.ok) setDrivers(await driversRes.json());
 
       // Load bookings
-      const bookRes = await fetch(`${backendUrl}/transport/bookings`);
+      const bookRes = await fetch(`${backendUrl}/transport/bookings`, { headers: getAuthHeaders() });
       if (bookRes.ok) setBookings(await bookRes.json());
     } catch (e) {
       console.warn("Transport data fetch error:", e);
@@ -84,7 +89,7 @@ function TransportConnectContent() {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/transport/bookings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           farmer_id: currentUser.id,
           farmer_name: currentUser.name,
@@ -117,7 +122,7 @@ function TransportConnectContent() {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/transport/bookings/${bookingId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ status })
       });
       if (res.ok) {

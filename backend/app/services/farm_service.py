@@ -6,18 +6,20 @@ Implements the shared digital farm context across all 16 modules.
 from typing import List, Optional, Dict
 from datetime import datetime, date, timezone
 import uuid
+from backend.app.db.database import get_db_connection
 from backend.app.schemas.farm import Farm, FarmCreate, FarmUpdate, FarmSummary
 from backend.app.engines.biophysical import calculate_crop_water_demand, estimate_root_zone_moisture
 
 class FarmService:
     def __init__(self):
-        # In-memory prototype store with seed farms for realistic immediate demonstration
+        # In-memory cache backed by SQLite farms table for ownership & cross-module consistency
         self._farms: Dict[str, Farm] = {}
         self._seed_default_farms()
 
     def _seed_default_farms(self):
         default_farm = Farm(
             id="farm_001",
+            farmer_id="usr_farmer",
             farmer_name="Suresh Gowda",
             preferred_language="kn",
             farm_name="Cauvery Valley Organic Farm",
@@ -41,6 +43,7 @@ class FarmService:
         )
         second_farm = Farm(
             id="farm_002",
+            farmer_id="usr_farmer2",
             farmer_name="Ramesh Patil",
             preferred_language="en",
             farm_name="Krishna Basin Agro Field",
@@ -65,34 +68,149 @@ class FarmService:
         self._farms[default_farm.id] = default_farm
         self._farms[second_farm.id] = second_farm
 
-    def list_farms(self) -> List[Farm]:
+    def _row_to_farm(self, row) -> Farm:
+        d = dict(row)
+        cached = self._farms.get(d["id"])
+        return Farm(
+            id=d["id"],
+            farmer_id=d.get("farmer_id"),
+            farmer_name=d["farmer_name"],
+            preferred_language=cached.preferred_language if cached else "en",
+            farm_name=d["farm_name"],
+            village=d["village"],
+            district=d["district"],
+            state=d["state"],
+            latitude=float(d["latitude"]),
+            longitude=float(d["longitude"]),
+            land_area_ha=float(d["land_area_ha"]),
+            primary_crop=d["primary_crop"],
+            crop_variety=d.get("crop_variety"),
+            sowing_date=d["sowing_date"],
+            crop_stage=d.get("crop_stage") or "Mid-Season",
+            soil_type=d["soil_type"],
+            irrigation_method=d.get("irrigation_method") or "Drip Irrigation",
+            water_source=d.get("water_source") or "Borewell",
+            available_water_m3=float(d["available_water_m3"]) if d.get("available_water_m3") is not None else 0.0,
+            cultivation_budget_inr=float(d["cultivation_budget_inr"]) if d.get("cultivation_budget_inr") is not None else 0.0,
+            pin_code=cached.pin_code if cached else None,
+            formatted_address=cached.formatted_address if cached else None,
+            location_source=cached.location_source if cached else None,
+            location_accuracy_m=cached.location_accuracy_m if cached else None,
+            created_at=d["created_at"],
+            updated_at=d["updated_at"],
+        )
+
+    def list_farms(self, farmer_id: Optional[str] = None) -> List[Farm]:
+        try:
+            conn = get_db_connection()
+            try:
+                if farmer_id:
+                    rows = conn.execute("SELECT * FROM farms WHERE farmer_id = ? ORDER BY created_at ASC", (farmer_id,)).fetchall()
+                else:
+                    rows = conn.execute("SELECT * FROM farms ORDER BY created_at ASC").fetchall()
+                if rows:
+                    return [self._row_to_farm(r) for r in rows]
+            finally:
+                conn.close()
+        except Exception:
+            pass
+        if farmer_id:
+            return [f for f in self._farms.values() if f.farmer_id == farmer_id]
         return list(self._farms.values())
 
     def get_farm(self, farm_id: str) -> Optional[Farm]:
+        try:
+            conn = get_db_connection()
+            try:
+                row = conn.execute("SELECT * FROM farms WHERE id = ?", (farm_id,)).fetchone()
+                if row:
+                    return self._row_to_farm(row)
+            finally:
+                conn.close()
+        except Exception:
+            pass
         return self._farms.get(farm_id)
 
-    def create_farm(self, farm_in: FarmCreate) -> Farm:
+    def create_farm(self, farm_in: FarmCreate, farmer_id: str = "usr_farmer") -> Farm:
         new_id = f"farm_{uuid.uuid4().hex[:6]}"
         now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
         new_farm = Farm(
             id=new_id,
+            farmer_id=farmer_id,
             created_at=now,
             updated_at=now,
             **farm_in.model_dump()
         )
         self._farms[new_id] = new_farm
+        try:
+            conn = get_db_connection()
+            try:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO farms (
+                        id, farmer_id, farmer_name, farm_name, village, district, state,
+                        latitude, longitude, land_area_ha, primary_crop, crop_variety,
+                        sowing_date, crop_stage, soil_type, irrigation_method, water_source,
+                        available_water_m3, cultivation_budget_inr, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        new_id, farmer_id, new_farm.farmer_name, new_farm.farm_name,
+                        new_farm.village, new_farm.district, new_farm.state,
+                        new_farm.latitude, new_farm.longitude, new_farm.land_area_ha,
+                        new_farm.primary_crop, new_farm.crop_variety, str(new_farm.sowing_date),
+                        new_farm.crop_stage, new_farm.soil_type, new_farm.irrigation_method,
+                        new_farm.water_source, new_farm.available_water_m3,
+                        new_farm.cultivation_budget_inr, now_iso, now_iso,
+                    ),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:
+            pass
         return new_farm
 
     def update_farm(self, farm_id: str, farm_update: FarmUpdate) -> Optional[Farm]:
-        farm = self._farms.get(farm_id)
+        farm = self.get_farm(farm_id)
         if not farm:
             return None
         update_data = farm_update.model_dump(exclude_unset=True)
         updated_dict = farm.model_dump()
         updated_dict.update(update_data)
-        updated_dict["updated_at"] = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        updated_dict["updated_at"] = now
         updated_farm = Farm(**updated_dict)
         self._farms[farm_id] = updated_farm
+        try:
+            conn = get_db_connection()
+            try:
+                conn.execute(
+                    """
+                    UPDATE farms SET
+                        farmer_name = ?, farm_name = ?, village = ?, district = ?, state = ?,
+                        latitude = ?, longitude = ?, land_area_ha = ?, primary_crop = ?,
+                        crop_variety = ?, sowing_date = ?, crop_stage = ?, soil_type = ?,
+                        irrigation_method = ?, water_source = ?, available_water_m3 = ?,
+                        cultivation_budget_inr = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        updated_farm.farmer_name, updated_farm.farm_name, updated_farm.village,
+                        updated_farm.district, updated_farm.state, updated_farm.latitude,
+                        updated_farm.longitude, updated_farm.land_area_ha, updated_farm.primary_crop,
+                        updated_farm.crop_variety, str(updated_farm.sowing_date), updated_farm.crop_stage,
+                        updated_farm.soil_type, updated_farm.irrigation_method, updated_farm.water_source,
+                        updated_farm.available_water_m3, updated_farm.cultivation_budget_inr,
+                        now.isoformat(), farm_id,
+                    ),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:
+            pass
         return updated_farm
 
     def get_farm_summary(self, farm_id: str, et0_mm: float = 4.6, recent_rain_mm: float = 0.0) -> Optional[FarmSummary]:

@@ -72,13 +72,18 @@ export default function LabourConnectPage() {
     }
   }, [currentUser.id]);
 
+  const getAuthHeaders = (): Record<string, string> => {
+    const t = typeof window !== 'undefined' ? localStorage.getItem('rm_token') : null;
+    return t ? { Authorization: `Bearer ${t}` } : {};
+  };
+
   const handlePostJob = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/labour/jobs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           farmer_id: currentUser.id,
           farmer_name: currentUser.name,
@@ -101,7 +106,8 @@ export default function LabourConnectPage() {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/labour/jobs/${jobId}/apply?labour_id=${currentUser.id}&labour_name=${encodeURIComponent(currentUser.name)}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         setFeedback("Application submitted! The farmer will review your profile.");
@@ -120,7 +126,8 @@ export default function LabourConnectPage() {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/labour/jobs/${jobId}/accept/${labourId}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         setFeedback("Worker employment confirmed!");
@@ -136,7 +143,8 @@ export default function LabourConnectPage() {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/labour/jobs/${jobId}/complete`, {
-        method: 'POST'
+        method: 'POST',
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         setFeedback("Job marked completed! Daily wages credited to workers.");

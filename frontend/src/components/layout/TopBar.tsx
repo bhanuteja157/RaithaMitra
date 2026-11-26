@@ -219,16 +219,17 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           >
             <Globe className="w-3.5 h-3.5 text-zinc-500" />
             <span>
-              {language === 'kn' ? 'ಕನ್ನಡ' : language === 'hi' ? 'हिन्दी' : 'English'}
+              {language === 'kn' ? 'ಕನ್ನಡ' : language === 'hi' ? 'हिन्दी' : language === 'te' ? 'తెలుగు' : 'English'}
             </span>
           </button>
 
           {langDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-36 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg z-50">
+            <div className="absolute right-0 mt-2 w-44 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg z-50">
               {[
                 { code: 'en' as Language, label: 'English' },
                 { code: 'kn' as Language, label: 'ಕನ್ನಡ (Kannada)' },
                 { code: 'hi' as Language, label: 'हिन्दी (Hindi)' },
+                { code: 'te' as Language, label: 'తెలుగు (Telugu)' },
               ].map((item) => (
                 <button
                   key={item.code}
@@ -254,8 +255,8 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <button
           onClick={toggleTheme}
           className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-rm-primary rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-          title="Toggle Light/Dark Theme"
-          aria-label="Toggle theme"
+          title={t('toggleTheme')}
+          aria-label={t('toggleTheme')}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
         </button>
@@ -264,7 +265,8 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <div className="relative">
           <button
             className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-rm-primary rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-            title="Risk Alerts"
+            title={t('riskAlerts')}
+            aria-label={t('riskAlerts')}
           >
             <Bell className="w-4 h-4" />
             {activeAlerts > 0 && (
@@ -286,7 +288,13 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
               {currentUser?.name || 'User'}
             </div>
             <div className="text-[10px] text-zinc-400 capitalize">
-              {currentUser?.role || 'Farmer'}
+              {currentUser.role === 'farmer'
+                ? t('roleFarmer')
+                : currentUser.role === 'buyer'
+                  ? t('roleBuyer')
+                  : currentUser.role === 'labour'
+                    ? t('roleLabour')
+                    : t('roleDriver')}
             </div>
           </div>
           <button
@@ -295,8 +303,8 @@ export function TopBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
               router.push('/login');
             }}
             className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors ml-1"
-            title="Sign Out"
-            aria-label="Sign out"
+            title={t('signOut')}
+            aria-label={t('signOut')}
           >
             <LogOut className="w-4 h-4" />
           </button>

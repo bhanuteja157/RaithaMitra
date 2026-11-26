@@ -4,6 +4,10 @@
  * All calculations use INR and acres. Never invents seed prices or yields.
  * Provides pre-calibrated ICAR/UAS regional benchmarks for Indian farmers.
  */
+import type { Language } from '@/types';
+
+const _seedLocale = (lang: Language = 'en') =>
+  lang === 'kn' ? 'kn-IN' : lang === 'hi' ? 'hi-IN' : lang === 'te' ? 'te-IN' : 'en-IN';
 
 export type WaterAvailabilityLevel = 'Abundant' | 'Moderate' | 'Limited' | 'Rainfed';
 
@@ -567,7 +571,8 @@ export function suggestCropsForFarmer(
   soilType?: string,
   waterAvailability?: WaterAvailabilityLevel,
   budgetInr: number = 50000,
-  acres: number = 2
+  acres: number = 2,
+  lang: Language = 'en'
 ): {
   crop: CropPreset;
   suitabilityScore: number;
@@ -575,6 +580,15 @@ export function suggestCropsForFarmer(
 }[] {
   const effectiveSoil = (soilType || 'Red Sandy Loam').toLowerCase();
   const effectiveWater = waterAvailability || 'Moderate';
+  const loc = _seedLocale(lang);
+  const soilDisplay = soilType || (lang === 'kn' ? 'ನಿಮ್ಮ ಸ್ಥಳೀಯ' : lang === 'hi' ? 'आपकी स्थानीय' : lang === 'te' ? 'మీ స్థానిక' : 'your local');
+  const waterLabels: Record<WaterAvailabilityLevel, Record<Language, string>> = {
+    Abundant: { en: 'Abundant', kn: 'ಸಮೃದ್ಧ', hi: 'पर्याप्त', te: 'సమృద్ధిగా' },
+    Moderate: { en: 'Moderate', kn: 'ಮಧ್ಯಮ', hi: 'मध्यम', te: 'మితమైన' },
+    Limited: { en: 'Limited', kn: 'ಕಡಿಮೆ', hi: 'सीमित', te: 'పరిమిత' },
+    Rainfed: { en: 'Rainfed', kn: 'ಮಳೆಯಾಶ್ರಿತ', hi: 'वर्षा आधारित', te: 'వర్షాధార' },
+  };
+  const waterDisplay = waterLabels[effectiveWater]?.[lang] || effectiveWater;
 
   const scored = Object.values(CROP_PRESETS).map((preset) => {
     let score = 70;
@@ -586,19 +600,51 @@ export function suggestCropsForFarmer(
     );
     if (soilMatches) {
       score += 15;
-      reasons.push(`Naturally suited to ${soilType || 'your local'} soil conditions`);
+      reasons.push(
+        lang === 'kn'
+          ? `${soilDisplay} ಮಣ್ಣಿನ ಸ್ಥಿತಿಗೆ ಸ್ವಾಭಾವಿಕವಾಗಿ ಸೂಕ್ತವಾಗಿದೆ`
+          : lang === 'hi'
+            ? `${soilDisplay} मिट्टी की स्थिति के लिए स्वाभाविक रूप से उपयुक्त`
+            : lang === 'te'
+              ? `${soilDisplay} నేల పరిస్థితులకు సహజంగా అనుకూలంగా ఉంటుంది`
+              : `Naturally suited to ${soilDisplay} soil conditions`
+      );
     } else {
       score -= 10;
-      reasons.push(`Requires soil conditioning for optimal yield in ${soilType}`);
+      reasons.push(
+        lang === 'kn'
+          ? `${soilDisplay} ಮಣ್ಣಿನಲ್ಲಿ ಉತ್ತಮ ಇಳುವರಿಗೆ ಮಣ್ಣಿನ ಸುಧಾರಣೆ ಅಗತ್ಯವಿದೆ`
+          : lang === 'hi'
+            ? `${soilDisplay} मिट्टी में बेहतर उपज के लिए मिट्टी सुधार आवश्यक है`
+            : lang === 'te'
+              ? `${soilDisplay} నేలలో మంచి దిగుబడికి నేల సవరణ అవసరం`
+              : `Requires soil conditioning for optimal yield in ${soilDisplay}`
+      );
     }
 
     // Water availability check
     if (preset.waterNeed === 'Abundant' && (effectiveWater === 'Limited' || effectiveWater === 'Rainfed')) {
       score -= 25;
-      reasons.push(`Requires abundant water; high risk under ${effectiveWater} water availability`);
+      reasons.push(
+        lang === 'kn'
+          ? `ಹೆಚ್ಚು ನೀರು ಅಗತ್ಯವಿದೆ; ${waterDisplay} ನೀರಿನಲ್ಲಿ ಹೆಚ್ಚಿನ ಅಪಾಯ`
+          : lang === 'hi'
+            ? `अधिक पानी की आवश्यकता है; ${waterDisplay} जल में उच्च जोखिम`
+            : lang === 'te'
+              ? `ఎక్కువ నీరు అవసరం; ${waterDisplay} నీటి లభ్యతలో ఎక్కువ ప్రమాదం`
+              : `Requires abundant water; high risk under ${effectiveWater} water availability`
+      );
     } else if (preset.waterNeed === effectiveWater || effectiveWater === 'Abundant') {
       score += 10;
-      reasons.push(`Water requirement aligns well with your available water level`);
+      reasons.push(
+        lang === 'kn'
+          ? `ಲಭ್ಯವಿರುವ ನೀರಿನ ಮಟ್ಟಕ್ಕೆ ಉತ್ತಮವಾಗಿ ಹೊಂದಿಕೆಯಾಗುತ್ತದೆ`
+          : lang === 'hi'
+            ? `उपलब्ध पानी के स्तर के साथ अच्छी तरह मेल खाता है`
+            : lang === 'te'
+              ? `అందుబాటులో ఉన్న నీటి మట్టానికి బాగా సరిపోతుంది`
+              : `Water requirement aligns well with your available water level`
+      );
     }
 
     // Budget check
@@ -609,16 +655,42 @@ export function suggestCropsForFarmer(
       preset.irrigationExpensesPerAcreInr +
       preset.otherExpensesPerAcreInr;
     const totalEst = estCostPerAcre * acres;
+    const budgetStr = budgetInr.toLocaleString(loc);
 
     if (totalEst <= budgetInr) {
       score += 10;
-      reasons.push(`Fits comfortably within your ₹${budgetInr.toLocaleString('en-IN')} budget`);
+      reasons.push(
+        lang === 'kn'
+          ? `ನಿಮ್ಮ ₹${budgetStr} ಬಜೆಟ್ ಒಳಗೆ ಆರಾಮವಾಗಿ ಸರಿಹೊಂದುತ್ತದೆ`
+          : lang === 'hi'
+            ? `आपके ₹${budgetStr} बजट में आराम से फिट बैठता है`
+            : lang === 'te'
+              ? `మీ ₹${budgetStr} బడ్జెట్‌లో సౌకర్యవంతంగా సరిపోతుంది`
+              : `Fits comfortably within your ₹${budgetStr} budget`
+      );
     } else if (totalEst <= budgetInr * 1.2) {
+      const pct = Math.round(((totalEst - budgetInr) / budgetInr) * 100);
       score += 2;
-      reasons.push(`Slightly stretches budget by ~${Math.round(((totalEst - budgetInr) / budgetInr) * 100)}%`);
+      reasons.push(
+        lang === 'kn'
+          ? `ಬಜೆಟ್‌ಗಿಂತ ಸುಮಾರು ~${pct}% ಹೆಚ್ಚು ವಿಸ್ತರಿಸುತ್ತದೆ`
+          : lang === 'hi'
+            ? `बजट को लगभग ~${pct}% बढ़ाता है`
+            : lang === 'te'
+              ? `బడ్జెట్ కంటే సుమారు ~${pct}% పెరుగుతుంది`
+              : `Slightly stretches budget by ~${pct}%`
+      );
     } else {
       score -= 15;
-      reasons.push(`Estimated investment exceeds available budget`);
+      reasons.push(
+        lang === 'kn'
+          ? `ಅಂದಾಜು ಹೂಡಿಕೆ ಲಭ್ಯ ಬಜೆಟ್ ಮೀರಿದೆ`
+          : lang === 'hi'
+            ? `अनुमानित निवेश उपलब्ध बजट से अधिक है`
+            : lang === 'te'
+              ? `అంచనా పెట్టుబడి అందుబాటులో ఉన్న బడ్జెట్‌ను మించింది`
+              : `Estimated investment exceeds available budget`
+      );
     }
 
     return {
@@ -777,17 +849,33 @@ export function calculateRiskScenarios(
 export function generateFarmerRecommendations(
   calc: SeedInvestmentResult,
   input: SeedInvestmentInput,
-  comparisonItems: VarietyComparisonResult[]
+  comparisonItems: VarietyComparisonResult[],
+  lang: Language = 'en'
 ): string[] {
   const recs: string[] = [];
+  const loc = _seedLocale(lang);
 
   if (!calc.isWithinBudget) {
+    const gap = Math.abs(calc.remainingBudgetInr).toLocaleString(loc);
     recs.push(
-      `Your selected cultivation plan exceeds your budget by ₹${Math.abs(calc.remainingBudgetInr).toLocaleString('en-IN')}. Consider choosing a lower-input variety or adjusting land allocation.`
+      lang === 'kn'
+        ? `ಆಯ್ಕೆಮಾಡಿದ ಕೃಷಿ ಯೋಜನೆ ನಿಮ್ಮ ಬಜೆಟ್‌ಗಿಂತ ₹${gap} ಮೀರಿದೆ. ಕಡಿಮೆ ವೆಚ್ಚದ ತಳಿ ಅಥವಾ ಜಮೀನು ವಿಸ್ತೀರ್ಣ ಹೊಂದಾಣಿಕೆ ಪರಿಗಣಿಸಿ.`
+        : lang === 'hi'
+          ? `चयनित खेती योजना आपके बजट से ₹${gap} अधिक है। कम लागत वाली किस्म या क्षेत्रफल समायोजन पर विचार करें।`
+          : lang === 'te'
+            ? `ఎంచుకున్న సాగు ప్రణాళిక మీ బడ్జెట్ కంటే ₹${gap} మించింది. తక్కువ ఖర్చు రకం లేదా భూమి విస్తీర్ణం సర్దుబాటు చేయండి.`
+            : `Your selected cultivation plan exceeds your budget by ₹${gap}. Consider choosing a lower-input variety or adjusting land allocation.`
     );
   } else {
+    const rem = calc.remainingBudgetInr.toLocaleString(loc);
     recs.push(
-      `Your selected cultivation plan comfortably fits within budget with ₹${calc.remainingBudgetInr.toLocaleString('en-IN')} surplus remaining as an emergency safety reserve.`
+      lang === 'kn'
+        ? `ನಿಮ್ಮ ಕೃಷಿ ಯೋಜನೆ ಬಜೆಟ್ ಒಳಗೆ ಆರಾಮವಾಗಿ ಸರಿಹೊಂದುತ್ತದೆ (ತುರ್ತು ಮೀಸಲು ₹${rem} ಉಳಿತಾಯ).`
+        : lang === 'hi'
+          ? `आपकी खेती योजना बजट में आराम से फिट है (आपातकालीन रिजर्व ₹${rem} शेष)।`
+          : lang === 'te'
+            ? `మీ సాగు ప్రణాళిక బడ్జెట్‌లో సౌకర్యవంతంగా సరిపోతుంది (అత్యవసర నిధి ₹${rem} మిగిలింది).`
+            : `Your selected cultivation plan comfortably fits within budget with ₹${rem} surplus remaining as an emergency safety reserve.`
     );
   }
 
@@ -796,11 +884,23 @@ export function generateFarmerRecommendations(
     input.expectedSellingPricePerKg < calc.breakEvenSellingPricePerKg
   ) {
     recs.push(
-      `Your expected selling price (₹${input.expectedSellingPricePerKg}/kg) is below your break-even cost (₹${calc.breakEvenSellingPricePerKg}/kg). You will require at least ₹${calc.breakEvenSellingPricePerKg}/kg to avoid loss.`
+      lang === 'kn'
+        ? `ನಿರೀಕ್ಷಿತ ಮಾರಾಟ ಬೆಲೆ (₹${input.expectedSellingPricePerKg}/kg) ಸಮತೋಲನ ವೆಚ್ಚಕ್ಕಿಂತ (₹${calc.breakEvenSellingPricePerKg}/kg) ಕಡಿಮೆಯಿದೆ. ನಷ್ಟ ತಪ್ಪಿಸಲು ಕನಿಷ್ಠ ₹${calc.breakEvenSellingPricePerKg}/kg ಅಗತ್ಯವಿದೆ.`
+        : lang === 'hi'
+          ? `अपेक्षित बिक्री मूल्य (₹${input.expectedSellingPricePerKg}/kg) ब्रेक-ईवन लागत (₹${calc.breakEvenSellingPricePerKg}/kg) से कम है। नुकसान से बचने के लिए न्यूनतम ₹${calc.breakEvenSellingPricePerKg}/kg चाहिए।`
+          : lang === 'te'
+            ? `అంచనా అమ్మకపు ధర (₹${input.expectedSellingPricePerKg}/kg) బ్రేక్-ఈవెన్ ధర (₹${calc.breakEvenSellingPricePerKg}/kg) కంటే తక్కువగా ఉంది. నష్టం రాకుండా కనీసం ₹${calc.breakEvenSellingPricePerKg}/kg అవసరం.`
+            : `Your expected selling price (₹${input.expectedSellingPricePerKg}/kg) is below your break-even cost (₹${calc.breakEvenSellingPricePerKg}/kg). You will require at least ₹${calc.breakEvenSellingPricePerKg}/kg to avoid loss.`
     );
   } else if (calc.breakEvenSellingPricePerKg > 0) {
     recs.push(
-      `Your break-even price is ₹${calc.breakEvenSellingPricePerKg}/kg. Every rupee earned above this represents pure net agricultural surplus.`
+      lang === 'kn'
+        ? `ನಿಮ್ಮ ಸಮತೋಲನ ಬೆಲೆ ₹${calc.breakEvenSellingPricePerKg}/kg. ಇದಕ್ಕಿಂತ ಹೆಚ್ಚಿನ ಪ್ರತಿ ರೂಪಾಯಿಯೂ ನಿವ್ವಳ ಕೃಷಿ ಲಾಭವಾಗುತ್ತದೆ.`
+        : lang === 'hi'
+          ? `आपका ब्रेक-ईवन मूल्य ₹${calc.breakEvenSellingPricePerKg}/kg है। इससे ऊपर प्रत्येक रुपया शुद्ध कृषि लाभ होगा।`
+          : lang === 'te'
+            ? `మీ బ్రేక్-ఈవెన్ ధర ₹${calc.breakEvenSellingPricePerKg}/kg. దీనిపైన వచ్చే ప్రతి రూపాయి నికర వ్యవసాయ లాభం అవుతుంది.`
+            : `Your break-even price is ₹${calc.breakEvenSellingPricePerKg}/kg. Every rupee earned above this represents pure net agricultural surplus.`
     );
   }
 
@@ -811,12 +911,26 @@ export function generateFarmerRecommendations(
     const highestProfit = comparisonItems.reduce((a, b) =>
       b.estimatedProfitInr > a.estimatedProfitInr ? b : a
     );
+    const lowCostStr = lowestCost.seedInvestmentInr.toLocaleString(loc);
+    const highProfitStr = highestProfit.estimatedProfitInr.toLocaleString(loc);
     recs.push(
-      `${lowestCost.varietyName} requires the lowest initial seed outlay (₹${lowestCost.seedInvestmentInr.toLocaleString('en-IN')}).`
+      lang === 'kn'
+        ? `${lowestCost.varietyName} ಅತಿ ಕಡಿಮೆ ಆರಂಭಿಕ ಬೀಜ ವೆಚ್ಚವನ್ನು (₹${lowCostStr}) ಹೊಂದಿದೆ.`
+        : lang === 'hi'
+          ? `${lowestCost.varietyName} के लिए सबसे कम प्रारंभिक बीज खर्च (₹${lowCostStr}) आवश्यक है।`
+          : lang === 'te'
+            ? `${lowestCost.varietyName} కు అతి తక్కువ ప్రారంభ విత్తన ఖర్చు (₹${lowCostStr}) అవసరం.`
+            : `${lowestCost.varietyName} requires the lowest initial seed outlay (₹${lowCostStr}).`
     );
     if (highestProfit.id !== lowestCost.id) {
       recs.push(
-        `${highestProfit.varietyName} yields the highest estimated net profit (₹${highestProfit.estimatedProfitInr.toLocaleString('en-IN')}) under standard market conditions.`
+        lang === 'kn'
+          ? `${highestProfit.varietyName} ಸಾಮಾನ್ಯ ಮಾರುಕಟ್ಟೆ ಪರಿಸ್ಥಿತಿಯಲ್ಲಿ ಅತಿ ಹೆಚ್ಚು ಅಂದಾಜು ನಿವ್ವಳ ಲಾಭ (₹${highProfitStr}) ನೀಡುತ್ತದೆ.`
+          : lang === 'hi'
+            ? `${highestProfit.varietyName} सामान्य बाजार स्थिति में सबसे अधिक अनुमानित शुद्ध लाभ (₹${highProfitStr}) देता है।`
+            : lang === 'te'
+              ? `${highestProfit.varietyName} సాధారణ మార్కెట్ పరిస్థితుల్లో అత్యధిక అంచనా నికర లాభాన్ని (₹${highProfitStr}) ఇస్తుంది.`
+              : `${highestProfit.varietyName} yields the highest estimated net profit (₹${highProfitStr}) under standard market conditions.`
       );
     }
   }

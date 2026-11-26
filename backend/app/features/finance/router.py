@@ -375,6 +375,82 @@ def record_order_payment(
         conn.close()
 
 
+class ObligationSettleRequest(BaseModel):
+    payment_reference: Optional[str] = Field(default=None, max_length=120)
+
+
+@router.post("/labour/{job_id}/settle")
+def settle_labour_payment(
+    job_id: str,
+    payload: Optional[ObligationSettleRequest] = None,
+    authorization: Optional[str] = Header(None),
+):
+    """Explicitly record payment settlement for a completed labour job (separate from work completion)."""
+    auth = resolve_authenticated_farmer(authorization)
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        job = cursor.execute("SELECT * FROM labour_jobs WHERE id = ?", (job_id,)).fetchone()
+        if not job:
+            raise HTTPException(status_code=404, detail="Labour job not found.")
+        if auth["role"] != "admin" and job["farmer_id"] != auth["user_id"]:
+            raise HTTPException(status_code=403, detail="Unauthorized: Labour job belongs to another farmer.")
+        if (job["status"] or "").lower() != "completed":
+            raise HTTPException(status_code=400, detail="Only completed labour jobs can be settled.")
+
+        now = datetime.now(timezone.utc).isoformat()
+        ref = (payload.payment_reference if payload else None) or f"LAB-{job_id[-6:].upper()}"
+        cursor.execute(
+            "UPDATE labour_jobs SET payment_status = 'settled', payment_settled_at = ?, payment_reference = ? WHERE id = ?",
+            (now, ref, job_id),
+        )
+        sync_key = f"labour_job:{job_id}"
+        cursor.execute(
+            "UPDATE financial_transactions SET status = 'settled', payment_reference = ?, provenance = 'labour_connect_settled', updated_at = ? WHERE sync_key = ?",
+            (ref, now, sync_key),
+        )
+        conn.commit()
+        return {"job_id": job_id, "payment_status": "settled", "payment_reference": ref, "settled_at": now}
+    finally:
+        conn.close()
+
+
+@router.post("/transport/{booking_id}/settle")
+def settle_transport_payment(
+    booking_id: str,
+    payload: Optional[ObligationSettleRequest] = None,
+    authorization: Optional[str] = Header(None),
+):
+    """Explicitly record payment settlement for a delivered transport booking (separate from delivery)."""
+    auth = resolve_authenticated_farmer(authorization)
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        tb = cursor.execute("SELECT * FROM transport_bookings WHERE id = ?", (booking_id,)).fetchone()
+        if not tb:
+            raise HTTPException(status_code=404, detail="Transport booking not found.")
+        if auth["role"] != "admin" and tb["farmer_id"] != auth["user_id"]:
+            raise HTTPException(status_code=403, detail="Unauthorized: Transport booking belongs to another farmer.")
+        if (tb["status"] or "").lower() != "delivered":
+            raise HTTPException(status_code=400, detail="Only delivered transport bookings can be settled.")
+
+        now = datetime.now(timezone.utc).isoformat()
+        ref = (payload.payment_reference if payload else None) or f"TRN-{booking_id[-6:].upper()}"
+        cursor.execute(
+            "UPDATE transport_bookings SET payment_status = 'settled', payment_settled_at = ?, payment_reference = ? WHERE id = ?",
+            (now, ref, booking_id),
+        )
+        sync_key = f"transport_booking:{booking_id}"
+        cursor.execute(
+            "UPDATE financial_transactions SET status = 'settled', payment_reference = ?, provenance = 'transport_settled', updated_at = ? WHERE sync_key = ?",
+            (ref, now, sync_key),
+        )
+        conn.commit()
+        return {"booking_id": booking_id, "payment_status": "settled", "payment_reference": ref, "settled_at": now}
+    finally:
+        conn.close()
+
+
 @router.get("/export/csv")
 def export_financial_statement_csv(
     farm_id: str = Query(...),

@@ -6,6 +6,204 @@ import { useRouter } from 'next/navigation';
 import { useFarm } from '@/context/FarmContext';
 import { UserRole, Language } from '@/types';
 import { MobileOtpFlow } from '@/components/auth/MobileOtpFlow';
+
+const LOGIN_I18N: Record<Language, {
+  farmerTitle: string; farmerSub: string; farmerDesc: string;
+  buyerTitle: string; buyerSub: string; buyerDesc: string;
+  labourTitle: string; labourSub: string; labourDesc: string;
+  driverTitle: string; driverSub: string; driverDesc: string;
+  pwMin6: string; villageWard: string;
+  buyerSection: string; buyerCategory: string; buyerBusiness: string; buyerWholesale: string; buyerRetail: string;
+  entityName: string; deliveryMandi: string;
+  labourSection: string; selectSkills: string; expectedWage: string;
+  driverSection: string; vehicleType: string; regNo: string; payloadCap: string; baseFare: string;
+  registeringBtn: string; registerContinuePrefix: string;
+  demoBannerTitle: string; demoBannerDesc: string; personaSuffix: string;
+  skillNames: Record<string, string>;
+  demoDesc: Record<string, string>;
+  demoLoc: Record<string, string>;
+}> = {
+  en: {
+    farmerTitle: 'Farmer Profile', farmerSub: 'Primary Producer',
+    farmerDesc: 'Smart irrigation, agronomic intelligence, harvest listing, and labour hiring.',
+    buyerTitle: 'Buyer Profile', buyerSub: 'Wholesale / Retail',
+    buyerDesc: 'Direct farm-gate produce procurement, transparent bidding, and purchase orders.',
+    labourTitle: 'Labour Profile', labourSub: 'Agricultural Worker',
+    labourDesc: 'Find nearby agricultural work, register skills, and track daily wages directly.',
+    driverTitle: 'Driver Profile', driverSub: 'Freight Logistics',
+    driverDesc: 'Farm produce freight logistics, booking acceptance, and route delivery tracking.',
+    pwMin6: 'Password (min 6 chars)',
+    villageWard: 'Village / Ward',
+    buyerSection: 'Buyer Business Details',
+    buyerCategory: 'Buyer Category',
+    buyerBusiness: 'Business or Entity Name',
+    buyerWholesale: 'Wholesale / Business Buyer',
+    buyerRetail: 'Direct Retail Buyer',
+    entityName: 'Business or Entity Name',
+    deliveryMandi: 'Delivery APMC / Mandi Address',
+    labourSection: 'Agricultural Skills & Wage Details',
+    selectSkills: 'Select Primary Skills',
+    expectedWage: 'Expected Daily Wage (₹ / day)',
+    driverSection: 'Freight Vehicle & Tariff Details',
+    vehicleType: 'Vehicle Type',
+    regNo: 'Registration Number',
+    payloadCap: 'Payload Capacity (kg)',
+    baseFare: 'Base Fare (₹ / km)',
+    registeringBtn: 'Registering Account...',
+    registerContinuePrefix: 'Register & Continue as',
+    demoBannerTitle: 'Demonstration Mode for Quick Exploration',
+    demoBannerDesc: 'Instantly preview multi-role agricultural workflows using predefined demonstration identities.',
+    personaSuffix: 'Persona',
+    skillNames: { Harvesting: 'Harvesting', Transplantation: 'Transplantation', Weeding: 'Weeding', Spraying: 'Spraying', 'Loading & Unloading': 'Loading & Unloading' },
+    demoDesc: {
+      farmer: 'Tomato (Arka Rakshak, 2.5 ha)',
+      buyer: 'Licensed Wholesale Produce Buyer',
+      labour: 'Harvesting & Transplantation Specialist',
+      driver: 'Tata Ace (1.5T Freight Carrier)',
+    },
+    demoLoc: {
+      farmer: 'Cauvery Valley Farm, Mandya',
+      buyer: 'Yeshwanthpur APMC Yard',
+      labour: 'Mandya Rural',
+      driver: 'Mandya Highway Hub',
+    },
+  },
+  kn: {
+    farmerTitle: 'ರೈತ ಪ್ರೊಫೈಲ್', farmerSub: 'ಪ್ರಾಥಮಿಕ ಕೃಷಿಕ',
+    farmerDesc: 'ಸ್ಮಾರ್ಟ್ ನೀರಾವರಿ, ಬೆಳೆ ಸಲಹೆ, ಮಾರುಕಟ್ಟೆ ಮಾರಾಟ ಮತ್ತು ಕಾರ್ಮಿಕರ ನೇಮಕಾತಿ.',
+    buyerTitle: 'ಖರೀದಿದಾರ ಪ್ರೊಫೈಲ್', buyerSub: 'ಸಗಟು / ಚಿಲ್ಲರೆ',
+    buyerDesc: 'ಜಮೀನಿನಿಂದ ನೇರ ಬೆಳೆ ಖರೀದಿ, ಪಾರದರ್ಶಕ ಹರಾಜು ಮತ್ತು ಆರ್ಡರ್‌ಗಳು.',
+    labourTitle: 'ಕಾರ್ಮಿಕ ಪ್ರೊಫೈಲ್', labourSub: 'ಕೃಷಿ ಕಾರ್ಮಿಕ',
+    labourDesc: 'ಹತ್ತಿರದ ಕೃಷಿ ಕೆಲಸ ಹುಡುಕಿ, ಕೌಶಲ್ಯ ಸೇರಿಸಿ ಮತ್ತು ದೈನಂದಿನ ಕೂಲಿ ನೋಡಿ.',
+    driverTitle: 'ಚಾಲಕ ಪ್ರೊಫೈಲ್', driverSub: 'ಸಾರಿಗೆ ಸೇವೆ',
+    driverDesc: 'ಬೆಳೆ ಸಾಗಾಣಿಕೆ, ಬುಕಿಂಗ್ ಸ್ವೀಕಾರ ಮತ್ತು ಮಾರ್ಗ ಟ್ರ್ಯಾಕಿಂಗ್.',
+    pwMin6: 'ಪಾಸ್‌ವರ್ಡ್ (ಕನಿಷ್ಠ 6 ಅಕ್ಷರಗಳು)',
+    villageWard: 'ಗ್ರಾಮ / ವಾರ್ಡ್',
+    buyerSection: 'ಖರೀದಿದಾರ ವ್ಯಾಪಾರ ವಿವರಗಳು',
+    buyerCategory: 'ಖರೀದಿದಾರ ವಿಭಾಗ',
+    buyerBusiness: 'ವ್ಯಾಪಾರ ಅಥವಾ ಸಂಸ್ಥೆಯ ಹೆಸರು',
+    buyerWholesale: 'ಸಗಟು / ವ್ಯಾಪಾರ ಖರೀದಿದಾರ',
+    buyerRetail: 'ನೇರ ಚಿಲ್ಲರೆ ಖರೀದಿದಾರ',
+    entityName: 'ಸಂಸ್ಥೆಯ ಹೆಸರು',
+    deliveryMandi: 'ವಿತರಣಾ APMC / ಮಂಡಿ ವಿಳಾಸ',
+    labourSection: 'ಕೃಷಿ ಕೌಶಲ್ಯ ಮತ್ತು ಕೂಲಿ ವಿವರಗಳು',
+    selectSkills: 'ಮುಖ್ಯ ಕೌಶಲ್ಯಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+    expectedWage: 'ನಿರೀಕ್ಷಿತ ದಿನದ ಕೂಲಿ (₹ / ದಿನ)',
+    driverSection: 'ಸರಕು ವಾಹನ ಮತ್ತು ದರ ವಿವರಗಳು',
+    vehicleType: 'ವಾಹನದ ವಿಧ',
+    regNo: 'ನೋಂದಣಿ ಸಂಖ್ಯೆ',
+    payloadCap: 'ತೂಕ ಸಾಮರ್ಥ್ಯ (kg)',
+    baseFare: 'ಮೂಲ ದರ (₹ / ಕಿ.ಮೀ)',
+    registeringBtn: 'ಖಾತೆ ನೋಂದಾಯಿಸಲಾಗುತ್ತಿದೆ...',
+    registerContinuePrefix: 'ಖಾತೆ ನೋಂದಾಯಿಸಿ ಮುಂದುವರಿಯಿರಿ:',
+    demoBannerTitle: 'ತ್ವರಿತ ಪರಿಶೀಲನೆಗಾಗಿ ಡೆಮೊ ಮೋಡ್',
+    demoBannerDesc: 'ಪೂರ್ವ-ನಿರ್ಧರಿತ ಡೆಮೊ ಖಾತೆಗಳ ಮೂಲಕ ರೈತ, ಖರೀದಿದಾರ, ಕಾರ್ಮಿಕ ಮತ್ತು ಚಾಲಕ ಸೌಲಭ್ಯಗಳನ್ನು ತಕ್ಷಣ ನೋಡಿ.',
+    personaSuffix: 'ಖಾತೆ',
+    skillNames: { Harvesting: 'ಕೊಯ್ಲು', Transplantation: 'ನಾಟಿ ಕೆಲಸ', Weeding: 'ಕಳೆ ಕೀಳುವುದು', Spraying: 'ಸಿಂಪಡಣೆ', 'Loading & Unloading': 'ಲೋಡಿಂಗ್ ಮತ್ತು ಅನ್‌ಲೋಡಿಂಗ್' },
+    demoDesc: {
+      farmer: 'ಟೊಮೆಟೊ (ಅರ್ಕಾ ರಕ್ಷಕ್, 2.5 ಹೆಕ್ಟೇರ್)',
+      buyer: 'ಪರವಾನಗಿ ಪಡೆದ ಸಗಟು ಖರೀದಿದಾರ',
+      labour: 'ಕೊಯ್ಲು ಮತ್ತು ನಾಟಿ ತಜ್ಞರು',
+      driver: 'ಟಾಟಾ ಏಸ್ (1.5 ಟನ್ ಸರಕು ವಾಹನ)',
+    },
+    demoLoc: {
+      farmer: 'ಕಾವೇರಿ ವ್ಯಾಲಿ ಜಮೀನು, ಮಂಡ್ಯ',
+      buyer: 'ಯಶವಂತಪುರ APMC ಮಾರುಕಟ್ಟೆ',
+      labour: 'ಮಂಡ್ಯ ಗ್ರಾಮಾಂತರ',
+      driver: 'ಮಂಡ್ಯ ಹೈವೇ ಹಬ್',
+    },
+  },
+  hi: {
+    farmerTitle: 'किसान प्रोफ़ाइल', farmerSub: 'प्राथमिक उत्पादक',
+    farmerDesc: 'स्मार्ट सिंचाई, फसल सलाह, उपज बिक्री और श्रमिक नियुक्ति।',
+    buyerTitle: 'खरीदार प्रोफ़ाइल', buyerSub: 'थोक / खुदरा',
+    buyerDesc: 'खेत से सीधे उपज खरीद, पारदर्शी नीलामी और खरीद ऑर्डर।',
+    labourTitle: 'श्रमिक प्रोफ़ाइल', labourSub: 'कृषि मजदूर',
+    labourDesc: 'नज़दीकी खेती का काम खोजें, कौशल जोड़ें और दैनिक मजदूरी देखें।',
+    driverTitle: 'ड्राइवर प्रोफ़ाइल', driverSub: 'माल परिवहन',
+    driverDesc: 'उपज ढुलाई, बुकिंग स्वीकृति और रूट डिलीवरी ट्रैकिंग।',
+    pwMin6: 'पासवर्ड (कम से कम 6 अक्षर)',
+    villageWard: 'गाँव / वार्ड',
+    buyerSection: 'खरीदार व्यापार विवरण',
+    buyerCategory: 'खरीदार श्रेणी',
+    buyerBusiness: 'व्यापार या कंपनी का नाम',
+    buyerWholesale: 'थोक / व्यापार खरीदार',
+    buyerRetail: 'सीधा खुदरा खरीदार',
+    entityName: 'संस्था का नाम',
+    deliveryMandi: 'डिलीवरी APMC / मंडी पता',
+    labourSection: 'कृषि कौशल और मजदूरी विवरण',
+    selectSkills: 'मुख्य कौशल चुनें',
+    expectedWage: 'अपेक्षित दैनिक मजदूरी (₹ / दिन)',
+    driverSection: 'माल वाहन और किराया विवरण',
+    vehicleType: 'वाहन प्रकार',
+    regNo: 'पंजीकरण संख्या',
+    payloadCap: 'भार क्षमता (kg)',
+    baseFare: 'किराया दर (₹ / किमी)',
+    registeringBtn: 'खाता बनाया जा रहा है...',
+    registerContinuePrefix: 'पंजीकरण कर आगे बढ़ें:',
+    demoBannerTitle: 'त्वरित देखने के लिए डेमो मोड',
+    demoBannerDesc: 'तैयार डेमो खातों के माध्यम से किसान, खरीदार, श्रमिक और ड्राइवर वर्कफ़्लो तुरंत देखें।',
+    personaSuffix: 'प्रोफ़ाइल',
+    skillNames: { Harvesting: 'कटाई', Transplantation: 'रोपाई', Weeding: 'निराई', Spraying: 'छिड़काव', 'Loading & Unloading': 'लोडिंग व अनलोडिंग' },
+    demoDesc: {
+      farmer: 'टमाटर (अर्का रक्षक, 2.5 हेक्टेयर)',
+      buyer: 'लाइसेंस प्राप्त थोक खरीदार',
+      labour: 'कटाई व रोपाई विशेषज्ञ',
+      driver: 'टाटा ऐस (1.5 टन माल वाहन)',
+    },
+    demoLoc: {
+      farmer: 'कावेरी वैली खेत, मांड्या',
+      buyer: 'यशवंतपुर APMC मंडी',
+      labour: 'मांड्या ग्रामीण',
+      driver: 'मांड्या हाईवे हब',
+    },
+  },
+  te: {
+    farmerTitle: 'రైతు ప్రొఫైల్', farmerSub: 'రైతు / ఉత్పత్తిదారు',
+    farmerDesc: 'స్మార్ట్ నీటిపారుదల, పంట సలహాలు, పంట అమ్మకం మరియు కూలీల నియామకం.',
+    buyerTitle: 'కొనుగోలుదారు ప్రొఫైల్', buyerSub: 'హోల్‌సేల్ / రిటైల్',
+    buyerDesc: 'పొలం నుండి నేరుగా పంట కొనుగోలు, పారదర్శక వేలం మరియు ఆర్డర్లు.',
+    labourTitle: 'కూలీ ప్రొఫైల్', labourSub: 'వ్యవసాయ కార్మికుడు',
+    labourDesc: 'సమీప వ్యవసాయ పనులు కనుగొనండి, నైపుణ్యాలు చేర్చండి మరియు రోజువారీ కూలీ చూడండి.',
+    driverTitle: 'డ్రైవర్ ప్రొఫైల్', driverSub: 'సరుకు రవాణా',
+    driverDesc: 'పంట రవాణా, బుకింగ్ అంగీకారం మరియు రూట్ ట్రాకింగ్.',
+    pwMin6: 'పాస్‌వర్డ్ (కనీసం 6 అక్షరాలు)',
+    villageWard: 'గ్రామం / వార్డు',
+    buyerSection: 'కొనుగోలుదారు వ్యాపార వివరాలు',
+    buyerCategory: 'కొనుగోలుదారు వర్గం',
+    buyerBusiness: 'వ్యాపార లేదా సంస్థ పేరు',
+    buyerWholesale: 'హోల్‌సేల్ / వ్యాపార కొనుగోలుదారు',
+    buyerRetail: 'నేరుగా రిటైల్ కొనుగోలుదారు',
+    entityName: 'వ్యాపార పేరు',
+    deliveryMandi: 'డెలివరీ APMC / మార్కెట్ చిరునామా',
+    labourSection: 'వ్యవసాయ నైపుణ్యాలు & కూలీ వివరాలు',
+    selectSkills: 'ప్రధాన నైపుణ్యాలను ఎంచుకోండి',
+    expectedWage: 'ఆశించే రోజువారీ కూలీ (₹ / రోజు)',
+    driverSection: 'సరుకు వాహనం & ధర వివరాలు',
+    vehicleType: 'వాహనం రకం',
+    regNo: 'రిజిస్ట్రేషన్ నంబర్',
+    payloadCap: 'లోడ్ సామర్థ్యం (kg)',
+    baseFare: 'ప్రారంభ ధర (₹ / కి.మీ)',
+    registeringBtn: 'ఖాతా నమోదు అవుతోంది...',
+    registerContinuePrefix: 'నమోదు చేసి కొనసాగండి:',
+    demoBannerTitle: 'తక్షణ పరిశీలన కోసం డెమో మోడ్',
+    demoBannerDesc: 'ముందే సిద్ధం చేసిన డెమో ఖాతాలతో రైతు, కొనుగోలుదారు, కూలీ మరియు డ్రైవర్ విభాగాలను చూడండి.',
+    personaSuffix: 'ఖాతా',
+    skillNames: { Harvesting: 'కోత పని', Transplantation: 'నాట్లు వేయడం', Weeding: 'కలుపు తీయడం', Spraying: 'మందు పిచికారీ', 'Loading & Unloading': 'లోడింగ్ & అన్‌లోడింగ్' },
+    demoDesc: {
+      farmer: 'టొమాటో (అర్కా రక్షక్, 2.5 హెక్టార్లు)',
+      buyer: 'లైసెన్స్ పొందిన హోల్‌సేల్ కొనుగోలుదారు',
+      labour: 'కోత మరియు నాట్లు నిపుణులు',
+      driver: 'టాటా ఏస్ (1.5T సరుకు వాహనం)',
+    },
+    demoLoc: {
+      farmer: 'కావేరి వ్యాలీ పొలం, మాండ్య',
+      buyer: 'యశ్వంత్‌పూర్ APMC యార్డ్',
+      labour: 'మాండ్య గ్రామీణ ప్రాంతం',
+      driver: 'మాండ్య హైవే హబ్',
+    },
+  },
+};
 import {
   Sprout,
   Building2,
@@ -28,7 +226,8 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, registerUser, switchDemoUser, language, setLanguage, setIsOnboardingOpen } = useFarm();
+  const { login, registerUser, switchDemoUser, language, setLanguage, setIsOnboardingOpen, t } = useFarm();
+  const L = LOGIN_I18N[language] || LOGIN_I18N.en;
 
   const [activeTab, setActiveTab] = useState<'otp' | 'signin' | 'register' | 'demo'>('otp');
   const [selectedRole, setSelectedRole] = useState<UserRole>('farmer');
@@ -64,35 +263,35 @@ export default function LoginPage() {
   const PRIMARY_ROLES: { role: UserRole; title: string; subtitle: string; icon: any; color: string; desc: string }[] = [
     {
       role: 'farmer',
-      title: 'Farmer Profile',
-      subtitle: 'ಕೃಷಿಕ / किसान',
+      title: L.farmerTitle,
+      subtitle: L.farmerSub,
       icon: Sprout,
       color: 'from-emerald-500 to-green-600',
-      desc: 'Smart irrigation, agronomic intelligence, harvest listing, and labour hiring.'
+      desc: L.farmerDesc
     },
     {
       role: 'buyer',
-      title: 'Buyer Profile',
-      subtitle: 'ಖರೀದಿದಾರ / खरीदार',
+      title: L.buyerTitle,
+      subtitle: L.buyerSub,
       icon: Building2,
       color: 'from-blue-500 to-cyan-600',
-      desc: 'Direct farm-gate produce procurement, transparent bidding, and purchase orders.'
+      desc: L.buyerDesc
     },
     {
       role: 'labour',
-      title: 'Labour Profile',
-      subtitle: 'ಕಾರ್ಮಿಕ / श्रमिक',
+      title: L.labourTitle,
+      subtitle: L.labourSub,
       icon: Users,
       color: 'from-amber-500 to-orange-600',
-      desc: 'Find nearby agricultural work, register skills, and track daily wages directly.'
+      desc: L.labourDesc
     },
     {
       role: 'driver',
-      title: 'Driver Profile',
-      subtitle: 'ಚಾಲಕ / चालक',
+      title: L.driverTitle,
+      subtitle: L.driverSub,
       icon: Truck,
       color: 'from-purple-500 to-indigo-600',
-      desc: 'Farm produce freight logistics, booking acceptance, and route delivery tracking.'
+      desc: L.driverDesc
     }
   ];
 
@@ -101,8 +300,8 @@ export default function LoginPage() {
       role: 'farmer' as UserRole,
       name: 'Suresh Gowda',
       email: 'farmer@raithamitra.in',
-      location: 'Cauvery Valley Farm, Mandya',
-      crop: 'Tomato (Arka Rakshak, 2.5 ha)',
+      location: L.demoLoc.farmer,
+      crop: L.demoDesc.farmer,
       redirect: '/',
       icon: Sprout
     },
@@ -110,8 +309,8 @@ export default function LoginPage() {
       role: 'buyer' as UserRole,
       name: 'Bengaluru Fresh Foods Co',
       email: 'buyer1@raithamitra.in',
-      location: 'Yeshwanthpur APMC Yard',
-      crop: 'Licensed Wholesale Produce Buyer',
+      location: L.demoLoc.buyer,
+      crop: L.demoDesc.buyer,
       redirect: '/dashboard/buyer',
       icon: Building2
     },
@@ -119,8 +318,8 @@ export default function LoginPage() {
       role: 'labour' as UserRole,
       name: 'Basavaraj Koravara',
       email: 'labour@raithamitra.in',
-      location: 'Mandya Rural',
-      crop: 'Harvesting & Transplantation Specialist',
+      location: L.demoLoc.labour,
+      crop: L.demoDesc.labour,
       redirect: '/dashboard/labour',
       icon: Users
     },
@@ -128,8 +327,8 @@ export default function LoginPage() {
       role: 'driver' as UserRole,
       name: 'Manjunath Transport',
       email: 'driver@raithamitra.in',
-      location: 'Mandya Highway Hub',
-      crop: 'Tata Ace (1.5T Freight Carrier)',
+      location: L.demoLoc.driver,
+      crop: L.demoDesc.driver,
       redirect: '/dashboard/driver',
       icon: Truck
     }
@@ -148,10 +347,20 @@ export default function LoginPage() {
       if (res.success && res.redirect_url) {
         router.push(res.redirect_url);
       } else {
-        setErrorMsg(res.error || 'Invalid credentials or role mismatch.');
+        const defaultErr =
+          language === 'kn' ? 'ತಪ್ಪಾದ ಲಾಗಿನ್ ವಿವರಗಳು ಅಥವಾ ಪಾತ್ರದ ಹೊಂದಾಣಿಕೆಯಿಲ್ಲ.' :
+          language === 'hi' ? 'अमान्य विवरण या भूमिका मेल नहीं खाती।' :
+          language === 'te' ? 'చెల్లని వివరాలు లేదా పాత్ర సరిపోలడం లేదు.' :
+          'Invalid credentials or role mismatch.';
+        setErrorMsg(res.error || defaultErr);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Login connection failed.');
+      const connErr =
+        language === 'kn' ? 'ಲಾಗಿನ್ ಸಂಪರ್ಕ ವಿಫಲವಾಗಿದೆ.' :
+        language === 'hi' ? 'लॉगिन कनेक्शन विफल रहा।' :
+        language === 'te' ? 'లాగిన్ కనెక్షన్ విఫలమైంది.' :
+        'Login connection failed.';
+      setErrorMsg(err.message || connErr);
     } finally {
       setIsSubmitting(false);
     }
@@ -195,10 +404,20 @@ export default function LoginPage() {
         }
         router.push(res.redirect_url || '/');
       } else {
-        setErrorMsg(res.error || 'Registration failed.');
+        const regErr =
+          language === 'kn' ? 'ನೋಂದಣಿ ವಿಫಲವಾಗಿದೆ.' :
+          language === 'hi' ? 'पंजीकरण विफल रहा।' :
+          language === 'te' ? 'నమోదు విఫలమైంది.' :
+          'Registration failed.';
+        setErrorMsg(res.error || regErr);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Registration connection failed.');
+      const regConnErr =
+        language === 'kn' ? 'ನೋಂದಣಿ ಸಂಪರ್ಕ ವಿಫಲವಾಗಿದೆ.' :
+        language === 'hi' ? 'पंजीकरण कनेक्शन विफल रहा।' :
+        language === 'te' ? 'నమోదు కనెక్షన్ విఫలమైంది.' :
+        'Registration connection failed.';
+      setErrorMsg(err.message || regConnErr);
     } finally {
       setIsSubmitting(false);
     }
@@ -270,15 +489,9 @@ export default function LoginPage() {
           <img
             src="/images/agriculture/indian-farmland-sunrise.jpg"
             alt="Aerial green agricultural fields"
-            className="w-full h-full object-cover object-center opacity-55 scale-105"
+            className="w-full h-full object-cover object-center opacity-85"
           />
-          <img
-            src="/images/agriculture/satellite-farmland.jpg"
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-overlay"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-sky-400/15 via-[#0b2b1d]/65 to-[#04110b]/95" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0b2b1d]/35 to-[#04110b]/75" />
         </div>
       </div>
 
@@ -293,22 +506,22 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-serif text-2xl font-semibold text-white tracking-tight">
-                  RaithaMitra
+                  {t('appName')}
                 </h1>
                 <span className="text-[11px] px-2 py-0.5 font-semibold rounded-md bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
                   ರೈತ ಮಿತ್ರ
                 </span>
               </div>
               <p className="text-xs text-[#C9A35C] font-medium">
-                From Seed to Sale, One Intelligent Companion.
+                {t('tagline')}
               </p>
             </div>
           </div>
 
-          {/* Multilingual Selector */}
-          <div className="flex items-center gap-1 bg-[#071810]/80 border border-emerald-400/20 rounded-xl p-1 self-start sm:self-auto">
+          {/* Multilingual Selector (4 Languages) */}
+          <div className="flex flex-wrap items-center gap-1 bg-[#071810]/80 border border-emerald-400/20 rounded-xl p-1 self-start sm:self-auto">
             <Globe className="w-3.5 h-3.5 text-emerald-300/80 ml-2" />
-            {(['en', 'kn', 'hi'] as Language[]).map((l) => (
+            {(['en', 'kn', 'hi', 'te'] as Language[]).map((l) => (
               <button
                 key={l}
                 type="button"
@@ -319,7 +532,7 @@ export default function LoginPage() {
                     : 'text-emerald-100/75 hover:bg-white/10'
                 }`}
               >
-                {l === 'en' ? 'English' : l === 'kn' ? 'ಕನ್ನಡ' : 'हिंदी'}
+                {l === 'en' ? 'English' : l === 'kn' ? 'ಕನ್ನಡ' : l === 'hi' ? 'हिन्दी' : 'తెలుగు'}
               </button>
             ))}
           </div>
@@ -336,7 +549,7 @@ export default function LoginPage() {
                 : 'text-emerald-100/70 hover:text-white hover:bg-white/5'
             }`}
           >
-            Mobile OTP
+            {t('loginTabOtp')}
           </button>
           <button
             type="button"
@@ -347,7 +560,7 @@ export default function LoginPage() {
                 : 'text-emerald-100/70 hover:text-white hover:bg-white/5'
             }`}
           >
-            Password
+            {t('loginTabPassword')}
           </button>
           <button
             type="button"
@@ -358,7 +571,7 @@ export default function LoginPage() {
                 : 'text-emerald-100/70 hover:text-white hover:bg-white/5'
             }`}
           >
-            Register
+            {t('loginTabRegister')}
           </button>
           <button
             type="button"
@@ -370,7 +583,7 @@ export default function LoginPage() {
             }`}
           >
             <Sparkles className="w-3 h-3" />
-            <span>Demo</span>
+            <span>{t('loginTabDemo')}</span>
           </button>
         </div>
 
@@ -393,10 +606,10 @@ export default function LoginPage() {
           <div className="space-y-4">
             <div className="text-center md:text-left">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                {activeTab === 'signin' ? 'Select Profile Category to Sign In' : 'Select Registration Category'}
+                {activeTab === 'signin' ? t('selectRoleToSignIn') : t('selectRegistrationCategory')}
               </h2>
               <p className="text-xs text-zinc-500">
-                Choose your primary role in the rural economic network.
+                {t('choosePrimaryRoleDesc')}
               </p>
             </div>
 
@@ -470,7 +683,7 @@ export default function LoginPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Account Password
+                  {t('accountPassword')}
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
@@ -479,13 +692,13 @@ export default function LoginPage() {
                     required
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Enter password"
+                    placeholder={t('enterPassword')}
                     className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? t('hidePassword') : t('showPassword')}
                     className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-200"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -499,7 +712,7 @@ export default function LoginPage() {
               disabled={isSubmitting}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mt-2"
             >
-              <span>{isSubmitting ? 'Authenticating...' : `Sign In as ${selectedRole.toUpperCase()}`}</span>
+              <span>{isSubmitting ? t('authenticating') : t('signInBtn')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -511,21 +724,21 @@ export default function LoginPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Full Name
+                  {t('fullName')}
                 </label>
                 <input
                   type="text"
                   required
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder="e.g. Anand Kumar"
+                  placeholder="Anand Kumar"
                   className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Email Address
+                  {t('emailAddress')}
                 </label>
                 <input
                   type="email"
@@ -539,7 +752,7 @@ export default function LoginPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Mobile Number
+                  {t('mobilePhone')}
                 </label>
                 <input
                   type="tel"
@@ -555,7 +768,7 @@ export default function LoginPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Password (min 6 chars)
+                  {L.pwMin6}
                 </label>
                 <input
                   type="password"
@@ -570,28 +783,28 @@ export default function LoginPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Village / Ward
+                  {L.villageWard}
                 </label>
                 <input
                   type="text"
                   required
                   value={regVillage}
                   onChange={(e) => setRegVillage(e.target.value)}
-                  placeholder="e.g. Maddur Rural"
+                  placeholder="Maddur Rural"
                   className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  District
+                  {t('districtName')}
                 </label>
                 <input
                   type="text"
                   required
                   value={regDistrict}
                   onChange={(e) => setRegDistrict(e.target.value)}
-                  placeholder="e.g. Mandya"
+                  placeholder="Mandya"
                   className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -601,43 +814,43 @@ export default function LoginPage() {
             {selectedRole === 'buyer' && (
               <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 space-y-3">
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase">
-                  Buyer Business Details
+                  {L.buyerSection}
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Buyer Category
+                      {L.buyerCategory}
                     </label>
                     <select
                       value={buyerType}
                       onChange={(e) => setBuyerType(e.target.value as any)}
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
                     >
-                      <option value="business">Wholesale / Business Buyer</option>
-                      <option value="individual">Direct Retail Buyer</option>
+                      <option value="business">{L.buyerWholesale}</option>
+                      <option value="individual">{L.buyerRetail}</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Business or Entity Name
+                      {L.entityName}
                     </label>
                     <input
                       type="text"
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
-                      placeholder="e.g. Apex Agri Retail"
+                      placeholder="Apex Agri Retail"
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
                     />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Delivery APMC / Mandi Address
+                      {L.deliveryMandi}
                     </label>
                     <input
                       type="text"
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
-                      placeholder="e.g. Yeshwanthpur APMC Yard"
+                      placeholder="Yeshwanthpur APMC Yard"
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
                     />
                   </div>
@@ -648,12 +861,12 @@ export default function LoginPage() {
             {selectedRole === 'labour' && (
               <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 space-y-3">
                 <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase">
-                  Agricultural Skills & Wage Details
+                  {L.labourSection}
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
-                      Select Primary Skills
+                      {L.selectSkills}
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                       {['Harvesting', 'Transplantation', 'Weeding', 'Spraying', 'Loading & Unloading'].map((sk) => {
@@ -671,7 +884,7 @@ export default function LoginPage() {
                                 : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800'
                             }`}
                           >
-                            {sk}
+                            {L.skillNames[sk] || sk}
                           </button>
                         );
                       })}
@@ -679,7 +892,7 @@ export default function LoginPage() {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Expected Daily Wage (₹ / day)
+                      {L.expectedWage}
                     </label>
                     <input
                       type="number"
@@ -697,19 +910,19 @@ export default function LoginPage() {
             {selectedRole === 'driver' && (
               <div className="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 space-y-3">
                 <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase">
-                  Freight Vehicle & Tariff Details
+                  {L.driverSection}
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Vehicle Type
+                      {L.vehicleType}
                     </label>
                     <select
                       value={vehicleType}
                       onChange={(e) => setVehicleType(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
                     >
-                      <option value="Tata Ace">Tata Ace (1.5 Tonne)</option>
+                      <option value="Tata Ace">Tata Ace (1.5T)</option>
                       <option value="Mahindra Bolero Pickup">Mahindra Bolero Pickup (1.75T)</option>
                       <option value="Ashok Leyland Dost">Ashok Leyland Dost (2.0T)</option>
                       <option value="Eicher Pro 14ft">Eicher Pro 14ft (4.5T)</option>
@@ -717,19 +930,19 @@ export default function LoginPage() {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Registration Number
+                      {L.regNo}
                     </label>
                     <input
                       type="text"
                       value={regNumber}
                       onChange={(e) => setRegNumber(e.target.value)}
-                      placeholder="e.g. KA-11-EA-4521"
+                      placeholder="KA-11-EA-4521"
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
                     />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Payload Capacity (kg)
+                      {L.payloadCap}
                     </label>
                     <input
                       type="number"
@@ -742,7 +955,7 @@ export default function LoginPage() {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                      Base Fare (₹ / km)
+                      {L.baseFare}
                     </label>
                     <input
                       type="number"
@@ -762,7 +975,11 @@ export default function LoginPage() {
               disabled={isSubmitting}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mt-2"
             >
-              <span>{isSubmitting ? 'Registering Account...' : `Register & Continue as ${selectedRole.toUpperCase()}`}</span>
+              <span>
+                {isSubmitting
+                  ? L.registeringBtn
+                  : `${L.registerContinuePrefix} ${t(`role${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`)}`}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -774,16 +991,17 @@ export default function LoginPage() {
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200">
               <div className="flex items-center gap-2 font-bold text-sm">
                 <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span>Demonstration Mode for Judging Evaluation</span>
+                <span>{L.demoBannerTitle}</span>
               </div>
               <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
-                Instantly simulate realistic multi-role agricultural workflows using predefined, persistent demonstration identities. Fictional demo sessions remain strictly separated from real user accounts.
+                {L.demoBannerDesc}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {DEMO_PERSONAS.map((p) => {
                 const Icon = p.icon;
+                const roleLabel = t(`role${p.role.charAt(0).toUpperCase() + p.role.slice(1)}`);
                 return (
                   <button
                     key={p.role}
@@ -798,7 +1016,7 @@ export default function LoginPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                          {p.role} Persona
+                          {roleLabel} {L.personaSuffix}
                         </span>
                         <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:translate-x-1 group-hover:text-emerald-500 transition-all" />
                       </div>

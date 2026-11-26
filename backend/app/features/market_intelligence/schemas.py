@@ -10,7 +10,9 @@ class LiveFetchRequest(BaseModel):
     state: Optional[str] = "Karnataka"
     district: Optional[str] = None
     market: Optional[str] = None
+    variety: Optional[str] = None
     arrival_date: Optional[str] = None
+    include_nearby_fallback: bool = True
     limit: int = Field(50, ge=1, le=200)
     offset: int = Field(0, ge=0)
 
@@ -33,6 +35,7 @@ class CsvImportRequest(BaseModel):
     filename: str = Field("imported_prices.csv", min_length=1, max_length=160)
     csv_text: str = Field(..., min_length=10)
     source_label: str = Field("Imported Historical Dataset", max_length=120)
+    source_type: Literal["imported_csv", "demonstration_csv"] = "imported_csv"
 
 
 class MarketCandidateInput(BaseModel):

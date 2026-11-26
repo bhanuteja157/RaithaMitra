@@ -4,6 +4,9 @@ Targeted Backend Tests for AD-04 Scientific Agricultural Intelligence.
 Uses a dedicated FastAPI TestClient app mounting the modular scientific router
 without modifying the shared central API router (backend/app/api/api.py).
 """
+import io
+from unittest.mock import patch
+from PIL import Image
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from backend.app.api.endpoints.scientific import router as scientific_router
@@ -179,7 +182,7 @@ def test_satellite_user_bands_vs_missing_credentials():
 # P4: AI Crop Diagnostics Image Validation & Model Unavailable Guard
 # ---------------------------------------------------------------------------
 def test_diagnostics_image_validation_and_unavailable_model():
-    # 1. Invalid image bytes
+    # 1. Invalid image bytes must be rejected cleanly
     res_bad = client.post(
         "/api/v1/scientific/diagnostics/analyze",
         data={"crop": "Tomato"},
@@ -188,15 +191,34 @@ def test_diagnostics_image_validation_and_unavailable_model():
     assert res_bad.status_code == 200
     assert res_bad.json()["results"]["valid_image"] is False
 
-    # 2. Valid PNG header bytes when ONNX model file is absent -> unavailable state (never random)
-    valid_png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
-    res_valid = client.post(
+    # 2. Corrupted PNG (header followed by zero bytes) must also be rejected
+    corrupted_png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+    res_corrupt = client.post(
         "/api/v1/scientific/diagnostics/analyze",
         data={"crop": "Tomato"},
-        files={"file": ("leaf.png", valid_png_bytes, "image/png")},
+        files={"file": ("corrupt.png", corrupted_png_bytes, "image/png")},
     )
+    assert res_corrupt.status_code == 200
+    assert res_corrupt.json()["results"]["valid_image"] is False
+
+    # 3. Genuinely decodable PNG when ONNX model is unavailable -> unavailable state (never fabricated)
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 64), (48, 128, 48)).save(buf, format="PNG")
+    valid_png_bytes = buf.getvalue()
+
+    with patch(
+        "backend.app.features.crop_diagnostics.service.check_model_availability",
+        return_value={"model_available": False, "supported_crops": ["Tomato"], "supported_classes": []},
+    ):
+        res_valid = client.post(
+            "/api/v1/scientific/diagnostics/analyze",
+            data={"crop": "Tomato"},
+            files={"file": ("leaf.png", valid_png_bytes, "image/png")},
+        )
     assert res_valid.status_code == 200
     body = res_valid.json()
     assert body["data_quality"] == "unavailable"
     assert body["results"]["valid_image"] is True
     assert body["results"]["model_available"] is False
+    assert body["results"]["diagnosis_status"] == "model_unavailable"
+    assert body["results"].get("predicted_disease") is None

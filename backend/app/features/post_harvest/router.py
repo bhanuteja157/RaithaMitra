@@ -226,3 +226,71 @@ def compare_sell_vs_store(
 ):
     resolve_authenticated_farmer(authorization)
     return evaluate_sell_vs_store(**req.model_dump())
+
+
+# ==============================================================================
+# AD-38 (P1): SMART PACKAGING, COLD-CHAIN & QR PRODUCE PASSPORTS
+# ==============================================================================
+
+from pydantic import BaseModel, Field
+from typing import Literal
+from backend.app.features.post_harvest.packaging import recommend_packaging_and_cold_chain
+from backend.app.features.post_harvest.passport import (
+    create_produce_passport,
+    get_public_passport,
+    list_farmer_passports,
+)
+
+
+class PackagingRecommendRequest(BaseModel):
+    crop_name: str = Field(..., min_length=2, max_length=80)
+    quantity_kg: float = Field(..., gt=0)
+    ripeness: Literal["underripe", "optimal", "ripe"] = "optimal"
+    distance_km: float = Field(60.0, ge=0)
+    transit_hours: Optional[float] = Field(None, gt=0)
+    market_type: Literal["local_apmc", "regional_wholesale", "cold_chain_retail"] = "regional_wholesale"
+
+
+class PassportCreateRequest(BaseModel):
+    farm_id: str
+    crop_name: str = Field(..., min_length=2, max_length=80)
+    variety: Optional[str] = Field(None, max_length=80)
+    harvest_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    quantity_kg: float = Field(..., gt=0)
+    harvest_record_id: Optional[str] = None
+    inventory_lot_id: Optional[str] = None
+    purchase_order_id: Optional[str] = None
+    transport_booking_id: Optional[str] = None
+    packaging_summary: Optional[str] = Field(None, max_length=300)
+    storage_conditions: Optional[str] = Field(None, max_length=200)
+    quality_observations: Optional[str] = Field(None, max_length=240)
+    is_demonstration: bool = False
+
+
+@router.post("/packaging/recommend")
+def get_packaging_recommendation(
+    req: PackagingRecommendRequest,
+    authorization: Optional[str] = Header(None),
+):
+    resolve_authenticated_farmer(authorization)
+    return recommend_packaging_and_cold_chain(**req.model_dump())
+
+
+@router.post("/passports", status_code=201)
+def issue_produce_passport(
+    req: PassportCreateRequest,
+    authorization: Optional[str] = Header(None),
+):
+    user = resolve_authenticated_farmer(authorization)
+    return create_produce_passport(farmer_id=user["user_id"], **req.model_dump())
+
+
+@router.get("/passports")
+def get_my_passports(authorization: Optional[str] = Header(None)):
+    user = resolve_authenticated_farmer(authorization)
+    return {"passports": list_farmer_passports(user["user_id"])}
+
+
+@router.get("/passports/public/{batch_code}")
+def get_public_batch_passport(batch_code: str):
+    return get_public_passport(batch_code)

@@ -1,0 +1,8 @@
+commodity,variety,grade,state,district,market,arrival_date,min_price,max_price,modal_price,unit
+Green Chilli,Local Green,FAQ,Karnataka,Ballari,Ballari APMC,2026-11-20,2800,3600,3200,INR/Quintal
+Dry Chilli,Byadgi Kaddi,FAQ,Karnataka,Ballari,Ballari APMC,2026-11-20,16500,21000,18500,INR/Quintal
+Tomato,Hybrid,FAQ,Karnataka,Kolar,Kolar APMC,2026-11-21,1800,2500,2150,INR/Quintal
+Onion,Bellary Red,FAQ,Karnataka,Bengaluru Urban,Yeshwanthpur APMC,2026-11-21,2600,3400,3000,INR/Quintal
+Onion,Local Red,FAQ,Karnataka,Mysuru,Bandipalya APMC,2026-11-21,2500,3200,2850,INR/Quintal
+Paddy,Sona Masuri,FAQ,Karnataka,Mandya,Mandya APMC,2026-11-20,2300,2750,2550,INR/Quintal
+Maize,Yellow Hybrid,FAQ,Karnataka,Tumakuru,Tumakuru APMC,2026-11-20,2050,2350,2200,INR/Quintal

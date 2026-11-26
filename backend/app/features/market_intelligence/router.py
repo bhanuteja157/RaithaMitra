@@ -51,6 +51,7 @@ def list_observations(
     source_type: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
+    include_demo: bool = Query(False),
     limit: int = Query(100, ge=1, le=500),
 ):
     canon = normalize_commodity_name(commodity) if commodity else None
@@ -62,6 +63,7 @@ def list_observations(
         source_type=source_type,
         start_date=start_date,
         end_date=end_date,
+        include_demo=include_demo,
         limit=limit,
     )
     return {"count": len(rows), "observations": rows}
@@ -92,6 +94,24 @@ def import_csv_prices(
 ):
     user = resolve_authenticated_farmer(authorization)
     return import_csv_observations(user["user_id"], req)
+
+
+@router.post("/load-official-csv-fallback")
+def load_official_csv_fallback(authorization: Optional[str] = Header(None)):
+    """Load bundled historical sample CSV explicitly classified as demonstration_csv and isolated from real recommendations."""
+    import pathlib
+    user = resolve_authenticated_farmer(authorization)
+    csv_path = pathlib.Path(__file__).resolve().parents[2] / "data" / "agmarknet_sample_official.csv"
+    csv_text = csv_path.read_text(encoding="utf-8")
+    return import_csv_observations(
+        user["user_id"],
+        CsvImportRequest(
+            filename="agmarknet_sample_official.csv",
+            csv_text=csv_text,
+            source_label="Demonstration Market Dataset (Unverified Offline Sample — Not Live/Official Data)",
+            source_type="demonstration_csv",
+        ),
+    )
 
 
 @router.get("/karnataka-markets")

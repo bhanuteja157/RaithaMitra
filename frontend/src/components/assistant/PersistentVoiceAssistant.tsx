@@ -19,10 +19,23 @@ import {
   speakWithDeviceVoice,
 } from '@/lib/assistantVoice';
 import { calculateSeedInvestment, getCropPreset } from '@/lib/seedInvestment';
-import { sendAssistantMessage } from '@/lib/assistantApi';
-import { Mic, MicOff, Volume2, VolumeX, Send, X, Sprout, MessageSquare } from 'lucide-react';
+import {
+  AssistantChatResponse,
+  fetchAssistantStatus,
+  sendAssistantMessage,
+  sendVoiceTurn,
+  synthesizeGeminiSpeech,
+} from '@/lib/assistantApi';
+import {
+  AudioClipRecorder,
+  GeminiLiveVoiceSession,
+  LiveOrbState,
+  playWavBase64,
+  stopWavAudio,
+} from '@/lib/geminiLiveVoice';
+import { Mic, MicOff, Volume2, VolumeX, Send, X, Sprout, MessageSquare, Square, Radio, Sparkles } from 'lucide-react';
 
-type AssistantState = 'idle' | 'listening' | 'processing' | 'navigating' | 'speaking';
+type AssistantState = 'idle' | 'connecting' | 'listening' | 'processing' | 'navigating' | 'speaking';
 
 interface PendingBioIntelDraft {
   crop: string;
@@ -50,14 +63,121 @@ export function PersistentVoiceAssistant() {
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [pendingBioIntelDraft, setPendingBioIntelDraft] = useState<PendingBioIntelDraft | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [liveActive, setLiveActive] = useState(false);
+  const [continuousMode, setContinuousMode] = useState(false);
+  const [geminiAvailable, setGeminiAvailable] = useState(false);
+  const [detectedLang, setDetectedLang] = useState<AssistantLanguage>((language || 'en') as AssistantLanguage);
+  const [micLevel, setMicLevel] = useState(0);
+  const [liveUserCaption, setLiveUserCaption] = useState('');
   const pendingIntentRef = useRef<RouteIntent | null>(null);
   const recognitionRef = useRef<any>(null);
+  const liveSessionRef = useRef<GeminiLiveVoiceSession | null>(null);
+  const clipRecorderRef = useRef<AudioClipRecorder | null>(null);
+  const isRecordingClipRef = useRef(false);
 
   const lang = (language || 'en') as AssistantLanguage;
+  const convStorageKey = `rm_assistant_conv_${currentUser.id}`;
+  const bioStateStorageKey = `rm_voice_biointel_state_${currentUser.id}`;
 
-  const speakAndSet = (msg: string) => {
+  useEffect(() => {
+    setDetectedLang(lang);
+  }, [lang]);
+
+  useEffect(() => {
+    if (!token) {
+      setGeminiAvailable(false);
+      return;
+    }
+    fetchAssistantStatus(token)
+      .then((s) => setGeminiAvailable(Boolean(s.gemini_configured && s.live_api_available)))
+      .catch(() => setGeminiAvailable(false));
+  }, [token]);
+
+  useEffect(() => {
+    return () => {
+      liveSessionRef.current?.stop();
+      clipRecorderRef.current?.cancel();
+      stopWavAudio();
+    };
+  }, []);
+
+  const applyClientDirective = (res: AssistantChatResponse) => {
+    if (res.conversation_id) {
+      setConversationId(res.conversation_id);
+      try {
+        window.sessionStorage.setItem(convStorageKey, res.conversation_id);
+      } catch {
+        // ignore
+      }
+    }
+    if (res.language) {
+      setDetectedLang(res.language as AssistantLanguage);
+    }
+    if (res.client_directive?.directive_type === 'biointel_fill' && typeof window !== 'undefined') {
+      window.localStorage.setItem('rm_voice_biointel_draft_v1', JSON.stringify(res.client_directive.payload));
+      window.dispatchEvent(new CustomEvent('rm-biointel-voice-fill', { detail: res.client_directive.payload }));
+      if (pathname !== '/biointel') router.push('/biointel');
+    } else if (res.client_directive?.directive_type === 'digital_farm_control' && typeof window !== 'undefined') {
+      const act = String(res.client_directive.payload.action || 'summary');
+      window.sessionStorage.setItem('rm_df_pending_action', act);
+      window.dispatchEvent(new CustomEvent('rm-df-control', { detail: { action: act } }));
+      if (pathname !== '/digital-farming') router.push('/digital-farming');
+    } else if (res.client_directive?.directive_type === 'navigate' && res.client_directive.route) {
+      router.push(res.client_directive.route);
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(convStorageKey);
+      setConversationId(saved || null);
+    } catch {
+      setConversationId(null);
+    }
+  }, [convStorageKey]);
+
+  const stopSpeaking = () => {
+    liveSessionRef.current?.interruptPlayback();
+    stopWavAudio();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setState(liveActive ? 'listening' : 'idle');
+  };
+
+  const speakAndSet = async (msg: string, spokenLang?: AssistantLanguage, preloadedAudioB64?: string | null, preloadedMime?: string | null) => {
+    const targetLang = spokenLang || lang;
     setTranscriptText(msg);
-    const res = speakWithDeviceVoice(msg, lang, muted, {
+    setDetectedLang(targetLang);
+    if (muted) {
+      setState('idle');
+      return;
+    }
+    if (preloadedAudioB64) {
+      try {
+        await playWavBase64(preloadedAudioB64, preloadedMime || 'audio/wav', muted, {
+          onStart: () => setState('speaking'),
+          onEnd: () => setState('idle'),
+        });
+        return;
+      } catch {
+        // fall through to browser speech
+      }
+    }
+    if (token && geminiAvailable) {
+      try {
+        const tts = await synthesizeGeminiSpeech(msg, targetLang, token);
+        await playWavBase64(tts.audio_base64, tts.mime_type, muted, {
+          onStart: () => setState('speaking'),
+          onEnd: () => setState('idle'),
+        });
+        return;
+      } catch {
+        // fall through to browser speech
+      }
+    }
+    const res = speakWithDeviceVoice(msg, targetLang, muted, {
       onStart: () => setState('speaking'),
       onEnd: () => setState('idle'),
     });
@@ -167,7 +287,10 @@ export function PersistentVoiceAssistant() {
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(pending.payload),
       });
 
@@ -237,6 +360,95 @@ export function PersistentVoiceAssistant() {
     // 3. Allowlisted Agentic Task Workflows
     const task = parseAgenticTaskCommand(text);
     if (task) {
+      if (task.type === 'biointel_slot') {
+        if (currentUser.role !== 'farmer' && currentUser.role !== 'admin') {
+          speakAndSet('Sorry, Seed Investment Planning is available only for Farmer accounts.');
+          return;
+        }
+        let savedState: {
+          crop: string;
+          areaAcres: number;
+          budgetInr: number;
+          waterAvailability: WaterAvailabilityOption;
+        } = {
+          crop: currentFarm?.primary_crop || 'Tomato',
+          areaAcres: currentFarm ? Number((currentFarm.land_area_ha * 2.471).toFixed(1)) : 2,
+          budgetInr: currentFarm?.cultivation_budget_inr || 50000,
+          waterAvailability: 'Moderate',
+        };
+        try {
+          const rawSaved = window.localStorage.getItem(bioStateStorageKey);
+          if (rawSaved) {
+            savedState = { ...savedState, ...JSON.parse(rawSaved) };
+          }
+        } catch {
+          // ignore
+        }
+
+        const nextState = {
+          crop: task.crop || savedState.crop,
+          areaAcres: task.areaAcres ?? savedState.areaAcres,
+          budgetInr: task.budgetInr ?? savedState.budgetInr,
+          waterAvailability: task.waterAvailability || savedState.waterAvailability,
+        };
+        const deltaPayload: Record<string, unknown> = {
+          userId: currentUser.id,
+          autoGenerate: Boolean(task.autoGenerate),
+          requestedAt: new Date().toISOString(),
+        };
+        if (task.crop) deltaPayload.crop = task.crop;
+        if (task.areaAcres !== null && task.areaAcres !== undefined) deltaPayload.areaAcres = task.areaAcres;
+        if (task.budgetInr !== null && task.budgetInr !== undefined) deltaPayload.budgetInr = task.budgetInr;
+        if (task.waterAvailability) deltaPayload.waterAvailability = task.waterAvailability;
+
+        try {
+          window.localStorage.setItem(bioStateStorageKey, JSON.stringify(nextState));
+          window.localStorage.setItem('rm_voice_biointel_draft_v1', JSON.stringify(deltaPayload));
+          window.dispatchEvent(new CustomEvent('rm-biointel-voice-fill', { detail: deltaPayload }));
+        } catch {
+          // ignore
+        }
+
+        if (pathname !== '/biointel') {
+          router.push('/biointel');
+        }
+
+        if (task.autoGenerate) {
+          const preset = getCropPreset(nextState.crop);
+          const calc = calculateSeedInvestment({
+            crop: preset.name,
+            variety: preset.defaultVariety,
+            areaAcres: nextState.areaAcres,
+            seedQtyPerAcreKg: preset.seedRatePerAcreKg,
+            seedPricePerKg: preset.seedPricePerKg,
+            fertilizerExpensesInr: Math.round(preset.fertilizerExpensesPerAcreInr * nextState.areaAcres),
+            labourExpensesInr: Math.round(preset.labourExpensesPerAcreInr * nextState.areaAcres),
+            irrigationExpensesInr: Math.round(preset.irrigationExpensesPerAcreInr * nextState.areaAcres),
+            otherExpensesInr: Math.round(preset.otherExpensesPerAcreInr * nextState.areaAcres),
+            availableBudgetInr: nextState.budgetInr,
+            expectedYieldPerAcreKg: preset.expectedYieldPerAcreKg,
+            expectedSellingPricePerKg: preset.expectedSellingPricePerKg,
+          });
+          const warn = !calc.isWithinBudget
+            ? ` Caution: estimated cost exceeds your ₹${nextState.budgetInr.toLocaleString('en-IN')} budget.`
+            : ` It fits within your ₹${nextState.budgetInr.toLocaleString('en-IN')} budget.`;
+          speakAndSet(
+            `Calculated ${preset.name} cultivation investment for ${nextState.areaAcres} acres: requires ${calc.totalSeedRequirementKg} kg seed, total investment ₹${calc.totalCultivationInvestmentInr.toLocaleString('en-IN')}, expected profit ₹${calc.estimatedProfitInr.toLocaleString('en-IN')}.${warn}`
+          );
+          return;
+        }
+
+        const updates: string[] = [];
+        if (task.crop) updates.push(`crop to ${task.crop}`);
+        if (task.areaAcres !== null) updates.push(`land area to ${task.areaAcres} acres`);
+        if (task.budgetInr !== null) updates.push(`budget to ₹${task.budgetInr.toLocaleString('en-IN')}`);
+        if (task.waterAvailability) updates.push(`water availability to ${task.waterAvailability}`);
+        speakAndSet(
+          `Updated Seed Investment Planner: set ${updates.join(', ') || 'your field settings'}. Say "Calculate my cultivation investment" when ready.`
+        );
+        return;
+      }
+
       if (task.type === 'biointel_plan') {
         if (currentUser.role !== 'farmer') {
           speakAndSet('Sorry, Seed Investment Planning is available only for Farmer accounts.');
@@ -320,7 +532,9 @@ export function PersistentVoiceAssistant() {
         }
         if (task.subAction === 'check_offers') {
           try {
-            const res = await fetch(`${backendUrl}/bidding/listings`);
+            const res = await fetch(`${backendUrl}/bidding/listings`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             if (!res.ok) {
               speakAndSet('Could not fetch Smart Bidding offers right now.');
               return;
@@ -375,7 +589,9 @@ export function PersistentVoiceAssistant() {
         }
         try {
           const weight = task.cargoWeightKg || 500;
-          const res = await fetch(`${backendUrl}/transport/drivers?min_capacity_kg=${weight}`);
+          const res = await fetch(`${backendUrl}/transport/drivers?min_capacity_kg=${weight}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
           if (!res.ok) {
             speakAndSet('Could not check transport availability right now.');
             return;
@@ -457,7 +673,12 @@ export function PersistentVoiceAssistant() {
             speakAndSet(
               `You have ₹${Number(fin.outstanding_payments_inr || 0).toLocaleString('en-IN')} in outstanding buyer payments across ₹${Number(fin.confirmed_sales_value_inr || 0).toLocaleString('en-IN')} in confirmed sales.`
             );
-            if (pathname !== '/finance') router.push('/finance');
+            if (pathname !== '/finance' && pathname !== '/finance-benefits') router.push('/finance-benefits?section=finance');
+          } else if (task.metric === 'summary') {
+            speakAndSet(
+              `Financial summary: allocated budget ₹${Number(fin.allocated_budget_inr || 0).toLocaleString('en-IN')}, recorded expenses ₹${Number(fin.actual_recorded_expenses_inr || 0).toLocaleString('en-IN')}, confirmed sales ₹${Number(fin.confirmed_sales_value_inr || 0).toLocaleString('en-IN')}, and realized net profit ₹${Number(fin.realized_net_profit_inr || 0).toLocaleString('en-IN')}.`
+            );
+            if (pathname !== '/finance' && pathname !== '/finance-benefits') router.push('/finance-benefits?section=finance');
           }
         } catch {
           speakAndSet('Unable to reach the Financial Intelligence service right now.');
@@ -466,25 +687,47 @@ export function PersistentVoiceAssistant() {
       }
     }
 
-    // 4. Navigation intents
-    const intent = matchNavigationIntent(text);
-    if (!intent) {
-      // Delegate general agricultural questions to the unified AD-23 Assistant backend
+    // 4. Navigation intents (allow rich domain queries & follow-ups to reach unified backend intelligence)
+    const intent = matchNavigationIntent(text, currentUser.role);
+    const shouldPreferBackendQuery =
+      Boolean(token) &&
+      (/(buyers? for|who wants to buy|what should i do|explain|why do|how does|photosynthesis)/i.test(text) ||
+        (/find buyers/i.test(text) && (/\d/.test(text) || /(tomato|potato|onion|chilli|maize|paddy|rice|wheat|ragi|cotton)/i.test(text))));
+
+    if (!intent || shouldPreferBackendQuery) {
+      // Delegate general agricultural questions, buyer discovery, decisions & follow-ups to the unified AD-23/AD-39 Assistant backend
       if (token) {
         try {
           const res = await sendAssistantMessage(
             {
               message: text,
+              conversation_id: conversationId,
               farm_id: currentUser.role === 'farmer' ? currentFarm?.id : undefined,
               language: lang,
             },
             token
           );
+          if (res.conversation_id) {
+            setConversationId(res.conversation_id);
+            try {
+              window.sessionStorage.setItem(convStorageKey, res.conversation_id);
+            } catch {
+              // ignore
+            }
+          }
           if (res.client_directive?.directive_type === 'biointel_fill' && typeof window !== 'undefined') {
             window.localStorage.setItem('rm_voice_biointel_draft_v1', JSON.stringify(res.client_directive.payload));
             window.dispatchEvent(new CustomEvent('rm-biointel-voice-fill', { detail: res.client_directive.payload }));
+            if (pathname !== '/biointel') router.push('/biointel');
+          } else if (res.client_directive?.directive_type === 'digital_farm_control' && typeof window !== 'undefined') {
+            const act = String(res.client_directive.payload.action || 'summary');
+            window.sessionStorage.setItem('rm_df_pending_action', act);
+            window.dispatchEvent(new CustomEvent('rm-df-control', { detail: { action: act } }));
+            if (pathname !== '/digital-farming') router.push('/digital-farming');
+          } else if (res.client_directive?.directive_type === 'navigate' && res.client_directive.route) {
+            router.push(res.client_directive.route);
           }
-          speakAndSet(res.reply);
+          speakAndSet(res.reply, (res.language || lang) as AssistantLanguage);
           return;
         } catch {
           // fall through to local prompt
@@ -495,7 +738,9 @@ export function PersistentVoiceAssistant() {
           ? 'ದಯವಿಟ್ಟು "Open BioIntel", "Plan Tomato 2 acres 40000 budget", ಅಥವಾ "Open Digital Farming" ಎಂದು ಹೇಳಿ.'
           : lang === 'hi'
             ? 'कृपया "Open BioIntel", "Plan Tomato 2 acres 40000 budget", या "Open Digital Farming" कहें।'
-            : 'Try saying "Plan Tomato for 2 acres with 40000 budget", "Should I irrigate tomorrow?", "Open BioIntel", or "How much profit have I earned?".';
+            : lang === 'te'
+              ? 'దయచేసి "Open BioIntel", "Plan Tomato 2 acres 40000 budget", లేదా "Open Digital Farming" అని చెప్పండి.'
+              : 'Try saying "Plan Tomato for 2 acres with 40000 budget", "Should I irrigate tomorrow?", "Open BioIntel", or "How much profit have I earned?".';
       speakAndSet(msg);
       return;
     }
@@ -529,7 +774,122 @@ export function PersistentVoiceAssistant() {
     }
   };
 
-  const toggleMic = () => {
+  const stopLiveVoice = () => {
+    liveSessionRef.current?.stop();
+    liveSessionRef.current = null;
+    setLiveActive(false);
+    setMicLevel(0);
+    setState('idle');
+  };
+
+  const toggleLiveVoice = async () => {
+    if (liveActive) {
+      stopLiveVoice();
+      return;
+    }
+    if (!token || !geminiAvailable) {
+      setVoiceNote('Sign in with Gemini configured on backend to start Live Audio; using Voice Turn fallback.');
+      toggleMic();
+      return;
+    }
+    stopSpeaking();
+    stopListening();
+    setVoiceNote(null);
+    setLiveUserCaption('');
+
+    const session = new GeminiLiveVoiceSession();
+    liveSessionRef.current = session;
+    setLiveActive(true);
+    try {
+      await session.start({
+        authToken: token,
+        farmId: currentUser.role === 'farmer' ? currentFarm?.id : undefined,
+        conversationId,
+        language: lang,
+        muted,
+        onStateChange: (orbState: LiveOrbState) => {
+          setState(orbState === 'thinking' ? 'processing' : orbState);
+          if (orbState === 'idle') {
+            setLiveActive(false);
+            setMicLevel(0);
+          }
+        },
+        onMicLevel: (lvl) => setMicLevel(lvl),
+        onInputTranscript: (delta) => setLiveUserCaption((prev) => `${prev}${delta}`.slice(-220)),
+        onOutputTranscript: (delta) => setTranscriptText((prev) => `${prev}${delta}`.slice(-420)),
+        onToolResult: (res) => {
+          applyClientDirective(res);
+          if (res.reply) setTranscriptText(res.reply);
+        },
+        onError: (msg) => {
+          setVoiceNote(`Live session fallback: ${msg}`);
+          stopLiveVoice();
+        },
+      });
+    } catch (err: any) {
+      setVoiceNote(err?.message || 'Could not start Gemini Live Voice; using microphone turn capture.');
+      stopLiveVoice();
+    }
+  };
+
+  const toggleMic = async () => {
+    if (liveActive) {
+      stopLiveVoice();
+      return;
+    }
+
+    // Prefer real MediaRecorder -> Gemini 3.5 Transcribe + Gemini 3.8 Flash-Lite TTS when signed in
+    if (token && geminiAvailable && typeof MediaRecorder !== 'undefined') {
+      if (isRecordingClipRef.current && clipRecorderRef.current) {
+        isRecordingClipRef.current = false;
+        setState('processing');
+        try {
+          const blob = await clipRecorderRef.current.stop();
+          const res = await sendVoiceTurn(
+            blob,
+            {
+              farm_id: currentUser.role === 'farmer' ? currentFarm?.id : undefined,
+              conversation_id: conversationId,
+              language: lang,
+              include_tts: !muted,
+            },
+            token
+          );
+          setInput(res.transcript);
+          setLiveUserCaption(res.transcript);
+          applyClientDirective(res.chat);
+          await speakAndSet(
+            res.chat.reply,
+            res.chat.language,
+            res.tts_audio_base64,
+            res.tts_mime_type
+          );
+          if (continuousMode && !muted) {
+            window.setTimeout(() => {
+              if (!isRecordingClipRef.current) toggleMic();
+            }, 350);
+          }
+          return;
+        } catch (err: any) {
+          setVoiceNote(err?.message || 'Gemini voice turn unavailable; falling back to browser speech.');
+          setState('idle');
+        }
+      } else {
+        try {
+          stopSpeaking();
+          setVoiceNote(null);
+          const rec = new AudioClipRecorder();
+          clipRecorderRef.current = rec;
+          await rec.start();
+          isRecordingClipRef.current = true;
+          setState('listening');
+          return;
+        } catch {
+          isRecordingClipRef.current = false;
+        }
+      }
+    }
+
     if (state === 'listening') {
       stopListening();
       setState('idle');
@@ -545,9 +905,7 @@ export function PersistentVoiceAssistant() {
       return;
     }
 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopSpeaking();
 
     const rec = new SpeechRecognitionCtor();
     rec.lang = getBcp47ForLanguage(lang);
@@ -586,22 +944,45 @@ export function PersistentVoiceAssistant() {
                 <Sprout className="w-4 h-4 text-white" />
               </div>
               <div>
-                <div className="text-xs font-semibold">RaithaMitra Voice Guide</div>
-                <div className="text-[10px] text-emerald-200 capitalize">{state}</div>
+                <div className="text-xs font-semibold flex items-center gap-1.5">
+                  <span>RaithaMitra Voice</span>
+                  <span className="px-1.5 py-0.5 rounded bg-white/15 text-[9px] uppercase">
+                    {detectedLang}
+                  </span>
+                </div>
+                <div className="text-[10px] text-emerald-200 capitalize">
+                  {liveActive ? `Gemini Live • ${state}` : state}
+                </div>
               </div>
               {(state === 'listening' || state === 'speaking') && (
                 <div className="flex items-center gap-0.5 h-4 ml-1" aria-hidden="true">
                   {[0, 1, 2].map((i) => (
                     <span
                       key={i}
-                      className="w-0.5 h-3.5 rounded-full bg-[#65A76F] rm-wave-bar"
-                      style={{ animationDelay: `${i * 0.14}s` }}
+                      className="w-0.5 rounded-full bg-[#65A76F] rm-wave-bar"
+                      style={{
+                        height: `${Math.max(6, Math.round(10 + micLevel * 12))}px`,
+                        animationDelay: `${i * 0.14}s`,
+                      }}
                     />
                   ))}
                 </div>
               )}
             </div>
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleLiveVoice}
+                title={liveActive ? 'End Live Voice' : 'Start Gemini Live Voice'}
+                className={`px-2 py-1 rounded-lg text-[10px] font-semibold inline-flex items-center gap-1 ${
+                  liveActive
+                    ? 'bg-red-500 text-white animate-pulse'
+                    : 'bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-100'
+                }`}
+              >
+                <Radio className="w-3 h-3" />
+                {liveActive ? 'End Live' : 'Live'}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -612,13 +993,25 @@ export function PersistentVoiceAssistant() {
               >
                 Full Chat
               </button>
+              {state === 'speaking' && (
+                <button
+                  type="button"
+                  onClick={stopSpeaking}
+                  aria-label="Stop speaking"
+                  title="Stop speaking"
+                  className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[10px] font-semibold inline-flex items-center gap-1"
+                >
+                  <Square className="w-3 h-3 fill-current" />
+                  Stop
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
-                  if (!muted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                  }
-                  setMuted((m) => !m);
+                  const nextMuted = !muted;
+                  if (nextMuted) stopSpeaking();
+                  liveSessionRef.current?.setMuted(nextMuted);
+                  setMuted(nextMuted);
                 }}
                 aria-label={muted ? 'Unmute assistant voice' : 'Mute assistant voice'}
                 className="p-1.5 rounded-lg hover:bg-white/10"
@@ -636,10 +1029,30 @@ export function PersistentVoiceAssistant() {
             </div>
           </div>
 
-          <div className="p-3.5 space-y-3 text-xs">
+          <div className="p-3.5 space-y-2.5 text-xs">
+            {liveUserCaption && (
+              <div className="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 text-[11px]">
+                <span className="font-semibold">You: </span>{liveUserCaption}
+              </div>
+            )}
             <div className="p-3 rounded-xl bg-white dark:bg-zinc-950 border border-[#DCD8CA] dark:border-zinc-800 text-[#20372A] dark:text-zinc-200 min-h-[54px]">
               {transcriptText ||
-                'Say or type a command like "Open BioIntel", "Open Digital Farming", or "Open Smart Bidding".'}
+                'Tap Live for real-time Gemini 3.8 voice conversation, tap the mic to speak in EN / ಕನ್ನಡ / हिन्दी / తెలుగు, or type below.'}
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-zinc-500">
+              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={continuousMode}
+                  onChange={(e) => setContinuousMode(e.target.checked)}
+                  className="rounded border-zinc-300"
+                />
+                <span>Continuous hands-free turn mode</span>
+              </label>
+              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                <Sparkles className="w-3 h-3" />
+                {geminiAvailable ? 'Gemini Live + TTS' : 'Local Fallback'}
+              </span>
             </div>
 
             {voiceNote && (
@@ -649,6 +1062,12 @@ export function PersistentVoiceAssistant() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (liveActive && liveSessionRef.current && input.trim()) {
+                  setLiveUserCaption(input.trim());
+                  liveSessionRef.current.sendTextTurn(input.trim());
+                  setInput('');
+                  return;
+                }
                 handleCommand(input);
                 setInput('');
               }}

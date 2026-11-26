@@ -74,12 +74,15 @@ def query_market_observations(
     source_type: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    include_demo: bool = False,
     limit: int = 100,
 ) -> List[Dict[str, Any]]:
     conn = get_db_connection()
     try:
         clauses = ["1=1"]
         params: List[Any] = []
+        if not include_demo and source_type not in ("demonstration", "demonstration_csv"):
+            clauses.append("COALESCE(source_type, '') NOT IN ('demonstration', 'demonstration_csv')")
         if commodity:
             clauses.append("LOWER(commodity) = ?")
             params.append(commodity.strip().lower())

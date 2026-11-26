@@ -160,7 +160,11 @@ def test_nursery_product_crud():
         "availability_status": "in_stock",
         "data_source": "direct_nursery_inventory"
     }
-    create_res = client.post("/api/v1/nurseries/products", json=new_prod)
+    create_res = client.post(
+        "/api/v1/nurseries/products",
+        json=new_prod,
+        headers={"Authorization": "Bearer rm_demo_token_farmer"},
+    )
     assert create_res.status_code == 201
     created = create_res.json()
     prod_id = created["id"]
@@ -168,7 +172,11 @@ def test_nursery_product_crud():
     assert created["is_demo"] is False
 
     # Update product price
-    update_res = client.patch(f"/api/v1/nurseries/products/{prod_id}", json={"price_per_unit": 1.65})
+    update_res = client.patch(
+        f"/api/v1/nurseries/products/{prod_id}",
+        json={"price_per_unit": 1.65},
+        headers={"Authorization": "Bearer rm_demo_token_farmer"},
+    )
     assert update_res.status_code == 200
     updated = update_res.json()
     assert updated["price_per_unit"] == 1.65
@@ -184,7 +192,11 @@ def test_nursery_inquiry_submission():
         "intended_sowing_date": "2026-12-05",
         "notes": "Looking for 3000 Arka Rakshak seedlings"
     }
-    response = client.post("/api/v1/nurseries/inquiries", json=inq)
+    response = client.post(
+        "/api/v1/nurseries/inquiries",
+        json=inq,
+        headers={"Authorization": "Bearer rm_demo_token_farmer"},
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["farmer_name"] == "Basavaraju"

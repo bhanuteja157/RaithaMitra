@@ -1,6 +1,6 @@
 // frontend/src/types/index.ts
 
-export type Language = 'en' | 'kn' | 'hi';
+export type Language = 'en' | 'kn' | 'hi' | 'te';
 export type Theme = 'light' | 'dark';
 export type UserRole = 'farmer' | 'buyer' | 'labour' | 'driver' | 'admin';
 
@@ -131,6 +131,9 @@ export interface FarmRecommendation {
   title?: string;
   action: string;
   reason: string;
+  localized_title?: string;
+  localized_action?: string;
+  localized_reason?: string;
   supporting_data: SupportingData;
   alternative_action?: string;
   action_deadline?: string;

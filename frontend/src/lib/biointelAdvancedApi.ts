@@ -33,7 +33,7 @@ export interface UnifiedBioIntelRequest {
   nitrogen_kg_ha?: number;
   phosphorus_kg_ha?: number;
   potassium_kg_ha?: number;
-  language: 'en' | 'kn' | 'hi';
+  language: 'en' | 'kn' | 'hi' | 'te';
   include_genomics: boolean;
   allow_demo_inventory: boolean;
   search_radius_km: number;
@@ -271,7 +271,14 @@ export async function runUnifiedBioIntelWorkflow(
           is_demo: true,
         },
       ],
-      explanation: `Allocated ${req.required_seedlings} seedlings for ₹${totalCost.toLocaleString('en-IN')}.`,
+      explanation:
+        req.language === 'kn'
+          ? `${req.required_seedlings} ಸಸಿಗಳನ್ನು ₹${totalCost.toLocaleString('kn-IN')} ವೆಚ್ಚದಲ್ಲಿ ಹಂಚಿಕೆ ಮಾಡಲಾಗಿದೆ.`
+          : req.language === 'hi'
+            ? `${req.required_seedlings} पौधे ₹${totalCost.toLocaleString('hi-IN')} की लागत से आवंटित किए गए।`
+            : req.language === 'te'
+              ? `${req.required_seedlings} మొక్కలను ₹${totalCost.toLocaleString('te-IN')} ఖర్చుతో కేటాయించాము.`
+              : `Allocated ${req.required_seedlings} seedlings for ₹${totalCost.toLocaleString('en-IN')}.`,
       is_partial_plan: false,
     },
     procurement_cost: totalCost,
@@ -285,7 +292,14 @@ export async function runUnifiedBioIntelWorkflow(
       unresolved_contradictions: [],
     },
     evidence_quality: 'Strong',
-    grounded_explanation: `For ${req.crop_name}, Arka Rakshak is supported with Strong evidence from ICAR-IIHR.`,
+    grounded_explanation:
+      req.language === 'kn'
+        ? `${req.crop_name} ಬೆಳೆಗೆ Arka Rakshak ತಳಿಗೆ ICAR-IIHR ದೃಢ ಆಧಾರದ ಬೆಂಬಲವಿದೆ.`
+        : req.language === 'hi'
+          ? `${req.crop_name} के लिए Arka Rakshak किस्म को ICAR-IIHR के मजबूत वैज्ञानिक प्रमाणों का समर्थन है।`
+          : req.language === 'te'
+            ? `${req.crop_name} కోసం Arka Rakshak రకానికి ICAR-IIHR బలమైన శాస్త్రీయ ఆధారాలు ఉన్నాయి.`
+            : `For ${req.crop_name}, Arka Rakshak is supported with Strong evidence from ICAR-IIHR.`,
     gemini_used: false,
     provider_statuses: [
       { provider_name: '1. Europe PMC', status: 'Configured but unverified', endpoint_or_library: 'europepmc.org', data_classification: 'Scientific research evidence', fallback_availability: 'Curated index', known_limitations: 'Backend router pending mount' },

@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from backend.app.main import app
 
 client = TestClient(app)
+FARMER_HEADERS = {"Authorization": "Bearer rm_demo_token_farmer"}
 
 def test_health_check():
     response = client.get("/api/v1/health")
@@ -14,15 +15,15 @@ def test_health_check():
     assert "services" in data
 
 def test_list_farms():
-    response = client.get("/api/v1/farms")
+    response = client.get("/api/v1/farms", headers=FARMER_HEADERS)
     assert response.status_code == 200
     farms = response.json()
-    assert len(farms) >= 2
+    assert len(farms) >= 1
     assert farms[0]["id"] == "farm_001"
     assert farms[0]["farmer_name"] == "Suresh Gowda"
 
 def test_get_single_farm():
-    response = client.get("/api/v1/farms/farm_001")
+    response = client.get("/api/v1/farms/farm_001", headers=FARMER_HEADERS)
     assert response.status_code == 200
     farm = response.json()
     assert farm["primary_crop"] == "Tomato"
@@ -49,7 +50,7 @@ def test_create_farm():
         "available_water_m3": 18000.0,
         "cultivation_budget_inr": 65000.0
     }
-    response = client.post("/api/v1/farms", json=new_farm)
+    response = client.post("/api/v1/farms", json=new_farm, headers=FARMER_HEADERS)
     assert response.status_code == 201
     created = response.json()
     assert created["farmer_name"] == "Rao Patil"

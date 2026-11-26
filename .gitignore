@@ -61,6 +61,12 @@ references/
 *.pth
 *.h5
 *.keras
+backend/app/models/plant_disease/*.onnx
+
+# Unresolved-License PlantVillage Fixture Images (Local Test Only, AD-36)
+backend/tests/fixtures/*.jpg
+backend/tests/fixtures/*.jpeg
+backend/tests/fixtures/*.png
 
 # TypeScript Build Info
 *.tsbuildinfo

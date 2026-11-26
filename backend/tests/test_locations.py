@@ -77,7 +77,8 @@ def test_coordinate_validation_rejects_out_of_range():
 
 
 def test_patch_farm_location_without_duplicating():
-    farms_before = client.get("/api/v1/farms").json()
+    headers = {"Authorization": "Bearer rm_demo_token_farmer"}
+    farms_before = client.get("/api/v1/farms", headers=headers).json()
     count_before = len(farms_before)
 
     patch_payload = {
@@ -91,7 +92,7 @@ def test_patch_farm_location_without_duplicating():
         "location_source": "map",
         "location_accuracy_m": 12.0,
     }
-    res = client.patch("/api/v1/farms/farm_001", json=patch_payload)
+    res = client.patch("/api/v1/farms/farm_001", json=patch_payload, headers=headers)
     assert res.status_code == 200
     updated = res.json()
     assert updated["id"] == "farm_001"
@@ -102,7 +103,7 @@ def test_patch_farm_location_without_duplicating():
     assert updated["pin_code"] == "572216"
     assert updated["location_source"] == "map"
 
-    farms_after = client.get("/api/v1/farms").json()
+    farms_after = client.get("/api/v1/farms", headers=headers).json()
     assert len(farms_after) == count_before
 
     # Verify weather endpoint accepts updated coordinates

@@ -15,6 +15,7 @@ To register in central API router (backend/app/api/api.py):
 """
 from fastapi import APIRouter, UploadFile, File, Form
 from typing import Optional
+from backend.app.features.auth.security import validate_image_upload
 from backend.app.schemas.scientific import (
     ScientificModuleOutput,
     IrrigationRequest,
@@ -70,6 +71,7 @@ async def analyze_crop_leaf_image(
     file: UploadFile = File(...),
 ):
     content = await file.read()
+    validate_image_upload(file.filename or "leaf.jpg", file.content_type, content)
     return diagnostics_service.analyze_leaf_image(
         farm_id=farm_id,
         crop=crop,

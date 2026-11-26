@@ -19,7 +19,174 @@ import {
   CropVarietyProfile,
   FarmerProfileInput,
   BiotechCategoryType,
+  Language,
 } from '@/types';
+import {
+  localizeCropName,
+  formatLocalizedCurrency,
+  localizeCondition,
+  localizeBioIntelCategory,
+  localizeBioIntelText,
+} from '@/lib/translations';
+
+const BIOINTEL_PAGE_I18N: Record<Language, {
+  bannerTitle: string; bannerBadge: string; bannerSub: string; marketBtn: string;
+  sciTitle: string; sciHideDesc: string; sciShowDesc: string; hide: string; expand: string;
+  targetCrop: string; useFarmCtx: string; manualInputs: string;
+  soilTexture: string; soilPh: string; waterAvail: string; budgetLbl: string;
+  evaluatingAt: string; reEvalBtn: string;
+  domainsHeading: string; allCats: string;
+  tabRecs: string; tabRes: string; tabVars: string;
+  decEngine: string; recVariety: string; intervention: string; evidence: string;
+  estOutlay: string; farmerBudget: string; loadingTrials: string;
+  established: string; benefitsHeading: string; soilSuit: string; waterReq: string; pathogenProt: string;
+  sciEv: string; agroLim: string; searchQLabel: string; findSuppliers: string;
+  resPlaceholder: string; searchEpmcBtn: string; activeQ: string; sourceLbl: string; cached: string;
+  synthSummary: string; queryingEpmc: string; estPractice: string; peerStudy: string; openAccess: string;
+  published: string; readFullPaper: string; maturityDays: string; continuous: string; diseaseRes: string; seedRate: string;
+  catLabels: Record<BiotechCategoryType, string>;
+}> = {
+  en: {
+    bannerTitle: 'BioIntel — Seed & Biotechnology Guide', bannerBadge: 'Smart Genetics',
+    bannerSub: 'Scientifically tested crop varieties, bio-inputs, and nearby nursery discovery', marketBtn: 'Nursery Marketplace',
+    sciTitle: 'Biological & Scientific Research (Optional)',
+    sciHideDesc: 'Hide research literature and procurement solver',
+    sciShowDesc: 'Expand for research papers, biofertilizer advisories, and optimization',
+    hide: 'Hide', expand: 'Expand',
+    targetCrop: 'Target Crop:', useFarmCtx: 'Use Farm Context', manualInputs: 'Manual Soil & Water Inputs',
+    soilTexture: 'Soil Texture', soilPh: 'Soil pH', waterAvail: 'Water Availability', budgetLbl: 'Cultivation Budget (₹)',
+    evaluatingAt: 'Evaluating for current farm location:', reEvalBtn: 'Update Recommendations',
+    domainsHeading: 'Seed & Biotechnology Categories:', allCats: 'All Categories',
+    tabRecs: 'Personalized Recommendations', tabRes: 'Scientific Research Papers', tabVars: 'Certified Crop Varieties',
+    decEngine: 'Smart Seed Advisory Match', recVariety: 'Recommended Variety:', intervention: 'Intervention:', evidence: 'Evidence:',
+    estOutlay: 'Est. Seed Cost:', farmerBudget: 'Your Budget:', loadingTrials: 'Checking soil & trial suitability for',
+    established: 'Established Practice', benefitsHeading: 'Expected Farm Benefits:', soilSuit: 'Soil Suitability', waterReq: 'Water Need', pathogenProt: 'Disease Protection',
+    sciEv: 'Scientific Evidence:', agroLim: 'Things to Keep in Mind:', searchQLabel: 'Search term:', findSuppliers: 'Find Nearby Suppliers',
+    resPlaceholder: 'Search scientific papers (e.g. Tomato AND biofertilizer)...', searchEpmcBtn: 'Search Papers',
+    activeQ: 'Active Query:', sourceLbl: 'Source:', cached: 'Cached',
+    synthSummary: 'Evidence Summary', queryingEpmc: 'Searching Europe PMC scientific papers...',
+    estPractice: 'Established Field Practice', peerStudy: 'Peer-Reviewed Study', openAccess: 'Open Access',
+    published: 'Published:', readFullPaper: 'Read Full Paper', maturityDays: 'days maturity', continuous: 'Continuous',
+    diseaseRes: 'Disease Resistance:', seedRate: 'Seed rate:',
+    catLabels: {
+      disease_resistant_varieties: 'Disease-Resistant Varieties',
+      drought_tolerant_varieties: 'Drought-Tolerant Varieties',
+      hybrid_varieties: 'Hybrid Crop Varieties',
+      tissue_cultured_plants: 'Tissue-Cultured Plants',
+      grafted_plants: 'Grafted Saplings',
+      biofertilizers: 'Biofertilizers',
+      biopesticides: 'Biopesticides',
+      beneficial_soil_microorganisms: 'Soil Microorganisms',
+      biological_nutrient_management: 'Biological Nutrients',
+      agricultural_waste_bioconversion: 'Crop Residue Composting',
+    },
+  },
+  kn: {
+    bannerTitle: 'ಬಯೋ-ಇಂಟೆಲ್ — ಬೀಜ ಮತ್ತು ಕೃಷಿ ತಳಿ ಮಾರ್ಗದರ್ಶಿ', bannerBadge: 'ಸ್ಮಾರ್ಟ್ ತಳಿ ಆಯ್ಕೆ',
+    bannerSub: 'ರೋಗ ನಿರೋಧಕ ತಳಿಗಳು, ಜೈವಿಕ ಗೊಬ್ಬರ ಮತ್ತು ಹತ್ತಿರದ ನರ್ಸರಿಗಳ ಮಾಹಿತಿ', marketBtn: 'ನರ್ಸರಿ ಮಾರುಕಟ್ಟೆ',
+    sciTitle: 'ವೈಜ್ಞಾನಿಕ ಸಂಶೋಧನೆ ಮತ್ತು ಪ್ರಬಂಧಗಳು (ಐಚ್ಛಿಕ)',
+    sciHideDesc: 'ಸಂಶೋಧನಾ ಪ್ರಬಂಧಗಳು ಮತ್ತು ಖರೀದಿ ಯೋಜಕವನ್ನು ಮರೆಮಾಡಿ',
+    sciShowDesc: 'ಕೃಷಿ ಸಂಶೋಧನಾ ಪ್ರಬಂಧಗಳು ಮತ್ತು ಜೈವಿಕ ಸಲಹೆಗಳಿಗಾಗಿ ತೆರೆಯಿರಿ',
+    hide: 'ಮರೆಮಾಡಿ', expand: 'ತೆರೆಯಿರಿ',
+    targetCrop: 'ಆಯ್ಕೆ ಬೆಳೆ:', useFarmCtx: 'ಜಮೀನಿನ ವಿವರ ಬಳಸಿ', manualInputs: 'ಮಣ್ಣು ಮತ್ತು ನೀರಿನ ವಿವರ ಬದಲಿಸಿ',
+    soilTexture: 'ಮಣ್ಣಿನ ವಿಧ', soilPh: 'ಮಣ್ಣಿನ pH', waterAvail: 'ನೀರಿನ ಲಭ್ಯತೆ', budgetLbl: 'ಬೇಸಾಯ ಬಜೆಟ್ (₹)',
+    evaluatingAt: 'ಜಮೀನಿನ ಸ್ಥಳದ ಆಧಾರದಲ್ಲಿ ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ:', reEvalBtn: 'ಶಿಫಾರಸು ನವೀಕರಿಸಿ',
+    domainsHeading: 'ಬೀಜ ಮತ್ತು ಜೈವಿಕ ತಂತ್ರಜ್ಞಾನ ವಿಭಾಗಗಳು:', allCats: 'ಎಲ್ಲಾ ವಿಭಾಗಗಳು',
+    tabRecs: 'ನಿಮ್ಮ ಜಮೀನಿಗೆ ಶಿಫಾರಸುಗಳು', tabRes: 'ವೈಜ್ಞಾನಿಕ ಸಂಶೋಧನಾ ಪ್ರಬಂಧಗಳು', tabVars: 'ಪ್ರಮಾಣೀಕೃತ ಬೆಳೆ ತಳಿಗಳು',
+    decEngine: 'ಸ್ಮಾರ್ಟ್ ತಳಿ ಸಲಹೆ ಸಾರಾಂಶ', recVariety: 'ಶಿಫಾರಸು ಮಾಡಿದ ತಳಿ:', intervention: 'ತಂತ್ರಜ್ಞಾನ:', evidence: 'ಆಧಾರ:',
+    estOutlay: 'ಅಂದಾಜು ಬೀಜ ವೆಚ್ಚ:', farmerBudget: 'ನಿಮ್ಮ ಬಜೆಟ್:', loadingTrials: 'ಮಣ್ಣು ಮತ್ತು ಹವಾಮಾನಕ್ಕೆ ತಕ್ಕ ತಳಿಗಳನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ:',
+    established: 'ದೃಢೀಕೃತ ಪದ್ಧತಿ', benefitsHeading: 'ಕೃಷಿ ಪ್ರಯೋಜನಗಳು:', soilSuit: 'ಯೋಗ್ಯ ಮಣ್ಣು', waterReq: 'ನೀರಿನ ಅಗತ್ಯ', pathogenProt: 'ರೋಗ ನಿರೋಧಕತೆ',
+    sciEv: 'ವೈಜ್ಞಾನಿಕ ಆಧಾರ:', agroLim: 'ಗಮನಿಸಬೇಕಾದ ಅಂಶಗಳು:', searchQLabel: 'ಹುಡುಕಾಟ ಪದ:', findSuppliers: 'ಹತ್ತಿರದ ನರ್ಸರಿ ಹುಡುಕಿ',
+    resPlaceholder: 'ಸಂಶೋಧನಾ ಪ್ರಬಂಧ ಹುಡುಕಿ (ಉದಾ. Tomato AND drought)...', searchEpmcBtn: 'ಪ್ರಬಂಧ ಹುಡುಕಿ',
+    activeQ: 'ಹುಡುಕಾಟ:', sourceLbl: 'ಮೂಲ:', cached: 'ಸಂಗ್ರಹಿತ',
+    synthSummary: 'ಸಂಶೋಧನಾ ಸಾರಾಂಶ', queryingEpmc: 'Europe PMC ಸಂಶೋಧನಾ ಪ್ರಬಂಧಗಳನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ...',
+    estPractice: 'ಪ್ರಮಾಣೀಕೃತ ಕೃಷಿ ಪದ್ಧತಿ', peerStudy: 'ವಿಜ್ಞಾನಿಗಳ ಅಧ್ಯಯನ', openAccess: 'ಉಚಿತ ಪ್ರವೇಶ',
+    published: 'ಪ್ರಕಟಿತ:', readFullPaper: 'ಸಂಪೂರ್ಣ ಪ್ರಬಂಧ ಓದಿ', maturityDays: 'ದಿನಗಳಲ್ಲಿ ಕೊಯ್ಲು', continuous: 'ನಿರಂತರ',
+    diseaseRes: 'ರೋಗ ನಿರೋಧಕ ಶಕ್ತಿ:', seedRate: 'ಬೀಜದ ಪ್ರಮಾಣ:',
+    catLabels: {
+      disease_resistant_varieties: 'ರೋಗ ನಿರೋಧಕ ತಳಿಗಳು',
+      drought_tolerant_varieties: 'ಬರ ನಿರೋಧಕ ತಳಿಗಳು',
+      hybrid_varieties: 'ಹೈಬ್ರಿಡ್ ತಳಿಗಳು',
+      tissue_cultured_plants: 'ಟಿಶ್ಯೂ ಕಲ್ಚರ್ ಸಸಿಗಳು',
+      grafted_plants: 'ಕಸಿ ಮಾಡಿದ ಸಸಿಗಳು',
+      biofertilizers: 'ಜೈವಿಕ ಗೊಬ್ಬರಗಳು',
+      biopesticides: 'ಜೈವಿಕ ಕೀಟನಾಶಕಗಳು',
+      beneficial_soil_microorganisms: 'ಮಣ್ಣಿನ ಉಪಯುಕ್ತ ಸೂಕ್ಷ್ಮಜೀವಿಗಳು',
+      biological_nutrient_management: 'ಜೈವಿಕ ಪೋಷಕಾಂಶಗಳು',
+      agricultural_waste_bioconversion: 'ಕೃಷಿ ತ್ಯಾಜ್ಯ ಗೊಬ್ಬರ',
+    },
+  },
+  hi: {
+    bannerTitle: 'बायो-इंटेल — बीज एवं जैव-प्रौद्योगिकी मार्गदर्शिका', bannerBadge: 'स्मार्ट बीज चयन',
+    bannerSub: 'रोग-प्रतिरोधी फसल किस्में, जैविक खाद और नज़दीकी नर्सरी की जानकारी', marketBtn: 'नर्सरी बाज़ार',
+    sciTitle: 'वैज्ञानिक शोध व प्रमाण पत्र (वैकल्पिक)',
+    sciHideDesc: 'शोध पत्र और लागत कैलकुलेटर छुपाएं',
+    sciShowDesc: 'वैज्ञानिक शोध पत्र, जैव-उर्वरक सलाह और अनुकूलन के लिए खोलें',
+    hide: 'छुपाएं', expand: 'खोलें',
+    targetCrop: 'लक्ष्य फसल:', useFarmCtx: 'खेत विवरण उपयोग करें', manualInputs: 'मिट्टी व पानी स्वयं बदलें',
+    soilTexture: 'मिट्टी का प्रकार', soilPh: 'मिट्टी का pH', waterAvail: 'पानी की उपलब्धता', budgetLbl: 'खेती बजट (₹)',
+    evaluatingAt: 'वर्तमान खेत स्थान के लिए मूल्यांकन:', reEvalBtn: 'सिफारिशें अपडेट करें',
+    domainsHeading: 'बीज व जैव-प्रौद्योगिकी श्रेणियाँ:', allCats: 'सभी श्रेणियाँ',
+    tabRecs: 'खेत के लिए प्रमुख सिफारिशें', tabRes: 'वैज्ञानिक शोध पत्र', tabVars: 'प्रमाणित फसल किस्में',
+    decEngine: 'स्मार्ट बीज सलाह सारांश', recVariety: 'अनुशंसित किस्म:', intervention: 'विधि:', evidence: 'प्रमाण:',
+    estOutlay: 'अनुमानित बीज खर्च:', farmerBudget: 'आपका बजट:', loadingTrials: 'मिट्टी और जलवायु अनुकूलता जांची जा रही है:',
+    established: 'प्रमाणित पद्धति', benefitsHeading: 'अपेक्षित कृषि लाभ:', soilSuit: 'उपयुक्त मिट्टी', waterReq: 'पानी की जरूरत', pathogenProt: 'रोग सुरक्षा',
+    sciEv: 'वैज्ञानिक प्रमाण:', agroLim: 'सावधानी व सीमाएं:', searchQLabel: 'खोज शब्द:', findSuppliers: 'नज़दीकी नर्सरी खोजें',
+    resPlaceholder: 'शोध पत्र खोजें (जैसे Tomato AND biofertilizer)...', searchEpmcBtn: 'शोध खोजें',
+    activeQ: 'खोज प्रश्न:', sourceLbl: 'स्रोत:', cached: 'संग्रहीत',
+    synthSummary: 'शोध साक्ष्य सारांश', queryingEpmc: 'Europe PMC शोध पत्र लोड हो रहे हैं...',
+    estPractice: 'प्रमाणित कृषि पद्धति', peerStudy: 'वैज्ञानिक अध्ययन', openAccess: 'मुक्त उपलब्ध',
+    published: 'प्रकाशन वर्ष:', readFullPaper: 'पूरा शोध पढ़ें', maturityDays: 'दिन में पकने योग्य', continuous: 'निरंतर',
+    diseaseRes: 'रोग प्रतिरोधकता:', seedRate: 'बीज दर:',
+    catLabels: {
+      disease_resistant_varieties: 'रोग-प्रतिरोधी किस्में',
+      drought_tolerant_varieties: 'सूखा-सहनशील किस्में',
+      hybrid_varieties: 'हाइब्रिड बीज किस्में',
+      tissue_cultured_plants: 'टिश्यू कल्चर पौधे',
+      grafted_plants: 'ग्राफ्टेड पौधे',
+      biofertilizers: 'जैव उर्वरक',
+      biopesticides: 'जैव कीटनाशक',
+      beneficial_soil_microorganisms: 'मिट्टी के लाभकारी सूक्ष्मजीव',
+      biological_nutrient_management: 'जैविक पोषक प्रबंधन',
+      agricultural_waste_bioconversion: 'फसल अवशेष खाद',
+    },
+  },
+  te: {
+    bannerTitle: 'బయో-ఇంటెల్ — విత్తన & బయోటెక్ గైడ్', bannerBadge: 'స్మార్ట్ విత్తన ఎంపిక',
+    bannerSub: 'వ్యాధి-నిరోధక పంట రకాలు, సేంద్రీయ ఎరువులు మరియు సమీప నర్సరీల వివరాలు', marketBtn: 'నర్సరీ మార్కెట్',
+    sciTitle: 'శాస్త్రీయ పరిశోధన & పత్రాలు (ఐచ్ఛికం)',
+    sciHideDesc: 'పరిశోధన పత్రాలు మరియు కొనుగోలు సలహాదారుని దాచండి',
+    sciShowDesc: 'శాస్త్రీయ పరిశోధన పత్రాలు మరియు బయోటెక్ సలహాల కోసం తెరవండి',
+    hide: 'దాచండి', expand: 'తెరవండి',
+    targetCrop: 'ఎంచుకున్న పంట:', useFarmCtx: 'పొలం వివరాలు వాడండి', manualInputs: 'నేల & నీటి వివరాలు మార్చండి',
+    soilTexture: 'నేల రకం', soilPh: 'నేల pH', waterAvail: 'నీటి లభ్యత', budgetLbl: 'సాగు బడ్జెట్ (₹)',
+    evaluatingAt: 'ప్రస్తుత పొలం స్థానం ప్రకారం పరిశీలిస్తోంది:', reEvalBtn: 'సిఫార్సులు అప్‌డేట్ చేయండి',
+    domainsHeading: 'విత్తన & బయోటెక్నాలజీ విభాగాలు:', allCats: 'అన్ని విభాగాలు',
+    tabRecs: 'పొలానికి ప్రత్యేక సిఫార్సులు', tabRes: 'శాస్త్రీయ పరిశోధన పత్రాలు', tabVars: 'ధృవీకరించిన పంట రకాలు',
+    decEngine: 'స్మార్ట్ విత్తన సలహా సారాంశం', recVariety: 'సిఫార్సు చేసిన రకం:', intervention: 'పద్ధతి:', evidence: 'ఆధారం:',
+    estOutlay: 'అంచనా విత్తన ఖర్చు:', farmerBudget: 'మీ బడ్జెట్:', loadingTrials: 'నేల మరియు వాతావరణానికి తగిన రకాలను పరిశీలిస్తోంది:',
+    established: 'నిరూపిత విధానం', benefitsHeading: 'వ్యవసాయ ప్రయోజనాలు:', soilSuit: 'సరిపడే నేల', waterReq: 'నీటి అవసరం', pathogenProt: 'వ్యాధి రక్షణ',
+    sciEv: 'శాస్త్రీయ ఆధారం:', agroLim: 'గమనించవలసిన అంశాలు:', searchQLabel: 'వెతుకు పదం:', findSuppliers: 'సమీప నర్సరీలను కనుగొనండి',
+    resPlaceholder: 'పరిశోధన పత్రాలు వెతకండి (ఉదా. Tomato AND biofertilizer)...', searchEpmcBtn: 'వెతకండి',
+    activeQ: 'ప్రస్తుత ప్రశ్న:', sourceLbl: 'మూలం:', cached: 'సేవ్ చేసినది',
+    synthSummary: 'పరిశోధన సారాంశం', queryingEpmc: 'Europe PMC పరిశోధన పత్రాలు లోడ్ అవుతున్నాయి...',
+    estPractice: 'నిరూపిత వ్యవసాయ పద్ధతి', peerStudy: 'శాస్త్రీయ అధ్యయనం', openAccess: 'ఉచిత పత్రం',
+    published: 'ప్రచురణ:', readFullPaper: 'పూర్తి పత్రం చదవండి', maturityDays: 'రోజుల్లో పంట సిద్ధం', continuous: 'నిరంతర',
+    diseaseRes: 'వ్యాధి నిరోధకత:', seedRate: 'విత్తన మోతాదు:',
+    catLabels: {
+      disease_resistant_varieties: 'వ్యాధి-నిరోధక రకాలు',
+      drought_tolerant_varieties: 'కరువు-తట్టుకునే రకాలు',
+      hybrid_varieties: 'హైబ్రిడ్ పంట రకాలు',
+      tissue_cultured_plants: 'టిష్యూ కల్చర్ మొక్కలు',
+      grafted_plants: 'అంటుకట్టిన మొక్కలు',
+      biofertilizers: 'జీవ ఎరువులు',
+      biopesticides: 'జీవ పురుగుమందులు',
+      beneficial_soil_microorganisms: 'నేలకు మేలు చేసే సూక్ష్మజీవులు',
+      biological_nutrient_management: 'సేంద్రీయ పోషక నిర్వహణ',
+      agricultural_waste_bioconversion: 'పంట వ్యర్థాల కంపోస్టు',
+    },
+  },
+};
 import {
   Dna,
   BookOpen,
@@ -68,6 +235,7 @@ const COMMON_PROBLEMS = [
 export default function BioIntelPage() {
   const router = useRouter();
   const { currentFarm, language } = useFarm();
+  const L = BIOINTEL_PAGE_I18N[language] || BIOINTEL_PAGE_I18N.en;
 
   // Selection states
   const [selectedCrop, setSelectedCrop] = useState<string>(currentFarm?.primary_crop || 'Tomato');
@@ -203,14 +371,14 @@ export default function BioIntelPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-                  BioIntel — Agricultural Biotechnology Intelligence
+                  {L.bannerTitle}
                 </h1>
                 <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">
-                  Feature 17
+                  {L.bannerBadge}
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-green-100/80">
-                Scientifically validated crop varieties, biological inputs, and live Europe PMC peer-reviewed research
+                {L.bannerSub}
               </p>
             </div>
           </div>
@@ -222,7 +390,7 @@ export default function BioIntelPage() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-green-950 font-semibold text-xs transition shadow-sm"
           >
             <Store className="w-4 h-4" />
-            Nursery Marketplace
+            {L.marketBtn}
           </Link>
         </div>
       </div>
@@ -256,16 +424,14 @@ export default function BioIntelPage() {
         >
           <div>
             <div className="text-sm font-bold text-zinc-900 dark:text-white">
-              Biological &amp; Scientific Research (Optional)
+              {L.sciTitle}
             </div>
             <div className="text-xs text-zinc-500">
-              {showScientificResearch
-                ? 'Hide Europe PMC literature and procurement solver'
-                : 'Expand for peer-reviewed research papers, biofertilizer advisories, and OR-Tools optimization'}
+              {showScientificResearch ? L.sciHideDesc : L.sciShowDesc}
             </div>
           </div>
           <span className="text-xs font-semibold text-emerald-700">
-            {showScientificResearch ? 'Hide' : 'Expand'}
+            {showScientificResearch ? L.hide : L.expand}
           </span>
         </button>
         {showScientificResearch && (
@@ -279,7 +445,7 @@ export default function BioIntelPage() {
       <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Target Crop:</span>
+            <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{L.targetCrop}</span>
             {CROPS.map((c) => (
               <button
                 key={c}
@@ -293,7 +459,7 @@ export default function BioIntelPage() {
                     : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                 }`}
               >
-                {c}
+                {localizeCropName(c, language)}
               </button>
             ))}
           </div>
@@ -303,7 +469,7 @@ export default function BioIntelPage() {
             className="flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-400 hover:underline self-start md:self-auto"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            {isManualOverride ? 'Use Farm Context' : 'Manual Soil & Disease Inputs'}
+            {isManualOverride ? L.useFarmCtx : L.manualInputs}
           </button>
         </div>
 
@@ -311,22 +477,22 @@ export default function BioIntelPage() {
         {isManualOverride && (
           <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
             <div>
-              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Soil Texture</label>
+              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.soilTexture}</label>
               <select
                 value={farmerProfile.soil_type}
                 onChange={(e) => setFarmerProfile({ ...farmerProfile, soil_type: e.target.value })}
                 className="w-full p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
               >
-                <option value="Red Sandy Loam">Red Sandy Loam</option>
-                <option value="Black Cotton Soil">Black Cotton Soil</option>
-                <option value="Clay Loam">Clay Loam</option>
-                <option value="Laterite Soil">Laterite Soil</option>
-                <option value="Alluvial Soil">Alluvial Soil</option>
+                <option value="Red Sandy Loam">{localizeCondition('Red Sandy Loam', language)}</option>
+                <option value="Black Cotton Soil">{localizeCondition('Black Soil', language)}</option>
+                <option value="Clay Loam">{localizeCondition('Clay Soil', language)}</option>
+                <option value="Laterite Soil">{localizeCondition('Red Soil', language)}</option>
+                <option value="Alluvial Soil">{localizeCondition('Alluvial Soil', language)}</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Soil pH</label>
+              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.soilPh}</label>
               <input
                 type="number"
                 step="0.1"
@@ -339,7 +505,7 @@ export default function BioIntelPage() {
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Water Availability</label>
+              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.waterAvail}</label>
               <select
                 value={farmerProfile.water_availability}
                 onChange={(e) =>
@@ -350,14 +516,14 @@ export default function BioIntelPage() {
                 }
                 className="w-full p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
               >
-                <option value="Limited / Low">Limited / Low (Borewell deficit)</option>
-                <option value="Moderate / Adequate">Moderate / Adequate</option>
-                <option value="Abundant / Canal">Abundant / Canal Basin</option>
+                <option value="Limited / Low">{localizeCondition('Scarce', language)}</option>
+                <option value="Moderate / Adequate">{localizeCondition('Moderate', language)}</option>
+                <option value="Abundant / Canal">{localizeCondition('Abundant', language)}</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">Cultivation Budget (₹)</label>
+              <label className="block font-medium text-zinc-600 dark:text-zinc-400 mb-1">{L.budgetLbl}</label>
               <input
                 type="number"
                 step="1000"
@@ -371,13 +537,13 @@ export default function BioIntelPage() {
 
             <div className="sm:col-span-2 lg:col-span-4 flex items-center justify-between pt-2">
               <span className="text-[11px] text-zinc-500">
-                Evaluating against current farm location: {farmerProfile.farm_location}
+                {L.evaluatingAt} {farmerProfile.farm_location}
               </span>
               <button
                 onClick={loadRecommendations}
                 className="px-3 py-1.5 bg-green-800 text-white font-semibold rounded-lg text-xs hover:bg-green-700 transition"
               >
-                Re-evaluate Recommendations
+                {L.reEvalBtn}
               </button>
             </div>
           </div>
@@ -386,7 +552,7 @@ export default function BioIntelPage() {
         {/* 10 Biotechnology Categories Pill Filter */}
         <div className="space-y-1.5 pt-1">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Biotechnology Domains (10 Core Categories):
+            {L.domainsHeading}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
             <button
@@ -397,7 +563,7 @@ export default function BioIntelPage() {
                   : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200'
               }`}
             >
-              All Categories
+              {L.allCats}
             </button>
             {BIOTECH_CATEGORIES.map((cat) => (
               <button
@@ -410,7 +576,7 @@ export default function BioIntelPage() {
                 }`}
               >
                 <span>{cat.icon}</span>
-                <span>{cat.label}</span>
+                <span>{L.catLabels[cat.id] || cat.label}</span>
               </button>
             ))}
           </div>
@@ -428,7 +594,7 @@ export default function BioIntelPage() {
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          Personalized Recommendations ({recommendationsData?.total_recommendations || 0})
+          {L.tabRecs} ({recommendationsData?.total_recommendations || 0})
         </button>
         <button
           onClick={() => setActiveTab('research')}
@@ -439,7 +605,7 @@ export default function BioIntelPage() {
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          Live Europe PMC Research ({researchData?.total_results || 0})
+          {L.tabRes} ({researchData?.total_results || 0})
         </button>
         <button
           onClick={() => setActiveTab('varieties')}
@@ -450,7 +616,7 @@ export default function BioIntelPage() {
           }`}
         >
           <Sprout className="w-4 h-4" />
-          Certified Crop Varieties
+          {L.tabVars}
         </button>
       </div>
 
@@ -467,22 +633,22 @@ export default function BioIntelPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 uppercase tracking-wide">
-                      Decision Intelligence Engine Ingest
+                      {L.decEngine}
                     </span>
                     <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 font-semibold">
-                      {recommendationsData.centralized_decision_payload.budget_compatibility}
+                      {localizeBioIntelText(recommendationsData.centralized_decision_payload.budget_compatibility, language)}
                     </span>
                   </div>
                   <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5">
-                    Recommended Variety: <strong>{recommendationsData.centralized_decision_payload.recommended_crop_variety}</strong> | 
-                    Intervention: {recommendationsData.centralized_decision_payload.biotechnology_intervention} | 
-                    Evidence: {recommendationsData.centralized_decision_payload.evidence_strength}
+                    {L.recVariety} <strong>{recommendationsData.centralized_decision_payload.recommended_crop_variety}</strong> |{' '}
+                    {L.intervention} {localizeBioIntelCategory(recommendationsData.centralized_decision_payload.biotechnology_intervention, language)} |{' '}
+                    {L.evidence} {localizeBioIntelText(recommendationsData.centralized_decision_payload.evidence_strength, language)}
                   </p>
                 </div>
               </div>
               <div className="text-right text-xs text-zinc-500 self-end md:self-auto">
-                <div>Est. Planting Outlay: <strong>₹{recommendationsData.centralized_decision_payload.estimated_procurement_cost_inr?.toLocaleString('en-IN')}</strong></div>
-                <div>Farmer Budget: ₹{recommendationsData.centralized_decision_payload.farmer_budget_inr.toLocaleString('en-IN')}</div>
+                <div>{L.estOutlay} <strong>{formatLocalizedCurrency(recommendationsData.centralized_decision_payload.estimated_procurement_cost_inr, language)}</strong></div>
+                <div>{L.farmerBudget} {formatLocalizedCurrency(recommendationsData.centralized_decision_payload.farmer_budget_inr, language)}</div>
               </div>
             </div>
           )}
@@ -490,7 +656,7 @@ export default function BioIntelPage() {
           {isRecsLoading ? (
             <div className="p-12 text-center text-zinc-500 flex flex-col items-center gap-2">
               <RotateCw className="w-6 h-6 animate-spin text-green-700" />
-              <p className="text-xs">Evaluating scientific trials and soil suitability for {selectedCrop}...</p>
+              <p className="text-xs">{L.loadingTrials} {localizeCropName(selectedCrop, language)}...</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -503,14 +669,14 @@ export default function BioIntelPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300">
-                          {rec.category_label}
+                          {localizeBioIntelCategory(rec.category_label, language)}
                         </span>
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300">
-                          Evidence: {rec.evidence_strength}
+                          {L.evidence} {localizeBioIntelText(rec.evidence_strength, language)}
                         </span>
                         {rec.is_established_practice && (
                           <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                            Established Practice
+                            {L.established}
                           </span>
                         )}
                       </div>
@@ -522,9 +688,9 @@ export default function BioIntelPage() {
                     {rec.estimated_cost_inr && (
                       <div className="text-right sm:self-center">
                         <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                          ₹{rec.estimated_cost_inr.toLocaleString('en-IN')}
+                          {formatLocalizedCurrency(rec.estimated_cost_inr, language)}
                         </div>
-                        <div className="text-[10px] text-zinc-400">{rec.estimated_cost_unit}</div>
+                        <div className="text-[10px] text-zinc-400">{localizeBioIntelText(rec.estimated_cost_unit, language)}</div>
                       </div>
                     )}
                   </div>
@@ -532,13 +698,13 @@ export default function BioIntelPage() {
                   {/* Agricultural Benefits */}
                   <div className="space-y-1.5">
                     <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                      Expected Agricultural Benefits:
+                      {L.benefitsHeading}
                     </div>
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-700 dark:text-zinc-300">
                       {(rec.expected_agricultural_benefits || []).map((benefit, i) => (
                         <li key={i} className="flex items-start gap-1.5">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                          <span>{benefit}</span>
+                          <span>{localizeBioIntelText(benefit, language)}</span>
                         </li>
                       ))}
                     </ul>
@@ -547,16 +713,16 @@ export default function BioIntelPage() {
                   {/* Agronomic Conditions Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl text-xs">
                     <div>
-                      <span className="text-zinc-400 block text-[10px] font-semibold uppercase">Soil Suitability</span>
-                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{rec.suitable_soil_conditions}</span>
+                      <span className="text-zinc-400 block text-[10px] font-semibold uppercase">{L.soilSuit}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{localizeBioIntelText(rec.suitable_soil_conditions, language)}</span>
                     </div>
                     <div>
-                      <span className="text-zinc-400 block text-[10px] font-semibold uppercase">Water Requirement</span>
-                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{rec.water_requirements}</span>
+                      <span className="text-zinc-400 block text-[10px] font-semibold uppercase">{L.waterReq}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{localizeBioIntelText(rec.water_requirements, language)}</span>
                     </div>
                     <div>
-                      <span className="text-zinc-400 block text-[10px] font-semibold uppercase">Pathogen Protection</span>
-                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{rec.disease_resistance || 'General bio-vigor'}</span>
+                      <span className="text-zinc-400 block text-[10px] font-semibold uppercase">{L.pathogenProt}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">{localizeBioIntelText(rec.disease_resistance || 'General bio-vigor', language)}</span>
                     </div>
                   </div>
 
@@ -565,14 +731,14 @@ export default function BioIntelPage() {
                     <div className="flex items-start gap-2 p-2.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 text-blue-900 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40">
                       <BookOpen className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                       <div>
-                        <strong>Scientific Evidence:</strong> {rec.scientific_evidence}
+                        <strong>{L.sciEv}</strong> {rec.scientific_evidence}
                       </div>
                     </div>
 
                     <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-300 border border-amber-100 dark:border-amber-900/40">
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <strong>Agronomic Limitations:</strong> {rec.limitations}
+                        <strong>{L.agroLim}</strong> {localizeBioIntelText(rec.limitations, language)}
                       </div>
                     </div>
                   </div>
@@ -580,7 +746,7 @@ export default function BioIntelPage() {
                   {/* Find Nearby Suppliers Button (Connecting to Marketplace) */}
                   <div className="flex items-center justify-between pt-2">
                     <span className="text-[11px] text-zinc-400">
-                      Search query: <em>{rec.find_nearby_suppliers_query}</em>
+                      {L.searchQLabel} <em>{rec.find_nearby_suppliers_query}</em>
                     </span>
                     <button
                       onClick={() =>
@@ -593,7 +759,7 @@ export default function BioIntelPage() {
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-800 hover:bg-green-700 text-white font-semibold text-xs transition shadow-sm"
                     >
                       <Store className="w-4 h-4 text-emerald-300" />
-                      Find Nearby Suppliers
+                      {L.findSuppliers}
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -614,7 +780,7 @@ export default function BioIntelPage() {
                 <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
                 <input
                   type="text"
-                  placeholder="Search scientific literature (e.g. Tomato AND biofertilizer, Rice AND drought tolerance)..."
+                  placeholder={L.resPlaceholder}
                   value={customSearchQuery}
                   onChange={(e) => setCustomSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-green-700"
@@ -624,18 +790,18 @@ export default function BioIntelPage() {
                 onClick={loadResearch}
                 className="px-4 py-2 bg-green-800 text-white font-semibold text-xs rounded-xl hover:bg-green-700 transition"
               >
-                Search Europe PMC
+                {L.searchEpmcBtn}
               </button>
             </div>
 
             <div className="flex flex-wrap items-center justify-between text-[11px] text-zinc-500 gap-2">
               <div>
-                <strong>Active Query:</strong> <code className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{researchData?.query_used}</code>
+                <strong>{L.activeQ}</strong> <code className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{researchData?.query_used}</code>
               </div>
               <div className="flex items-center gap-2">
-                <span>Source: {researchData?.data_source}</span>
+                <span>{L.sourceLbl} {researchData?.data_source}</span>
                 {researchData?.cached && (
-                  <span className="px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-700 text-[10px]">Cached</span>
+                  <span className="px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-700 text-[10px]">{L.cached}</span>
                 )}
               </div>
             </div>
@@ -647,7 +813,7 @@ export default function BioIntelPage() {
               <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-blue-950 dark:text-blue-200">
-                  Synthesized Scientific Evidence Summary
+                  {L.synthSummary}
                 </h4>
                 <p className="text-xs text-blue-900/90 dark:text-blue-300">
                   {researchData.evidence_summary}
@@ -659,7 +825,7 @@ export default function BioIntelPage() {
           {isResearchLoading ? (
             <div className="p-12 text-center text-zinc-500 flex flex-col items-center gap-2">
               <RotateCw className="w-6 h-6 animate-spin text-green-700" />
-              <p className="text-xs">Querying Europe PMC REST API endpoint...</p>
+              <p className="text-xs">{L.queryingEpmc}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -679,16 +845,16 @@ export default function BioIntelPage() {
                           }`}
                         >
                           {paper.evidence_type === 'established_practice'
-                            ? 'Established Field Practice'
-                            : 'Peer-Reviewed Scientific Study'}
+                            ? L.estPractice
+                            : L.peerStudy}
                         </span>
                         {paper.is_open_access && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                            Open Access
+                            {L.openAccess}
                           </span>
                         )}
                         {paper.pub_year && (
-                          <span className="text-[10px] text-zinc-400">Published: {paper.pub_year}</span>
+                          <span className="text-[10px] text-zinc-400">{L.published} {paper.pub_year}</span>
                         )}
                       </div>
                       <h4 className="text-base font-bold text-zinc-900 dark:text-white leading-snug">
@@ -706,7 +872,7 @@ export default function BioIntelPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-600 dark:text-zinc-300 transition shrink-0"
-                        title="View Research Article"
+                        title={L.readFullPaper}
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
@@ -720,7 +886,7 @@ export default function BioIntelPage() {
                   )}
 
                   <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-1">
-                    <span>DOI: {paper.doi || 'Indexed via Europe PMC Core'}</span>
+                    <span>DOI: {paper.doi || 'Europe PMC'}</span>
                     {paper.article_url && (
                       <a
                         href={paper.article_url}
@@ -728,7 +894,7 @@ export default function BioIntelPage() {
                         rel="noopener noreferrer"
                         className="text-green-700 dark:text-green-400 font-semibold hover:underline flex items-center gap-1"
                       >
-                        Read Full Paper <ExternalLink className="w-3 h-3" />
+                        {L.readFullPaper} <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
@@ -750,7 +916,7 @@ export default function BioIntelPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300">
-                    {v.category_label}
+                    {localizeBioIntelCategory(v.category_label, language)}
                   </span>
                   <h4 className="text-base font-bold text-zinc-900 dark:text-white mt-1">
                     {v.variety_name}
@@ -759,14 +925,14 @@ export default function BioIntelPage() {
                 </div>
                 <div className="text-right text-xs">
                   <div className="font-bold text-emerald-600">{v.yield_potential}</div>
-                  <div className="text-[10px] text-zinc-400">{v.maturity_days > 0 ? `${v.maturity_days} days maturity` : 'Continuous'}</div>
+                  <div className="text-[10px] text-zinc-400">{v.maturity_days > 0 ? `${v.maturity_days} ${L.maturityDays}` : L.continuous}</div>
                 </div>
               </div>
 
               <p className="text-xs text-zinc-600 dark:text-zinc-300">{v.description}</p>
 
               <div className="space-y-1 text-xs">
-                <div className="text-[11px] font-semibold text-zinc-500">Disease Resistance:</div>
+                <div className="text-[11px] font-semibold text-zinc-500">{L.diseaseRes}</div>
                 <div className="flex flex-wrap gap-1">
                   {v.disease_resistance.map((d, idx) => (
                     <span
@@ -780,12 +946,12 @@ export default function BioIntelPage() {
               </div>
 
               <div className="pt-2 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800">
-                <span className="text-[11px] text-zinc-400">Seed rate: {v.seed_rate_per_ha}</span>
+                <span className="text-[11px] text-zinc-400">{L.seedRate} {v.seed_rate_per_ha}</span>
                 <button
                   onClick={() => handleNavigateToNursery(v.crop, v.category, v.variety_name)}
                   className="flex items-center gap-1 text-xs font-semibold text-green-700 dark:text-green-400 hover:underline"
                 >
-                  Find Seed Suppliers <ChevronRight className="w-3.5 h-3.5" />
+                  {L.findSuppliers} <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

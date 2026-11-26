@@ -249,7 +249,7 @@ class DecisionEngine:
         # -------------------------------------------------------------
         # STAGE 3 & 4: Conflict 3: BioIntel Seed Procurement vs Budget
         # -------------------------------------------------------------
-        cultivation_budget = float(farm.cultivation_budget_inr or 80000.0)
+        cultivation_budget = float(farm.cultivation_budget_inr) if farm.cultivation_budget_inr is not None else 0.0
         seed_cost_estimate = farm.land_area_ha * 4500.0
         if seed_cost_estimate > (cultivation_budget * 0.25):
             # Seed procurement cost is high relative to farm budget

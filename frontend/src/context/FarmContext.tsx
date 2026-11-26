@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { Farm, FarmSummary, WeatherResponse, RecommendationResponse, Language, Theme, FarmCreate, User, UserRole, SelectedLocation } from '@/types';
 import { TRANSLATIONS } from '@/lib/translations';
+import { clearUserSnapshots } from '@/lib/offline/database';
 
 interface FarmContextType {
   currentUser: User;
@@ -106,8 +107,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   // Initialize preferences & persisted user/farm state from localStorage
   useEffect(() => {
     const savedLang = localStorage.getItem('rm_lang') as Language;
-    if (savedLang && (savedLang === 'en' || savedLang === 'kn' || savedLang === 'hi')) {
+    if (savedLang && (savedLang === 'en' || savedLang === 'kn' || savedLang === 'hi' || savedLang === 'te')) {
       setLanguageState(savedLang);
+      document.documentElement.lang = savedLang;
     }
     const savedTheme = localStorage.getItem('rm_theme') as Theme;
     if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
@@ -304,17 +306,31 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.warn("Logout API call warning:", err);
     } finally {
+      const prevUid = currentUser?.id;
+      if (prevUid) {
+        clearUserSnapshots(prevUid, false).catch(() => {});
+      }
       setIsAuthenticated(false);
       setIsDemoMode(false);
       setToken(null);
       setCurrentUser(DEFAULT_USER);
+      setSummary(null);
+      setWeather(null);
+      setRecommendations(null);
       localStorage.removeItem('rm_user');
       localStorage.removeItem('rm_token');
       localStorage.removeItem('rm_is_demo');
+      localStorage.removeItem('rm_farms_saved');
+      localStorage.removeItem('rm_current_farm_id');
     }
   };
 
   const switchDemoUser = async (role: UserRole) => {
+    if (currentUser?.id) {
+      clearUserSnapshots(currentUser.id, false).catch(() => {});
+    }
+    localStorage.removeItem('rm_farms_saved');
+    localStorage.removeItem('rm_current_farm_id');
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
       const res = await fetch(`${backendUrl}/auth/demo-accounts`);
@@ -385,6 +401,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('rm_lang', lang);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
   };
 
   const toggleTheme = () => {
@@ -422,166 +441,31 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         setWeather(weatherData);
       }
 
-      // 2. Fetch farm summary
-      const summaryRes = await fetch(`${backendUrl}/farms/${activeFarm.id}/summary`);
+      // 2. Fetch farm summary with Authorization header
+      const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('rm_token') : null);
+      const authHeaders: Record<string, string> = activeToken ? { Authorization: `Bearer ${activeToken}` } : {};
+      const summaryRes = await fetch(`${backendUrl}/farms/${activeFarm.id}/summary`, { headers: authHeaders });
       if (summaryRes.ok && seq === fetchSeqRef.current) {
         const summaryData = await summaryRes.json();
         setSummary(summaryData);
       } else if (seq === fetchSeqRef.current) {
-        // Realistic calculated summary
-        setSummary({
-          farm: activeFarm,
-          soil_moisture_pct: 34.2,
-          crop_health_status: "Optimal Vegetative Vigour",
-          daily_water_demand_mm: 4.8,
-          total_expenses_inr: 42500.0,
-          estimated_yield_tonnes: 18.5,
-          expected_revenue_inr: 185000.0,
-          risk_level: "low",
-          last_updated: new Date().toISOString()
-        });
+        setSummary(null);
       }
 
       // 3. Fetch centralized agronomic recommendations
-      const recRes = await fetch(`${backendUrl}/recommendations?farm_id=${activeFarm.id}`);
+      const recRes = await fetch(`${backendUrl}/recommendations?farm_id=${activeFarm.id}&lang=${language}`, { headers: authHeaders });
       if (recRes.ok && seq === fetchSeqRef.current) {
         const recData = await recRes.json();
         setRecommendations(recData);
+      } else if (seq === fetchSeqRef.current) {
+        setRecommendations(null);
       }
     } catch (err) {
-      console.warn("Backend unavailable, using cached / localized fallback telemetry:", err);
+      console.warn("Backend unavailable; displaying honest unavailable states:", err);
       if (seq !== fetchSeqRef.current) return;
-
-      // Realistic localized fallback
-      setWeather({
-        latitude: activeFarm.latitude,
-        longitude: activeFarm.longitude,
-        elevation_m: 654,
-        timezone: "Asia/Kolkata",
-        current: {
-          temperature_c: 27.8,
-          relative_humidity_pct: 64,
-          wind_speed_kmh: 11.2,
-          precipitation_probability_pct: 20,
-          precipitation_mm: 0.0,
-          surface_pressure_hpa: 1012.4,
-          condition: "Partly Cloudy",
-          icon: "partly-cloudy"
-        },
-        daily: [
-          {
-            date: "2026-11-25",
-            temp_max_c: 29.5,
-            temp_min_c: 19.2,
-            precipitation_probability_pct: 20,
-            rain_probability_max_pct: 20,
-            precipitation_sum_mm: 0.0,
-            condition: "Partly Cloudy",
-            condition_text: "Partly Cloudy",
-            icon: "partly-cloudy",
-            evapotranspiration_mm: 4.6,
-            et0_fao56_mm: 4.6,
-          },
-          {
-            date: "2026-11-26",
-            temp_max_c: 30.1,
-            temp_min_c: 18.8,
-            precipitation_probability_pct: 15,
-            rain_probability_max_pct: 15,
-            precipitation_sum_mm: 0.0,
-            condition: "Sunny",
-            condition_text: "Sunny",
-            icon: "sunny",
-            evapotranspiration_mm: 4.9,
-            et0_fao56_mm: 4.9,
-          },
-          {
-            date: "2026-11-27",
-            temp_max_c: 28.4,
-            temp_min_c: 20.1,
-            precipitation_probability_pct: 70,
-            rain_probability_max_pct: 70,
-            precipitation_sum_mm: 12.4,
-            condition: "Moderate Rain",
-            condition_text: "Moderate Rain",
-            icon: "rain",
-            evapotranspiration_mm: 3.2,
-            et0_fao56_mm: 3.2,
-          }
-        ],
-        et0_fao56_mm_day: 4.6,
-        irrigation_recommendation: "Apply 4.2 mm irrigation today via Drip. Rain forecasted in 48 hours.",
-        source: "Open-Meteo Aggregated Historical & Satellite Blend",
-        timestamp: new Date().toISOString()
-      });
-
-      setSummary({
-        farm: activeFarm,
-        soil_moisture_pct: 34.2,
-        crop_health_status: "Optimal Vegetative Vigour",
-        daily_water_demand_mm: 4.8,
-        total_expenses_inr: 42500.0,
-        estimated_yield_tonnes: 18.5,
-        expected_revenue_inr: 185000.0,
-        risk_level: "low",
-        last_updated: new Date().toISOString()
-      });
-
-      setRecommendations({
-        farm_id: activeFarm.id,
-        generated_at: new Date().toISOString(),
-        overall_risk_level: "low",
-        active_advisories_count: 3,
-        recommendations: [
-          {
-            id: "rec_001",
-            category: "irrigation",
-            priority: "high",
-            action: `Apply 4.5 mm via ${activeFarm.irrigation_method} between 06:00 and 09:00 AM`,
-            reason: `Root zone depletion at 34.2%. Temperature forecast ${29.5}°C. Irrigate early to avoid evaporation loss.`,
-            supporting_data: {
-              primary_driver: "FAO-56 Soil Water Depletion",
-              key_metrics: { soil_moisture_pct: 34.2, et0_mm_day: 4.6, depletion_mm: 11.2 },
-              source: "FAO-56 Evapotranspiration Dual Crop Coefficient",
-              timestamp: new Date().toISOString(),
-              data_quality: "estimated",
-              uncertainty: "±8%"
-            },
-            alternative_action: "Delay irrigation by 24h if cloud cover exceeds 80%."
-          },
-          {
-            id: "rec_002",
-            category: "crop_protection",
-            priority: "medium",
-            action: "Inspect lower leaves for early fungal blight spotting",
-            reason: "Forecast shows rain likelihood rising to 70% in 72 hours with warm temperatures. High humidity risk window.",
-            supporting_data: {
-              primary_driver: "Agrometeorological Pathology Matrix",
-              key_metrics: { rain_prob_72h_pct: 70, temperature_c: 28.4 },
-              source: "Agrometeorological Pathology Matrix",
-              timestamp: new Date().toISOString(),
-              data_quality: "simulated",
-              uncertainty: "±6%"
-            },
-            alternative_action: "Apply preventative organic bio-fungicide (Trichoderma) spray prior to rain."
-          },
-          {
-            id: "rec_003",
-            category: "market",
-            priority: "low",
-            action: `Check APMC Mandi price trends for ${activeFarm.primary_crop} in ${activeFarm.district}`,
-            reason: "Regional wholesale prices have gained 8.4% this week. Harvest window opening in 18 days.",
-            supporting_data: {
-              primary_driver: "AGMARKNET Market Trends",
-              key_metrics: { "7_day_price_gain_pct": 8.4, mandi: `${activeFarm.district} APMC` },
-              source: "AGMARKNET Market Price Feed",
-              timestamp: new Date().toISOString(),
-              data_quality: "measured",
-              uncertainty: "±4%"
-            }
-          }
-        ]
-      });
+      setWeather(null);
+      setSummary(null);
+      setRecommendations(null);
     } finally {
       if (seq === fetchSeqRef.current) {
         setIsLoading(false);
@@ -591,14 +475,18 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchBackendData();
-  }, [currentFarmId]);
+  }, [currentFarmId, language]);
 
   const createFarm = async (data: FarmCreate): Promise<boolean> => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('rm_token') : null);
       const res = await fetch(`${backendUrl}/farms`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
         body: JSON.stringify(data)
       });
       if (res.ok) {
@@ -638,9 +526,13 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
     let updatedFarm: Farm | null = null;
     try {
+      const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('rm_token') : null);
       const res = await fetch(`${backendUrl}/farms/${farmId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
         body: JSON.stringify(patchBody),
       });
       if (res.ok) {

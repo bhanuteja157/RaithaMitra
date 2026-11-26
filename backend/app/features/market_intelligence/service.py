@@ -76,6 +76,7 @@ async def fetch_and_cache_live(req: LiveFetchRequest) -> Dict[str, Any]:
         state=req.state,
         district=req.district,
         market=req.market,
+        variety=req.variety,
         arrival_date=req.arrival_date,
         limit=req.limit,
         offset=req.offset,
@@ -86,10 +87,29 @@ async def fetch_and_cache_live(req: LiveFetchRequest) -> Dict[str, Any]:
             "status": "live",
             "is_live": True,
             "cache_fallback": False,
+            "district_match": True,
             "records": res["records"],
+            "nearby_records": [],
             "persisted": persist_res,
             "provenance": "Official AGMARKNET / Data.gov.in",
         }
+
+    # If exact district returned 0 live records, check nearby markets in the same state as a separate list
+    nearby_records: List[Dict[str, Any]] = []
+    if res["status"] == "live" and not res["records"] and req.district and req.include_nearby_fallback:
+        nearby_res = await fetch_agmarknet_records(
+            commodity=norm_comm,
+            state=req.state,
+            district=None,
+            market=None,
+            variety=req.variety,
+            arrival_date=req.arrival_date,
+            limit=min(req.limit, 25),
+            offset=0,
+        )
+        if nearby_res["status"] == "live" and nearby_res["records"]:
+            persist_market_observations(nearby_res["records"])
+            nearby_records = nearby_res["records"]
 
     # Fallback to cached official observations (never substituting demo prices silently!)
     cached = query_market_observations(
@@ -104,8 +124,10 @@ async def fetch_and_cache_live(req: LiveFetchRequest) -> Dict[str, Any]:
         "status": res["status"],
         "is_live": False,
         "cache_fallback": len(cached) > 0,
+        "district_match": False if req.district else True,
         "records": cached,
-        "error": res.get("error"),
+        "nearby_records": nearby_records,
+        "error": res.get("error") or (f"No matching observations found in {req.district}." if req.district and not cached else None),
         "provenance": "Cached Official AGMARKNET Observations (Stale / Offline Fallback)" if cached else "Unavailable",
     }
 
@@ -172,7 +194,7 @@ def import_csv_observations(user_id: str, payload: CsvImportRequest) -> Dict[str
             min_price=min_val,
             max_price=max_val,
             unit=unit,
-            source_type="imported_csv",
+            source_type=getattr(payload, "source_type", "imported_csv") or "imported_csv",
             source_name=payload.filename,
             provenance_label=payload.source_label,
         )

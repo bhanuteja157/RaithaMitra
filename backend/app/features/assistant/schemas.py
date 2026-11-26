@@ -43,6 +43,8 @@ class StructuredCard(BaseModel):
         "market_intelligence",
         "decision_intelligence",
         "crop_journey",
+        "buyer_discovery",
+        "packaging",
     ]
     title: str
     metrics: Dict[str, Any] = Field(default_factory=dict)
@@ -77,3 +79,60 @@ class AssistantChatResponse(BaseModel):
     pending_action: Optional[PendingActionPreview] = None
     client_directive: Optional[ClientDirective] = None
     awaiting_slot: Optional[str] = None
+
+
+class TtsRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1500)
+    language: SupportedLang = "en"
+    voice: str = Field(default="Kore", max_length=64)
+
+
+class TtsResponse(BaseModel):
+    audio_base64: str
+    mime_type: str = "audio/wav"
+    model: str
+    voice: str
+    language: SupportedLang
+    provenance: str
+
+
+class TranscribeResponse(BaseModel):
+    transcript: str
+    detected_language: SupportedLang
+    mixed_language: bool = False
+    model: str
+    provenance: str
+
+
+class LiveTokenRequest(BaseModel):
+    farm_id: Optional[str] = None
+    language: SupportedLang = "en"
+
+
+class LiveTokenResponse(BaseModel):
+    token: str
+    model: str
+    api_version: str
+    expires_at: str
+    system_instruction: str
+    tools: List[Dict[str, Any]] = Field(default_factory=list)
+    supported_languages: List[str] = Field(default_factory=lambda: ["en", "kn", "hi", "te"])
+
+
+class LiveToolExecuteRequest(BaseModel):
+    tool_name: str
+    arguments: Dict[str, Any] = Field(default_factory=dict)
+    farm_id: Optional[str] = None
+    conversation_id: Optional[str] = None
+    language: Optional[SupportedLang] = None
+
+
+class VoiceTurnResponse(BaseModel):
+    transcript: str
+    detected_language: SupportedLang
+    mixed_language: bool = False
+    transcribe_model: str
+    chat: AssistantChatResponse
+    tts_audio_base64: Optional[str] = None
+    tts_mime_type: Optional[str] = None
+    tts_model: Optional[str] = None

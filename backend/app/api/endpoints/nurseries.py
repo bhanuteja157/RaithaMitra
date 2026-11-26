@@ -4,8 +4,9 @@ FastAPI router for Feature 18: Intelligent Nursery and Bio-Input Marketplace.
 Provides endpoints for Google Places supplier discovery, product inventory,
 product management, farmer inquiries, and supplier comparison.
 """
-from fastapi import APIRouter, Query, HTTPException, status, Path
+from fastapi import APIRouter, Query, Header, HTTPException, status, Path
 from typing import Optional, List
+from backend.app.features.auth.security import require_roles, resolve_authenticated_user
 
 from backend.app.schemas.nursery import (
     Nursery,
@@ -94,7 +95,8 @@ def get_nursery_products(
     summary="Add new product to nursery inventory",
     description="Allows authenticated nursery owners or sellers to list certified planting stock and inputs."
 )
-def create_nursery_product(product_in: NurseryProductCreate):
+def create_nursery_product(product_in: NurseryProductCreate, authorization: Optional[str] = Header(None)):
+    require_roles(authorization, ["farmer", "buyer"], detail="Unauthorized: Authentication required to manage nursery products.")
     try:
         return nursery_service.create_product(product_in)
     except Exception as e:
@@ -111,8 +113,10 @@ def create_nursery_product(product_in: NurseryProductCreate):
 )
 def update_nursery_product(
     product_id: str = Path(..., description="Product ID"),
-    updates: NurseryProductUpdate = ...
+    updates: NurseryProductUpdate = ...,
+    authorization: Optional[str] = Header(None),
 ):
+    require_roles(authorization, ["farmer", "buyer"], detail="Unauthorized: Authentication required to update nursery products.")
     updated = nursery_service.update_product(product_id, updates)
     if not updated:
         raise HTTPException(
@@ -128,7 +132,8 @@ def update_nursery_product(
     summary="Submit purchase or availability inquiry to nursery",
     description="Enables farmers to request availability, quotes, and delivery for required planting materials."
 )
-def create_nursery_inquiry(inquiry_in: NurseryInquiryCreate):
+def create_nursery_inquiry(inquiry_in: NurseryInquiryCreate, authorization: Optional[str] = Header(None)):
+    resolve_authenticated_user(authorization)
     try:
         return nursery_service.submit_inquiry(inquiry_in)
     except Exception as e:

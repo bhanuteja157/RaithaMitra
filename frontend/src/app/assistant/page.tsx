@@ -13,6 +13,7 @@ import {
   speakWithDeviceVoice,
 } from '@/lib/assistantVoice';
 import {
+  AssistantChatResponse,
   cancelAssistantAction,
   confirmAssistantAction,
   ConversationSummary,
@@ -22,9 +23,19 @@ import {
   loadAssistantConversation,
   PendingActionPreview,
   sendAssistantMessage,
+  sendVoiceTurn,
   SourceReference,
+  streamAssistantMessage,
   StructuredCard,
+  synthesizeGeminiSpeech,
 } from '@/lib/assistantApi';
+import {
+  AudioClipRecorder,
+  GeminiLiveVoiceSession,
+  LiveOrbState,
+  playWavBase64,
+  stopWavAudio,
+} from '@/lib/geminiLiveVoice';
 import {
   BotMessageSquare,
   Send,
@@ -42,6 +53,7 @@ import {
   History,
   Cpu,
   Globe,
+  Radio,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -90,8 +102,17 @@ export default function AssistantPage() {
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [micSupported, setMicSupported] = useState(false);
+  const [liveActive, setLiveActive] = useState(false);
+  const [liveState, setLiveState] = useState<LiveOrbState>('idle');
+  const [micLevel, setMicLevel] = useState(0);
+  const [geminiVoiceReady, setGeminiVoiceReady] = useState(false);
+  const [liveInputCaption, setLiveInputCaption] = useState('');
+  const [liveOutputCaption, setLiveOutputCaption] = useState('');
   const [input, setInput] = useState('');
   const recognitionRef = useRef<any>(null);
+  const liveSessionRef = useRef<GeminiLiveVoiceSession | null>(null);
+  const clipRecorderRef = useRef<AudioClipRecorder | null>(null);
+  const isRecordingClipRef = useRef(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -104,8 +125,17 @@ export default function AssistantPage() {
   useEffect(() => {
     setMicSupported(
       typeof window !== 'undefined' &&
-        Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+        Boolean(
+          navigator.mediaDevices?.getUserMedia ||
+            (window as any).SpeechRecognition ||
+            (window as any).webkitSpeechRecognition
+        )
     );
+    return () => {
+      liveSessionRef.current?.stop();
+      clipRecorderRef.current?.cancel();
+      stopWavAudio();
+    };
   }, []);
 
   const refreshHistory = useCallback(async () => {
@@ -115,22 +145,63 @@ export default function AssistantPage() {
         fetchAssistantStatus(token).catch(() => null),
         listAssistantConversations(token),
       ]);
-      if (statusData) setMode(statusData.mode);
+      if (statusData) {
+        setMode(statusData.mode);
+        setGeminiVoiceReady(Boolean(statusData.gemini_configured && statusData.live_api_available));
+      }
       setHistoryList(convs);
     } catch {
       // ignore
     }
   }, [token]);
 
+  const convStorageKey = `rm_assistant_conv_${currentUser.id}`;
+
   useEffect(() => {
-    setConversationId(null);
-    setMessages([
-      {
-        sender: 'bot',
-        text: `Hello ${currentUser.name}, I am RaithaMitra AI Companion (${currentUser.role.toUpperCase()} mode). Ask me anything about your farm, finances, weather, or agricultural workflows.`,
-        provenance: 'Connected to live RaithaMitra tools & SQLite records',
-      },
-    ]);
+    const savedConvId = typeof window !== 'undefined' ? window.sessionStorage.getItem(convStorageKey) : null;
+    if (savedConvId && token) {
+      setConversationId(savedConvId);
+      loadAssistantConversation(savedConvId, token)
+        .then((data) => {
+          if (data.messages && data.messages.length > 0) {
+            setMessages(
+              data.messages.map((m) => ({
+                sender: m.role === 'user' ? 'user' : 'bot',
+                text: m.text,
+                provenance: 'Synced Conversation History',
+              }))
+            );
+            return;
+          }
+          setMessages([
+            {
+              sender: 'bot',
+              text: `Hello ${currentUser.name}, I am RaithaMitra AI Companion (${currentUser.role.toUpperCase()} mode). Ask me anything about your farm, finances, weather, or agricultural workflows.`,
+              provenance: 'Connected to live RaithaMitra tools & SQLite records',
+            },
+          ]);
+        })
+        .catch(() => {
+          window.sessionStorage.removeItem(convStorageKey);
+          setConversationId(null);
+          setMessages([
+            {
+              sender: 'bot',
+              text: `Hello ${currentUser.name}, I am RaithaMitra AI Companion (${currentUser.role.toUpperCase()} mode). Ask me anything about your farm, finances, weather, or agricultural workflows.`,
+              provenance: 'Connected to live RaithaMitra tools & SQLite records',
+            },
+          ]);
+        });
+    } else {
+      setConversationId(null);
+      setMessages([
+        {
+          sender: 'bot',
+          text: `Hello ${currentUser.name}, I am RaithaMitra AI Companion (${currentUser.role.toUpperCase()} mode). Ask me anything about your farm, finances, weather, or agricultural workflows.`,
+          provenance: 'Connected to live RaithaMitra tools & SQLite records',
+        },
+      ]);
+    }
     refreshHistory();
   }, [currentUser.id, currentUser.name, currentUser.role, refreshHistory]);
 
@@ -140,8 +211,11 @@ export default function AssistantPage() {
     setInput('');
 
     // Fast client-side navigation shortcut if explicitly requested
-    if (/^(open|go to|navigate)\s+/i.test(userText)) {
-      const navIntent = matchNavigationIntent(userText);
+    if (
+      /^(open|go to|navigate|take me|show today's market|show todays market)\b/i.test(userText) &&
+      !/\b(buyers? for|find buyers|financial summary|diagnos)\b/i.test(userText)
+    ) {
+      const navIntent = matchNavigationIntent(userText, currentUser.role);
       if (navIntent) {
         if (!navIntent.allowedRoles.includes(currentUser.role)) {
           const denied = buildUnauthorizedMessage(navIntent, currentUser.role, chatLang);
@@ -165,56 +239,93 @@ export default function AssistantPage() {
       }
     }
 
-    setMessages((prev) => [...prev, { sender: 'user', text: userText }]);
+    setMessages((prev) => [
+      ...prev,
+      { sender: 'user', text: userText },
+      { sender: 'bot', text: '', provenance: 'Streaming RaithaMitra Intelligence...' },
+    ]);
     setBusy(true);
 
+    const speakReply = async (text: string, replyLang: AssistantLanguage) => {
+      if (muted || !text) return;
+      if (token && geminiVoiceReady) {
+        try {
+          const tts = await synthesizeGeminiSpeech(text, replyLang, token);
+          await playWavBase64(tts.audio_base64, tts.mime_type, muted);
+          return;
+        } catch {
+          // fall back to device voice
+        }
+      }
+      speakWithDeviceVoice(text, replyLang, muted);
+    };
+
+    const applyDirectiveFromRes = (res: AssistantChatResponse) => {
+      if (!res.client_directive) return;
+      if (res.client_directive.directive_type === 'biointel_fill' && typeof window !== 'undefined') {
+        window.localStorage.setItem('rm_voice_biointel_draft_v1', JSON.stringify(res.client_directive.payload));
+        window.dispatchEvent(new CustomEvent('rm-biointel-voice-fill', { detail: res.client_directive.payload }));
+      } else if (res.client_directive.directive_type === 'digital_farm_control' && typeof window !== 'undefined') {
+        const act = String(res.client_directive.payload.action || 'summary');
+        window.sessionStorage.setItem('rm_df_pending_action', act);
+        window.dispatchEvent(new CustomEvent('rm-df-control', { detail: { action: act } }));
+      } else if (res.client_directive.directive_type === 'navigate' && res.intent === 'navigate' && res.client_directive.route) {
+        const destRoute = res.client_directive.route;
+        window.setTimeout(() => router.push(destRoute), 450);
+      }
+    };
+
     try {
-      const res = await sendAssistantMessage(
+      const res = await streamAssistantMessage(
         {
           message: userText,
           conversation_id: conversationId,
           farm_id: currentUser.role === 'farmer' ? currentFarm?.id : undefined,
           language: chatLang,
         },
-        token
+        token,
+        (delta) => {
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last && last.sender === 'bot') {
+              copy[copy.length - 1] = { ...last, text: `${last.text}${delta}` };
+            }
+            return copy;
+          });
+        }
       );
       setConversationId(res.conversation_id);
-      setMode(res.mode);
-      speakWithDeviceVoice(res.reply, res.language || chatLang, muted);
-
-      // Handle client directives (BioIntel form fill / Digital Farm controls)
-      if (res.client_directive) {
-        if (res.client_directive.directive_type === 'biointel_fill' && typeof window !== 'undefined') {
-          window.localStorage.setItem('rm_voice_biointel_draft_v1', JSON.stringify(res.client_directive.payload));
-          window.dispatchEvent(new CustomEvent('rm-biointel-voice-fill', { detail: res.client_directive.payload }));
-        } else if (res.client_directive.directive_type === 'digital_farm_control' && typeof window !== 'undefined') {
-          const act = String(res.client_directive.payload.action || 'summary');
-          window.sessionStorage.setItem('rm_df_pending_action', act);
-          window.dispatchEvent(new CustomEvent('rm-df-control', { detail: { action: act } }));
-        }
+      if (typeof window !== 'undefined' && res.conversation_id) {
+        window.sessionStorage.setItem(convStorageKey, res.conversation_id);
       }
+      setMode(res.mode);
+      applyDirectiveFromRes(res);
 
-      setMessages((prev) => [
-        ...prev,
-        {
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = {
           sender: 'bot',
           text: res.reply,
           provenance: `${res.mode === 'online_gemini' ? 'Online Gemini Grounded' : 'Local Intelligence'} • ${res.provenance}`,
           cards: res.cards,
           sources: res.sources,
           pendingAction: res.pending_action,
-        },
-      ]);
+        };
+        return copy;
+      });
       refreshHistory();
+      speakReply(res.reply, (res.language || chatLang) as AssistantLanguage);
     } catch (err: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = {
           sender: 'bot',
           text: err.message || 'Unable to process request right now.',
           provenance: 'Error Handler',
-        },
-      ]);
+        };
+        return copy;
+      });
     } finally {
       setBusy(false);
     }
@@ -268,14 +379,146 @@ export default function AssistantPage() {
     }
   };
 
-  const toggleVoiceInput = () => {
+  const stopLiveVoice = () => {
+    liveSessionRef.current?.stop();
+    liveSessionRef.current = null;
+    setLiveActive(false);
+    setLiveState('idle');
+    setMicLevel(0);
+  };
+
+  const toggleLiveVoice = async () => {
+    if (liveActive) {
+      stopLiveVoice();
+      return;
+    }
+    if (!token || !geminiVoiceReady) {
+      toggleVoiceInput();
+      return;
+    }
+    stopWavAudio();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    setLiveInputCaption('');
+    setLiveOutputCaption('');
+    const session = new GeminiLiveVoiceSession();
+    liveSessionRef.current = session;
+    setLiveActive(true);
+    try {
+      await session.start({
+        authToken: token,
+        farmId: currentUser.role === 'farmer' ? currentFarm?.id : undefined,
+        conversationId,
+        language: chatLang,
+        muted,
+        onStateChange: (s) => {
+          setLiveState(s);
+          if (s === 'idle') {
+            setLiveActive(false);
+            setMicLevel(0);
+          }
+        },
+        onMicLevel: (lvl) => setMicLevel(lvl),
+        onInputTranscript: (delta) => setLiveInputCaption((p) => `${p}${delta}`.slice(-240)),
+        onOutputTranscript: (delta) => setLiveOutputCaption((p) => `${p}${delta}`.slice(-420)),
+        onToolResult: (res) => {
+          if (res.conversation_id) {
+            setConversationId(res.conversation_id);
+            if (typeof window !== 'undefined') window.sessionStorage.setItem(convStorageKey, res.conversation_id);
+          }
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: 'bot',
+              text: res.reply,
+              provenance: `Gemini Live Tool • ${res.provenance}`,
+              cards: res.cards,
+              sources: res.sources,
+              pendingAction: res.pending_action,
+            },
+          ]);
+        },
+        onError: () => stopLiveVoice(),
+      });
+    } catch {
+      stopLiveVoice();
+    }
+  };
+
+  const toggleVoiceInput = async () => {
     if (!micSupported) return;
+    if (liveActive) {
+      stopLiveVoice();
+      return;
+    }
+
+    if (token && geminiVoiceReady && typeof MediaRecorder !== 'undefined') {
+      if (isRecordingClipRef.current && clipRecorderRef.current) {
+        isRecordingClipRef.current = false;
+        setListening(false);
+        setBusy(true);
+        try {
+          const blob = await clipRecorderRef.current.stop();
+          const vt = await sendVoiceTurn(
+            blob,
+            {
+              farm_id: currentUser.role === 'farmer' ? currentFarm?.id : undefined,
+              conversation_id: conversationId,
+              language: chatLang,
+              include_tts: !muted,
+            },
+            token
+          );
+          if (vt.chat.conversation_id) {
+            setConversationId(vt.chat.conversation_id);
+            if (typeof window !== 'undefined') window.sessionStorage.setItem(convStorageKey, vt.chat.conversation_id);
+          }
+          setMode(vt.chat.mode);
+          setMessages((prev) => [
+            ...prev,
+            { sender: 'user', text: vt.transcript },
+            {
+              sender: 'bot',
+              text: vt.chat.reply,
+              provenance: `${vt.transcribe_model} -> ${vt.chat.provenance}`,
+              cards: vt.chat.cards,
+              sources: vt.chat.sources,
+              pendingAction: vt.chat.pending_action,
+            },
+          ]);
+          refreshHistory();
+          if (vt.tts_audio_base64 && !muted) {
+            await playWavBase64(vt.tts_audio_base64, vt.tts_mime_type || 'audio/wav', muted);
+          } else {
+            speakWithDeviceVoice(vt.chat.reply, vt.chat.language, muted);
+          }
+          return;
+        } catch {
+          // fall back to Web Speech API
+        } finally {
+          setBusy(false);
+        }
+      } else {
+        try {
+          stopWavAudio();
+          const rec = new AudioClipRecorder();
+          clipRecorderRef.current = rec;
+          await rec.start();
+          isRecordingClipRef.current = true;
+          setListening(true);
+          return;
+        } catch {
+          isRecordingClipRef.current = false;
+        }
+      }
+    }
+
     if (listening) {
       recognitionRef.current?.stop();
       setListening(false);
       return;
     }
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
     const rec = new SpeechRec();
     rec.lang = getBcp47ForLanguage(chatLang);
     rec.interimResults = false;
@@ -349,7 +592,7 @@ export default function AssistantPage() {
             onChange={(e) => {
               const l = e.target.value as AssistantLanguage;
               setChatLang(l);
-              if (l !== 'te') setLanguage(l);
+              setLanguage(l);
             }}
             aria-label="Assistant language"
             className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold"
@@ -373,6 +616,7 @@ export default function AssistantPage() {
             type="button"
             onClick={() => {
               setConversationId(null);
+              if (typeof window !== 'undefined') window.sessionStorage.removeItem(convStorageKey);
               setMessages([
                 {
                   sender: 'bot',
@@ -389,7 +633,40 @@ export default function AssistantPage() {
 
           <button
             type="button"
-            onClick={() => setMuted((m) => !m)}
+            onClick={toggleLiveVoice}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+              liveActive
+                ? 'bg-red-600 text-white animate-pulse'
+                : 'bg-emerald-800 hover:bg-emerald-900 text-white'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5" />
+            {liveActive ? `Live (${liveState})` : 'Live Voice'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              liveSessionRef.current?.interruptPlayback();
+              stopWavAudio();
+              if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+              }
+            }}
+            aria-label="Stop speaking"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            Stop Voice
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!muted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+              }
+              setMuted((m) => !m);
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold"
           >
             {muted ? <VolumeX className="w-4 h-4 text-amber-600" /> : <Volume2 className="w-4 h-4 text-emerald-700" />}
@@ -453,6 +730,30 @@ export default function AssistantPage() {
       {/* Chat Window */}
       <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm flex flex-col h-[560px]">
         <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+          {liveActive && (
+            <div className="p-4 rounded-2xl border border-emerald-500/40 bg-emerald-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-full bg-emerald-500/30 border border-emerald-400 flex items-center justify-center transition-transform"
+                  style={{ transform: `scale(${1 + micLevel * 0.28})` }}
+                >
+                  <Radio className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div className="text-xs space-y-0.5">
+                  <div className="font-semibold">Gemini 3.8 Live Conversation ({liveState})</div>
+                  {liveInputCaption && <div className="text-emerald-200">You: {liveInputCaption}</div>}
+                  {liveOutputCaption && <div className="text-zinc-200">AI: {liveOutputCaption}</div>}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={stopLiveVoice}
+                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-semibold self-start sm:self-center"
+              >
+                End Live Session
+              </button>
+            </div>
+          )}
           {messages.map((m, i) => (
             <div
               key={i}

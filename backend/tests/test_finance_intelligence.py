@@ -104,10 +104,14 @@ def test_manual_expense_crud_and_safe_csv_export(isolated_finance_db):
 
 def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_finance_db):
     headers = {"Authorization": "Bearer tok_farmer1"}
+    labour_headers = {"Authorization": "Bearer rm_demo_token_labour"}
+    driver_headers = {"Authorization": "Bearer rm_demo_token_driver"}
+    buyer_headers = {"Authorization": "Bearer tok_buyer1"}
 
     # 1. Post Labour job -> apply -> accept -> verify committed expense (₹650)
     job_res = client.post(
         "/api/v1/labour/jobs",
+        headers=headers,
         json={
             "farmer_id": "usr_farmer",
             "farmer_name": "Suresh Gowda",
@@ -123,15 +127,15 @@ def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_f
     )
     assert job_res.status_code == 201
     job_id = job_res.json()["id"]
-    assert client.post(f"/api/v1/labour/jobs/{job_id}/apply?labour_id=usr_labour").status_code == 200
-    assert client.post(f"/api/v1/labour/jobs/{job_id}/accept/usr_labour").status_code == 200
+    assert client.post(f"/api/v1/labour/jobs/{job_id}/apply?labour_id=usr_labour", headers=labour_headers).status_code == 200
+    assert client.post(f"/api/v1/labour/jobs/{job_id}/accept/usr_labour", headers=headers).status_code == 200
 
     s1 = client.get("/api/v1/finance/summary?farm_id=farm_001", headers=headers).json()
     assert s1["committed_expenses_inr"] == 650.0
     assert s1["actual_recorded_expenses_inr"] == 0.0
 
-    # Complete job -> transitions committed -> settled (zero double-counting!)
-    assert client.post(f"/api/v1/labour/jobs/{job_id}/complete").status_code == 200
+    # Complete job -> transitions committed -> recorded payable (zero double-counting!)
+    assert client.post(f"/api/v1/labour/jobs/{job_id}/complete", headers=headers).status_code == 200
     # Sync twice to verify duplicate prevention
     assert client.post("/api/v1/finance/sync?farm_id=farm_001", headers=headers).status_code == 200
     assert client.post("/api/v1/finance/sync?farm_id=farm_001", headers=headers).status_code == 200
@@ -140,9 +144,10 @@ def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_f
     assert s2["committed_expenses_inr"] == 0.0
     assert s2["actual_recorded_expenses_inr"] == 650.0
 
-    # 2. Transport booking -> requested (committed) -> delivered (settled) -> cancelled booking excluded
+    # 2. Transport booking -> requested (committed) -> delivered (recorded payable) -> cancelled booking excluded
     tb1 = client.post(
         "/api/v1/transport/bookings",
+        headers=headers,
         json={
             "farmer_id": "usr_farmer",
             "farmer_name": "Suresh Gowda",
@@ -162,7 +167,7 @@ def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_f
     assert s3["actual_recorded_expenses_inr"] == 650.0
 
     for st in ("accepted", "pickup_scheduled", "picked_up", "in_transit", "delivered"):
-        assert client.patch(f"/api/v1/transport/bookings/{tb1['id']}/status", json={"status": st}).status_code == 200
+        assert client.patch(f"/api/v1/transport/bookings/{tb1['id']}/status", json={"status": st}, headers=driver_headers).status_code == 200
 
     s4 = client.get("/api/v1/finance/summary?farm_id=farm_001", headers=headers).json()
     assert s4["committed_expenses_inr"] == 0.0
@@ -171,6 +176,7 @@ def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_f
     # Cancelled transport booking must NOT be counted
     tb2 = client.post(
         "/api/v1/transport/bookings",
+        headers=headers,
         json={
             "farmer_id": "usr_farmer",
             "farmer_name": "Suresh Gowda",
@@ -185,7 +191,7 @@ def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_f
             "total_fare": 900.0,
         },
     ).json()
-    assert client.patch(f"/api/v1/transport/bookings/{tb2['id']}/status", json={"status": "rejected"}).status_code == 200
+    assert client.patch(f"/api/v1/transport/bookings/{tb2['id']}/status", json={"status": "rejected"}, headers=driver_headers).status_code == 200
     s5 = client.get("/api/v1/finance/summary?farm_id=farm_001", headers=headers).json()
     assert s5["committed_expenses_inr"] == 0.0
     assert s5["actual_recorded_expenses_inr"] == 2250.0
@@ -193,6 +199,7 @@ def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_f
     # 3. Smart Bidding confirmed order -> partial payment -> full payment -> overpayment rejected
     list_res = client.post(
         "/api/v1/bidding/listings",
+        headers=headers,
         json={
             "farmer_id": "usr_farmer",
             "farmer_name": "Suresh Gowda",
@@ -208,11 +215,12 @@ def test_cross_module_labour_bidding_transport_sync_and_no_duplicates(isolated_f
     assert (
         client.post(
             f"/api/v1/bidding/listings/{list_res['id']}/bid",
+            headers=buyer_headers,
             json={"buyer_id": "usr_buyer1", "buyer_name": "Bengaluru Fresh Foods Co", "bid_per_kg": 25.0},
         ).status_code
         == 200
     )
-    confirm = client.post(f"/api/v1/bidding/listings/{list_res['id']}/confirm?farmer_id=usr_farmer").json()
+    confirm = client.post(f"/api/v1/bidding/listings/{list_res['id']}/confirm?farmer_id=usr_farmer", headers=headers).json()
     po_id = confirm["order"]["id"]
 
     # Confirmed order MUST NOT be treated as cash already received!

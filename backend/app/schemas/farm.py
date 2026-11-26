@@ -43,9 +43,9 @@ class FarmUpdate(BaseModel):
     village: Optional[str] = None
     district: Optional[str] = None
     state: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    land_area_ha: Optional[float] = None
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+    land_area_ha: Optional[float] = Field(None, gt=0)
     primary_crop: Optional[str] = None
     crop_variety: Optional[str] = None
     sowing_date: Optional[date] = None
@@ -53,15 +53,16 @@ class FarmUpdate(BaseModel):
     soil_type: Optional[str] = None
     irrigation_method: Optional[Literal["Drip Irrigation", "Sprinkler", "Flood / Furrow", "Rainfed", "Canal Basin"]] = None
     water_source: Optional[Literal["Borewell", "Open Well", "Canal", "Farm Pond / Tank", "River / Stream", "Rainwater Only"]] = None
-    available_water_m3: Optional[float] = None
-    cultivation_budget_inr: Optional[float] = None
+    available_water_m3: Optional[float] = Field(None, ge=0)
+    cultivation_budget_inr: Optional[float] = Field(None, ge=0)
     pin_code: Optional[str] = None
     formatted_address: Optional[str] = None
     location_source: Optional[Literal["gps", "map", "search", "manual"]] = None
-    location_accuracy_m: Optional[float] = None
+    location_accuracy_m: Optional[float] = Field(None, ge=0)
 
 class Farm(FarmBase):
     id: str
+    farmer_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

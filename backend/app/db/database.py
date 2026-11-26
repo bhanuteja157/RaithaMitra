@@ -756,7 +756,7 @@ def init_db():
         modal_price_per_quintal REAL NOT NULL CHECK(modal_price_per_quintal > 0),
         modal_price_per_kg REAL NOT NULL CHECK(modal_price_per_kg > 0),
         original_unit TEXT NOT NULL DEFAULT 'INR/Quintal',
-        source_type TEXT NOT NULL CHECK(source_type IN ('official_agmarknet', 'imported_csv', 'manual_farmer', 'demonstration')),
+        source_type TEXT NOT NULL CHECK(source_type IN ('official_agmarknet', 'imported_csv', 'manual_farmer', 'demonstration', 'demonstration_csv')),
         source_name TEXT NOT NULL,
         provenance_label TEXT NOT NULL,
         retrieved_at TEXT NOT NULL,
@@ -764,6 +764,36 @@ def init_db():
         UNIQUE(commodity, variety, grade, state, district, market, observation_date, source_type)
     )
     """)
+    mkt_tbl_sql = cursor.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='market_price_observations'"
+    ).fetchone()
+    if mkt_tbl_sql and "demonstration_csv" not in (mkt_tbl_sql[0] or ""):
+        cursor.execute("""
+        CREATE TABLE market_price_observations_new (
+            id TEXT PRIMARY KEY,
+            commodity TEXT NOT NULL,
+            variety TEXT NOT NULL DEFAULT 'FAQ',
+            grade TEXT NOT NULL DEFAULT 'FAQ',
+            state TEXT NOT NULL,
+            district TEXT NOT NULL,
+            market TEXT NOT NULL,
+            observation_date TEXT NOT NULL,
+            min_price_per_quintal REAL NOT NULL CHECK(min_price_per_quintal >= 0),
+            max_price_per_quintal REAL NOT NULL CHECK(max_price_per_quintal >= 0),
+            modal_price_per_quintal REAL NOT NULL CHECK(modal_price_per_quintal > 0),
+            modal_price_per_kg REAL NOT NULL CHECK(modal_price_per_kg > 0),
+            original_unit TEXT NOT NULL DEFAULT 'INR/Quintal',
+            source_type TEXT NOT NULL CHECK(source_type IN ('official_agmarknet', 'imported_csv', 'manual_farmer', 'demonstration', 'demonstration_csv')),
+            source_name TEXT NOT NULL,
+            provenance_label TEXT NOT NULL,
+            retrieved_at TEXT NOT NULL,
+            user_id TEXT,
+            UNIQUE(commodity, variety, grade, state, district, market, observation_date, source_type)
+        )
+        """)
+        cursor.execute("INSERT INTO market_price_observations_new SELECT * FROM market_price_observations")
+        cursor.execute("DROP TABLE market_price_observations")
+        cursor.execute("ALTER TABLE market_price_observations_new RENAME TO market_price_observations")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS market_metadata (
         id TEXT PRIMARY KEY,
@@ -1033,6 +1063,142 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_journeys_farmer ON crop_journeys(farmer_id, farm_id, status)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_journey_acts_jrn ON crop_journey_activities(journey_id, recorded_date DESC)")
 
+    # AD-37: Non-destructive column migrations for session expiry & explicit payment settlement
+    ad37_migrations = [
+        ("user_sessions", "expires_at", "TEXT"),
+        ("labour_jobs", "payment_status", "TEXT DEFAULT 'unpaid'"),
+        ("labour_jobs", "payment_settled_at", "TEXT"),
+        ("labour_jobs", "payment_reference", "TEXT"),
+        ("transport_bookings", "payment_status", "TEXT DEFAULT 'unpaid'"),
+        ("transport_bookings", "payment_settled_at", "TEXT"),
+        ("transport_bookings", "payment_reference", "TEXT"),
+        # AD-38: Registered Buyer Discovery & Purchase Order linkage
+        ("buyer_profiles", "buyer_category", "TEXT DEFAULT 'wholesaler'"),
+        ("buyer_profiles", "district", "TEXT DEFAULT 'Bengaluru Urban'"),
+        ("buyer_profiles", "state", "TEXT DEFAULT 'Karnataka'"),
+        ("buyer_profiles", "latitude", "REAL"),
+        ("buyer_profiles", "longitude", "REAL"),
+        ("buyer_profiles", "required_commodities_json", "TEXT DEFAULT '[\"Tomato\", \"Onion\"]'"),
+        ("buyer_profiles", "preferred_varieties_json", "TEXT DEFAULT '[]'"),
+        ("buyer_profiles", "quality_requirements", "TEXT DEFAULT 'FAQ / Grade A'"),
+        ("buyer_profiles", "min_quantity_kg", "REAL DEFAULT 100.0"),
+        ("buyer_profiles", "max_quantity_kg", "REAL DEFAULT 10000.0"),
+        ("buyer_profiles", "expected_price_min_inr", "REAL"),
+        ("buyer_profiles", "expected_price_max_inr", "REAL"),
+        ("buyer_profiles", "payment_terms", "TEXT DEFAULT 'Bank Transfer / UPI within 48h'"),
+        ("buyer_profiles", "procurement_schedule", "TEXT DEFAULT 'Daily Morning Window'"),
+        ("buyer_profiles", "verification_status", "TEXT DEFAULT 'unverified'"),
+        ("buyer_profiles", "is_active", "INTEGER DEFAULT 1"),
+        ("purchase_orders", "farm_id", "TEXT"),
+        ("purchase_orders", "proposal_id", "TEXT"),
+        ("purchase_orders", "payment_terms", "TEXT"),
+    ]
+    for tbl, col, col_def in ad37_migrations:
+        try:
+            cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}")
+        except sqlite3.OperationalError:
+            pass
+
+    # AD-38: Direct Farmer-to-Buyer Sale Proposals
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS direct_sale_proposals (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL,
+        farmer_name TEXT NOT NULL,
+        farm_id TEXT,
+        buyer_id TEXT NOT NULL,
+        buyer_name TEXT NOT NULL,
+        harvest_lot_id TEXT,
+        crop_name TEXT NOT NULL,
+        variety TEXT,
+        quantity_kg REAL NOT NULL,
+        proposed_price_per_kg REAL NOT NULL,
+        counter_price_per_kg REAL,
+        agreed_price_per_kg REAL,
+        delivery_location TEXT NOT NULL,
+        payment_terms TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'proposed' CHECK(status IN ('proposed', 'countered', 'accepted_by_buyer', 'confirmed', 'rejected', 'expired', 'cancelled')),
+        farmer_confirmed INTEGER NOT NULL DEFAULT 1,
+        buyer_confirmed INTEGER NOT NULL DEFAULT 0,
+        expires_at TEXT NOT NULL,
+        notes TEXT,
+        purchase_order_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_direct_proposals_parties ON direct_sale_proposals(farmer_id, buyer_id, status)")
+
+    # AD-38: Lightweight QR Produce Passports (Privacy-Safe Traceability)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS produce_passports (
+        id TEXT PRIMARY KEY,
+        batch_code TEXT UNIQUE NOT NULL,
+        farmer_id TEXT NOT NULL,
+        farm_id TEXT NOT NULL,
+        harvest_record_id TEXT,
+        inventory_lot_id TEXT,
+        purchase_order_id TEXT,
+        transport_booking_id TEXT,
+        crop_name TEXT NOT NULL,
+        variety TEXT,
+        harvest_date TEXT NOT NULL,
+        origin_region TEXT NOT NULL,
+        quantity_kg REAL NOT NULL,
+        packaging_summary TEXT,
+        storage_conditions TEXT,
+        quality_observations TEXT,
+        milestones_json TEXT NOT NULL DEFAULT '[]',
+        integrity_hash TEXT NOT NULL,
+        is_demonstration INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_passports_batch ON produce_passports(batch_code)")
+
+    # AD-40A Additive Real Satellite Monitoring & Parcel Cache Tables
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS satellite_monitoring_observations_cache (
+        cache_key TEXT PRIMARY KEY,
+        farm_id TEXT,
+        polygon_hash TEXT NOT NULL,
+        scene_id TEXT NOT NULL,
+        acquisition_date TEXT NOT NULL,
+        cloud_cover_pct REAL,
+        valid_pixel_pct REAL,
+        usable INTEGER NOT NULL,
+        ndvi_mean REAL,
+        ndmi_mean REAL,
+        evi_mean REAL,
+        payload_json TEXT NOT NULL,
+        retrieved_at TEXT NOT NULL
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS monitored_parcels (
+        farm_id TEXT PRIMARY KEY,
+        farm_name TEXT NOT NULL,
+        crop_name TEXT NOT NULL,
+        sowing_date TEXT NOT NULL,
+        area_acres REAL NOT NULL,
+        geojson_json TEXT NOT NULL,
+        polygon_hash TEXT NOT NULL,
+        last_sync_at TEXT,
+        next_check_at TEXT,
+        latest_scene_id TEXT,
+        latest_acquisition_date TEXT,
+        latest_ndvi REAL,
+        latest_valid_pixel_pct REAL,
+        monitoring_status TEXT NOT NULL,
+        alert_message TEXT
+    )
+    """)
+
     conn.commit()
     seed_demo_accounts(cursor)
     # Backfill phone_normalized for any newly seeded accounts
@@ -1182,11 +1348,35 @@ def seed_demo_accounts(cursor):
     )
     """)
     cursor.execute("""
+    UPDATE buyer_profiles
+    SET buyer_category = COALESCE(buyer_category, 'wholesaler'),
+        district = COALESCE(district, 'Bengaluru Urban'),
+        latitude = COALESCE(latitude, 13.0285),
+        longitude = COALESCE(longitude, 77.5409),
+        required_commodities_json = COALESCE(required_commodities_json, '["Tomato", "Onion", "Green Chilli"]'),
+        expected_price_min_inr = COALESCE(expected_price_min_inr, 18.0),
+        expected_price_max_inr = COALESCE(expected_price_max_inr, 34.0),
+        verification_status = 'demonstration_account'
+    WHERE id = 'buyer_prof_001'
+    """)
+    cursor.execute("""
     INSERT OR IGNORE INTO buyer_profiles (
         id, user_id, buyer_type, business_name, delivery_address, authorized_for_nursery
     ) VALUES (
         'buyer_prof_002', 'usr_buyer2', 'business', 'Mysuru Organic Retail Ltd', 'Bandipalya APMC Mandi, Mysuru', 0
     )
+    """)
+    cursor.execute("""
+    UPDATE buyer_profiles
+    SET buyer_category = COALESCE(buyer_category, 'supermarket'),
+        district = COALESCE(district, 'Mysuru'),
+        latitude = COALESCE(latitude, 12.2602),
+        longitude = COALESCE(longitude, 76.6625),
+        required_commodities_json = COALESCE(required_commodities_json, '["Tomato", "Capsicum", "Paddy"]'),
+        expected_price_min_inr = COALESCE(expected_price_min_inr, 20.0),
+        expected_price_max_inr = COALESCE(expected_price_max_inr, 38.0),
+        verification_status = 'demonstration_account'
+    WHERE id = 'buyer_prof_002'
     """)
 
     # Seed Farmer's Farm

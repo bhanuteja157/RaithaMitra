@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 
 from backend.app.db.database import get_db_connection
+from backend.app.features.auth.security import require_roles
 
 EXPENSE_CATEGORIES = {
     "seed_procurement",
@@ -48,48 +49,14 @@ VALID_STATUSES = {"estimated", "committed", "recorded", "settled", "cancelled"}
 
 def resolve_authenticated_farmer(authorization: Optional[str]) -> Dict[str, str]:
     """
-    Validate Bearer token against user_sessions and enforce Farmer/Admin role.
-    In non-production development mode, allows rm_demo_token_farmer for 1-click demo evaluation,
-    while strictly rejecting non-farmer demo tokens (buyer, labour, driver) with HTTP 403.
+    Validate Bearer token against user_sessions (with expiry & demo guard) and enforce Farmer/Admin role.
     """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authentication required.")
-    token = authorization.replace("Bearer ", "", 1).strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Invalid authorization token.")
-
-    env_mode = os.getenv("ENVIRONMENT", "development").strip().lower()
-    if env_mode != "production" and token.startswith("rm_demo_token_"):
-        demo_role = token.replace("rm_demo_token_", "", 1).strip()
-        if demo_role != "farmer":
-            raise HTTPException(
-                status_code=403,
-                detail="Unauthorized: Financial intelligence is restricted to Farmer accounts.",
-            )
-        return {"user_id": "usr_farmer", "role": "farmer"}
-
-    conn = get_db_connection()
-    try:
-        row = conn.execute(
-            """
-            SELECT s.user_id, s.role, u.name
-            FROM user_sessions s
-            JOIN users u ON s.user_id = u.id
-            WHERE s.token = ?
-            """,
-            (token,),
-        ).fetchone()
-    finally:
-        conn.close()
-
-    if not row:
-        raise HTTPException(status_code=401, detail="Invalid or expired session token.")
-    if row["role"] not in ("farmer", "admin"):
-        raise HTTPException(
-            status_code=403,
-            detail="Unauthorized: Financial intelligence is restricted to Farmer accounts.",
-        )
-    return {"user_id": row["user_id"], "role": row["role"], "name": row["name"]}
+    user = require_roles(
+        authorization,
+        ["farmer"],
+        detail="Unauthorized: Financial intelligence is restricted to Farmer accounts.",
+    )
+    return {"user_id": user["user_id"], "role": user["role"], "name": user.get("name", "Farmer")}
 
 
 def verify_farm_ownership(cursor, farm_id: str, user_id: str, role: str = "farmer") -> Dict[str, Any]:
@@ -218,6 +185,7 @@ def sync_farm_financials(cursor, user_id: str, farm_id: str) -> Dict[str, int]:
             settled_amt = float(earned_row["total"] or 0.0)
             if settled_amt <= 0 and hired > 0:
                 settled_amt = wage * hired
+            is_paid = (job["payment_status"] or "unpaid").lower() == "settled" if "payment_status" in job.keys() else False
             if settled_amt > 0:
                 _upsert_synced_transaction(
                     cursor,
@@ -228,11 +196,11 @@ def sync_farm_financials(cursor, user_id: str, farm_id: str) -> Dict[str, int]:
                     tx_type="expense",
                     amount_inr=settled_amt,
                     tx_date=tx_date,
-                    description=f"Labour settled: {job['title']} ({max(hired, 1)} worker(s))",
+                    description=f"Labour {'settled' if is_paid else 'payable (work completed)'}: {job['title']} ({max(hired, 1)} worker(s))",
                     source_module="Labour Connect",
                     related_id=job_id,
-                    status="settled",
-                    provenance="labour_connect_completed",
+                    status="settled" if is_paid else "recorded",
+                    provenance="labour_connect_settled" if is_paid else "labour_connect_completed_unpaid",
                     sync_key=sync_key,
                 )
                 synced_labour += 1
@@ -291,6 +259,7 @@ def sync_farm_financials(cursor, user_id: str, farm_id: str) -> Dict[str, int]:
             continue
 
         if b_status == "delivered":
+            is_paid = (tb["payment_status"] or "unpaid").lower() == "settled" if "payment_status" in tb.keys() else False
             _upsert_synced_transaction(
                 cursor,
                 user_id=user_id,
@@ -300,11 +269,11 @@ def sync_farm_financials(cursor, user_id: str, farm_id: str) -> Dict[str, int]:
                 tx_type="expense",
                 amount_inr=fare,
                 tx_date=tx_date,
-                description=f"Transport delivered: {tb['produce_type']} ({tb['weight_kg']} kg via {tb['vehicle_type']})",
+                description=f"Transport {'settled' if is_paid else 'payable (delivered)'}: {tb['produce_type']} ({tb['weight_kg']} kg via {tb['vehicle_type']})",
                 source_module="Transport Connect",
                 related_id=tb_id,
-                status="settled",
-                provenance="transport_delivered",
+                status="settled" if is_paid else "recorded",
+                provenance="transport_settled" if is_paid else "transport_delivered_unpaid",
                 sync_key=sync_key,
             )
             synced_transport += 1
@@ -416,6 +385,8 @@ def compute_financial_summary(
     ).fetchall()
 
     recorded_expenses = 0.0
+    settled_expenses = 0.0
+    unpaid_payables = 0.0
     committed_expenses = 0.0
     received_sales_income = 0.0
     govt_benefits_received = 0.0
@@ -434,6 +405,10 @@ def compute_financial_summary(
         if t_type == "expense":
             if status in ("recorded", "settled"):
                 recorded_expenses += amt
+                if status == "settled":
+                    settled_expenses += amt
+                else:
+                    unpaid_payables += amt
                 expense_by_category[cat] = round(expense_by_category.get(cat, 0.0) + amt, 2)
                 cf = cashflow_by_date.setdefault(dt, {"date": dt, "income": 0.0, "expense": 0.0})
                 cf["expense"] = round(cf["expense"] + amt, 2)
@@ -588,8 +563,12 @@ def compute_financial_summary(
         "allocated_budget_inr": allocated_budget,
         "estimated_cultivation_investment_inr": round(float(estimated_cultivation_inr), 2),
         "actual_recorded_expenses_inr": recorded_expenses,
+        "settled_expenses_inr": round(settled_expenses, 2),
+        "unpaid_payables_inr": round(unpaid_payables, 2),
         "committed_expenses_inr": committed_expenses,
         "total_cost_inr": total_cost,
+        "payment_gateway_connected": False,
+        "settlement_mode": "manual_ledger_only",
         "remaining_budget_inr": remaining_budget,
         "expected_revenue_inr": expected_revenue,
         "confirmed_sales_value_inr": confirmed_sales_value,

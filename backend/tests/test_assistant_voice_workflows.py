@@ -62,7 +62,7 @@ def test_voice_connected_labour_draft_workflow():
         "required_workers": 2,
     }
 
-    res = client.post("/api/v1/labour/jobs", json=payload)
+    res = client.post("/api/v1/labour/jobs", json=payload, headers={"Authorization": "Bearer rm_demo_token_farmer"})
     assert res.status_code in (200, 201)
     job_data = res.json()
     assert job_data["title"] == "Tomato Harvesting"

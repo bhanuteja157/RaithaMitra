@@ -56,7 +56,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
   {
     id: 'bidding',
-    route: '/smart-market?section=bidding',
+    route: '/smart-market?section=auction',
     keywords: ['bidding', 'smart bidding', 'bid', 'auction', 'smart market', 'ಬಿಡ್ಡಿಂಗ್', 'बोली', 'బిడ్డింగ్'],
     allowedRoles: ['farmer', 'buyer'],
     label: { en: 'Smart Bidding', kn: 'ಸ್ಮಾರ್ಟ್ ಬಿಡ್ಡಿಂಗ್', hi: 'स्मार्ट बिडिंग', te: 'స్మార్ట్ బిడ్డింగ్' },
@@ -65,6 +65,19 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
       kn: 'ಇಲ್ಲಿ ನೀವು ಬೆಳೆಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡಿ ಖರೀದಿದಾರರಿಂದ ಬೆಲೆ ಪಡೆಯಬಹುದು.',
       hi: 'यहाँ आप अपनी फसल सूचीबद्ध कर सकते हैं और खरीदारों से बोली प्राप्त कर सकते हैं।',
       te: 'ఇక్కడ మీరు మీ పంటలను జాబితా చేసి కొనుగోలుదారుల నుండి ఆఫర్లు పొందవచ్చు.',
+    },
+  },
+  {
+    id: 'find-buyers',
+    route: '/smart-market?section=find_buyers',
+    keywords: ['find buyers', 'registered buyers', 'who wants to buy', 'direct selling', 'direct sale'],
+    allowedRoles: ['farmer', 'buyer'],
+    label: { en: 'Buyer Discovery & Direct Selling', kn: 'ಖರೀದಿದಾರರ ಹುಡುಕಾಟ', hi: 'खरीदार खोज', te: 'కొనుగోలుదారుల శోధన' },
+    description: {
+      en: 'You can discover registered buyers and send direct sale proposals here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ನೋಂದಾಯಿತ ಖರೀದಿದಾರರನ್ನು ಹುಡುಕಿ ನೇರ ಮಾರಾಟ ಪ್ರಸ್ತಾವನೆ ಕಳುಹಿಸಬಹುದು.',
+      hi: 'यहाँ आप पंजीकृत खरीदारों को खोजकर सीधे बिक्री प्रस्ताव भेज सकते हैं।',
+      te: 'ఇక్కడ మీరు నమోదిత కొనుగోలుదారులను కనుగొని నేరుగా అమ్మకపు ప్రతిపాదన పంపవచ్చు.',
     },
   },
   {
@@ -95,8 +108,22 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
   {
     id: 'market-intelligence',
-    route: '/smart-market?section=market_intel',
-    keywords: ['market intelligence', 'mandi', 'sell now', 'selling', 'ಮಾರುಕಟ್ಟೆ', 'मंडी', 'మార్కెట్'],
+    route: '/smart-market?section=today_prices',
+    keywords: [
+      'market intelligence',
+      'mandi',
+      'sell now',
+      'selling',
+      'today prices',
+      "today's market",
+      'todays market',
+      'today market',
+      'market price',
+      'market prices',
+      'ಮಾರುಕಟ್ಟೆ',
+      'मंडी',
+      'మార్కెట్',
+    ],
     allowedRoles: ['farmer', 'buyer'],
     label: { en: 'Market Intelligence', kn: 'ಮಾರುಕಟ್ಟೆ ಬುದ್ಧಿವಂತಿಕೆ', hi: 'मार्केट इंटेलिजेंस', te: 'మార్కెట్ ఇంటెలిజెన్స్' },
     description: {
@@ -104,6 +131,32 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
       kn: 'ಇಲ್ಲಿ ನೀವು ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳು ಮತ್ತು ಮಾರಾಟದ ಅವಕಾಶಗಳನ್ನು ಹೋಲಿಸಬಹುದು.',
       hi: 'यहाँ आप बाजार कीमतों और बिक्री के अवसरों की तुलना कर सकते हैं।',
       te: 'ఇక్కడ మీరు మార్కెట్ ధరలు మరియు అమ్మకపు అవకాశాలను పోల్చవచ్చు.',
+    },
+  },
+  {
+    id: 'journey',
+    route: '/journey',
+    keywords: ['journey', 'seed to sale', 'seed-to-sale', 'crop journey', 'lifecycle'],
+    allowedRoles: ['farmer'],
+    label: { en: 'Seed-to-Sale Journey', kn: 'ಬಿತ್ತನೆಯಿಂದ ಮಾರಾಟದವರೆಗೆ', hi: 'बीज से बिक्री यात्रा', te: 'విత్తనం నుండి అమ్మకం వరకు' },
+    description: {
+      en: 'You can track your 9-stage crop lifecycle from seed to sale here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ಬಿತ್ತನೆಯಿಂದ ಮಾರಾಟದವರೆಗಿನ 9 ಹಂತಗಳನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಬಹುದು.',
+      hi: 'यहाँ आप बीज से बिक्री तक 9 चरणों की फसल यात्रा देख सकते हैं।',
+      te: 'ఇక్కడ మీరు విత్తనం నుండి అమ్మకం వరకు 9 దశలను ట్రాక్ చేయవచ్చు.',
+    },
+  },
+  {
+    id: 'packaging-passport',
+    route: '/post-harvest',
+    keywords: ['packaging', 'cold storage', 'post-harvest', 'post harvest', 'qr passport', 'produce passport'],
+    allowedRoles: ['farmer'],
+    label: { en: 'Post-Harvest, Packaging & Passports', kn: 'ಕೊಯ್ಲು ನಂತರ ಮತ್ತು ಪ್ಯಾಕೇಜಿಂಗ್', hi: 'कटाई के बाद और पैकेजिंग', te: 'పంట తర్వాత మరియు ప్యాకేజింగ్' },
+    description: {
+      en: 'You can check storage, packaging estimates, and QR produce passports here.',
+      kn: 'ಇಲ್ಲಿ ನೀವು ಸಂಗ್ರಹಣೆ, ಪ್ಯಾಕೇಜಿಂಗ್ ಅಂದಾಜು ಮತ್ತು QR ಪಾಸ್‌ಪೋರ್ಟ್ ನೋಡಬಹುದು.',
+      hi: 'यहाँ आप भंडारण, पैकेजिंग अनुमान और QR पासपोर्ट देख सकते हैं।',
+      te: 'ఇక్కడ మీరు నిల్వ, ప్యాకేజింగ్ అంచనాలు మరియు QR పాస్‌పోర్ట్ చూడవచ్చు.',
     },
   },
   {
@@ -161,7 +214,7 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   {
     id: 'diagnostics',
     route: '/crop-health?section=diagnostics',
-    keywords: ['diagnostic', 'disease', 'pest', 'ರೋಗ', 'रोग', 'వ్యాధి'],
+    keywords: ['crop doctor', 'plant doctor', 'leaf scan', 'diagnostic', 'disease', 'pest', 'ರೋಗ', 'रोग', 'వ్యాధి'],
     allowedRoles: ['farmer'],
     label: { en: 'Crop Diagnostics', kn: 'ಬೆಳೆ ರೋಗ ಪತ್ತೆ', hi: 'फसल निदान', te: 'పంట వ్యాధి నిర్ధారణ' },
     description: {
@@ -264,9 +317,19 @@ export const AUTHORIZED_ROUTE_INTENTS: RouteIntent[] = [
   },
 ];
 
-export function matchNavigationIntent(query: string): RouteIntent | null {
+export function matchNavigationIntent(query: string, role?: string): RouteIntent | null {
   const q = query.trim().toLowerCase();
   if (!q) return null;
+  if (/(back to|return to|go to|take me|open).*(dashboard|home)|^(dashboard|home)$/i.test(q) && role) {
+    const roleDashId: Record<string, string> = {
+      farmer: 'dashboard',
+      buyer: 'buyer-dashboard',
+      labour: 'labour-dashboard',
+      driver: 'driver-dashboard',
+    };
+    const match = AUTHORIZED_ROUTE_INTENTS.find((item) => item.id === roleDashId[role]);
+    if (match) return match;
+  }
   for (const intent of AUTHORIZED_ROUTE_INTENTS) {
     if (intent.keywords.some((kw) => q.includes(kw))) {
       return intent;
@@ -364,6 +427,14 @@ export type WaterAvailabilityOption = 'Abundant' | 'Moderate' | 'Scarce';
 
 export type AgenticTaskCommand =
   | {
+      type: 'biointel_slot';
+      crop?: string;
+      areaAcres: number | null;
+      budgetInr: number | null;
+      waterAvailability: WaterAvailabilityOption | null;
+      autoGenerate: boolean;
+    }
+  | {
       type: 'biointel_plan';
       crop: string;
       areaAcres: number | null;
@@ -396,7 +467,7 @@ export type AgenticTaskCommand =
     }
   | {
       type: 'finance_query';
-      metric: 'expenditure' | 'profit' | 'remaining_budget' | 'labour_expenses' | 'outstanding_payments';
+      metric: 'expenditure' | 'profit' | 'remaining_budget' | 'labour_expenses' | 'outstanding_payments' | 'summary';
     };
 
 const CROP_ALIASES: Array<{ canonical: string; terms: string[] }> = [
@@ -470,7 +541,9 @@ export function extractBudgetInr(text: string): number | null {
     }
   }
 
-  const rawBudgetMatch = q.match(/(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये|రూపాయలు)?/i);
+  const rawBudgetMatch = q.match(
+    /(?:budget|rs\.?|inr|₹)?\s*(\d[\d,]{2,})\s*(?!kg|kgs|kilo|kilogram|kilograms|ton|tons|tonne|tonnes|quintal|quintals|qtl|acre|acres|ha|hectare|km)(?:rs|inr|rupees|budget|ರೂಪಾಯಿ|रुपये|రూపాయలు)?\b/i
+  );
   if (rawBudgetMatch) {
     return Number(rawBudgetMatch[1].replace(/,/g, ''));
   }
@@ -544,9 +617,17 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
   const q = query.trim().toLowerCase();
   if (!q) return null;
 
-  // 1. Digital Farm simulation controls
+  // 0. Buyer discovery / marketplace query with crop or quantity should hit backend tool_registry + navigation
+  if (/(find buyers|registered buyers|who wants to buy|buyers for)/i.test(q)) {
+    return null;
+  }
+
+  // 1. Digital Farm simulation controls (avoid intercepting pure "Open Digital Farming" navigation)
   const hasSimContext = /(simulation|digital farm|crop growth|harvest summary|growth)/i.test(q);
   if (hasSimContext || /^(play|pause|resume|explain harvest)/i.test(q)) {
+    if (/(open|go to|navigate|take me)/i.test(q) && !/\b(play|pause|stop|resume|start|run|harvest)\b/i.test(q)) {
+      return null;
+    }
     if (/\b(pause|stop)\b/i.test(q)) return { type: 'digital_farm_control', action: 'pause' };
     if (/\b(resume|continue)\b/i.test(q)) return { type: 'digital_farm_control', action: 'resume' };
     if (/\b(explain|summary|harvest|report)\b/i.test(q)) return { type: 'digital_farm_control', action: 'summary' };
@@ -599,6 +680,9 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
   }
 
   // 5. Financial Intelligence live queries (AD-24)
+  if (/(financial summary|finance summary|financial report|money summary|finance overview|my finances)/i.test(q)) {
+    return { type: 'finance_query', metric: 'summary' };
+  }
   if (/(outstanding|unpaid|due).*(buyer|payment|payments|order)/i.test(q)) {
     return { type: 'finance_query', metric: 'outstanding_payments' };
   }
@@ -615,11 +699,27 @@ export function parseAgenticTaskCommand(query: string): AgenticTaskCommand | nul
     return { type: 'finance_query', metric: 'profit' };
   }
 
-  // 6. BioIntel seed/crop planning
+  // 6. BioIntel seed/crop planning (incremental slots & full cultivation plan)
   const crop = extractCropFromText(q);
   const areaAcres = extractAreaAcres(q);
   const budgetInr = extractBudgetInr(q);
   const waterAvailability = extractWaterAvailability(q);
+
+  if (
+    /\b(set|change|update|make)\s+(?:my\s+)?(budget|area|land|crop|water)\b/i.test(q) ||
+    (/^(?:select|choose|pick)\s+/i.test(q) && (crop !== null || waterAvailability !== null)) ||
+    /(cultivation investment|calculate my cultivation|calculate investment|seed investment)/i.test(q)
+  ) {
+    return {
+      type: 'biointel_slot',
+      crop: crop || undefined,
+      areaAcres,
+      budgetInr,
+      waterAvailability,
+      autoGenerate: /(calculate|generate|compute|run|estimate)/i.test(q),
+    };
+  }
+
   const isPlanningIntent = /(plan|cultivat|seed|invest|calculate|recommend|grow|biointel|ಬೆಳೆ|ಸಾಕು|ಬೆಳೆಯಲು)/i.test(q);
   const openNurseries = /(nurser|seedling|sapling|buy seed|nearby|ನರ್ಸರಿ|नर्सरी)/i.test(q);
 

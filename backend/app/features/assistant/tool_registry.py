@@ -217,6 +217,18 @@ TOOL_METADATA: Dict[str, Dict[str, Any]] = {
         "classification": "read_only",
         "provenance": "AD-22 Crop Diagnostics Adapter",
     },
+    "discover_buyers_tool": {
+        "description": "Find registered buyers matching the farmer's crop and region (privacy-safe).",
+        "allowed_roles": ["farmer", "buyer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-38 Registered Buyer Directory",
+    },
+    "get_packaging_recommendation": {
+        "description": "Compute crop-specific packaging and cold-chain estimates.",
+        "allowed_roles": ["farmer", "admin"],
+        "classification": "read_only",
+        "provenance": "AD-38 Smart Packaging & Cold-Chain Engine",
+    },
 }
 
 
@@ -239,8 +251,8 @@ def _row_to_farm_schema(farm_row: Dict[str, Any]) -> Farm:
         soil_type=farm_row["soil_type"],
         irrigation_method=farm_row["irrigation_method"],
         water_source=farm_row["water_source"],
-        available_water_m3=float(farm_row.get("available_water_m3") or 10000.0),
-        cultivation_budget_inr=float(farm_row.get("cultivation_budget_inr") or 50000.0),
+        available_water_m3=float(farm_row["available_water_m3"]) if farm_row.get("available_water_m3") is not None else 0.0,
+        cultivation_budget_inr=float(farm_row["cultivation_budget_inr"]) if farm_row.get("cultivation_budget_inr") is not None else 0.0,
         created_at=farm_row["created_at"],
         updated_at=farm_row["updated_at"],
     )
@@ -958,7 +970,9 @@ async def execute_tool(
     if tool_name == "get_market_intelligence":
         from backend.app.features.market_intelligence.cache import query_market_observations
         from backend.app.features.market_intelligence.normalization import normalize_commodity_name
+        from backend.app.features.market_intelligence.schemas import LiveFetchRequest
         from backend.app.features.market_intelligence.service import (
+            fetch_and_cache_live,
             get_historical_and_forecast,
             get_provider_status,
         )
@@ -966,6 +980,22 @@ async def execute_tool(
         crop = normalize_commodity_name(params.get("crop") or (farm["primary_crop"] if farm else "Tomato"))
         status_info = get_provider_status()
         obs = query_market_observations(commodity=crop, limit=10)
+        if status_info["official_api_configured"] and not obs:
+            try:
+                live_res = await asyncio.wait_for(
+                    fetch_and_cache_live(
+                        LiveFetchRequest(
+                            commodity=crop,
+                            state=farm.get("state") if farm else "Karnataka",
+                            district=farm.get("district") if farm else None,
+                            limit=10,
+                        )
+                    ),
+                    timeout=4.0,
+                )
+                obs = live_res.get("records") or live_res.get("nearby_records") or query_market_observations(commodity=crop, limit=10)
+            except Exception:
+                pass
         hist_fc = get_historical_and_forecast(commodity=crop, horizon_days=7)
         fc = hist_fc.get("forecast", {})
 
@@ -1134,6 +1164,89 @@ async def execute_tool(
                 ],
             )
         )
-        return {"authorized": True, "data": {"crop": crop, "model_available": bool(status_info.get("available"))}, "cards": cards, "sources": sources, "provenance": meta["provenance"]}
+        directive = ClientDirective(
+            directive_type="navigate",
+            route="/crop-health?section=diagnostics",
+            payload={"crop": crop},
+        )
+        return {
+            "authorized": True,
+            "data": {"crop": crop, "model_available": bool(status_info.get("available"))},
+            "cards": cards,
+            "sources": sources,
+            "client_directive": directive,
+            "provenance": meta["provenance"],
+        }
+
+    if tool_name == "discover_buyers_tool":
+        from backend.app.features.bidding.router import discover_registered_buyers
+
+        crop = params.get("crop") or (farm["primary_crop"] if farm else "Tomato")
+        min_qty = float(params["weight_kg"]) if params.get("weight_kg") else None
+        buyers = discover_registered_buyers(
+            crop=crop,
+            min_qty=min_qty,
+            max_distance_km=None,
+            lat=float(farm["latitude"]) if farm and farm.get("latitude") is not None else None,
+            lon=float(farm["longitude"]) if farm and farm.get("longitude") is not None else None,
+        )
+        qty_label = f" ({min_qty:,.0f} kg)" if min_qty else ""
+        cards.append(
+            StructuredCard(
+                card_type="buyer_discovery",
+                title=f"Registered Buyers for {crop}{qty_label}",
+                metrics={
+                    "Matching Buyers": len(buyers),
+                    "Top Buyer": buyers[0]["business_name"] if buyers else "None matched",
+                    "Category": buyers[0]["buyer_category"] if buyers else "—",
+                },
+                highlights=[
+                    f"{b['business_name']} ({b['district']}) — ₹{b.get('expected_price_min_inr') or '—'}–₹{b.get('expected_price_max_inr') or '—'}/kg"
+                    for b in buyers[:3]
+                ] or ["Open /smart-market?section=find_buyers to search all buyers."],
+            )
+        )
+        directive = ClientDirective(
+            directive_type="navigate",
+            route="/smart-market?section=find_buyers",
+            payload={"crop": crop, "quantity_kg": min_qty},
+        )
+        sources.append(SourceReference(title="AD-38 Registered Buyer Directory", source="RaithaMitra Marketplace", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": {"crop": crop, "quantity_kg": min_qty, "buyers": buyers[:5], "count": len(buyers)},
+            "cards": cards,
+            "sources": sources,
+            "client_directive": directive,
+            "provenance": meta["provenance"],
+        }
+
+    if tool_name == "get_packaging_recommendation":
+        from backend.app.features.post_harvest.packaging import recommend_packaging_and_cold_chain
+
+        crop = params.get("crop") or (farm["primary_crop"] if farm else "Tomato")
+        qty = float(params.get("weight_kg") or 1000.0)
+        rec = recommend_packaging_and_cold_chain(crop_name=crop, quantity_kg=qty)
+        cards.append(
+            StructuredCard(
+                card_type="packaging",
+                title=f"Packaging Estimate — {crop} ({qty:,.0f} kg)",
+                metrics={
+                    "Units Needed": f"{rec['recommended_units_count']} ({rec['unit_capacity_kg']} kg/unit)",
+                    "Est. Packaging Cost": f"₹{rec['estimated_packaging_cost_inr']:,.0f}",
+                    "Cold-Chain": "Recommended" if rec["cold_chain_recommended"] else "Ambient OK",
+                    "Target Temp": rec["target_temperature_guidance"],
+                },
+                highlights=[f"{l['layer']}: {l['spec']}" for l in rec["packaging_layers"][:4]],
+            )
+        )
+        sources.append(SourceReference(title="AD-38 Smart Packaging Engine", source="RaithaMitra Post-Harvest", timestamp=now_iso))
+        return {
+            "authorized": True,
+            "data": rec,
+            "cards": cards,
+            "sources": sources,
+            "provenance": meta["provenance"],
+        }
 
     raise ValueError(f"Unhandled tool: {tool_name}")

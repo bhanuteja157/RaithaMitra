@@ -1,0 +1,26 @@
+[
+  {
+    "file": "sample_0.jpg",
+    "true_label": "Apple___Apple_scab",
+    "split": "test",
+    "bytes": 9619
+  },
+  {
+    "file": "sample_1.jpg",
+    "true_label": "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)",
+    "split": "test",
+    "bytes": 18287
+  },
+  {
+    "file": "sample_2.jpg",
+    "true_label": "Soybean___healthy",
+    "split": "test",
+    "bytes": 22077
+  },
+  {
+    "file": "sample_3.jpg",
+    "true_label": "Tomato___Early_blight",
+    "split": "test",
+    "bytes": 12682
+  }
+]
