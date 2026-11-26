@@ -4,36 +4,77 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFarm } from '@/context/FarmContext';
-import { localizeCropName, localizeCondition } from '@/lib/translations';
+import { localizeCropName, localizeCondition, getIntlLocale } from '@/lib/translations';
 import { LatLonPoint } from '@/lib/digital-farming/geo';
 import { CropCatalogItem } from '@/lib/digital-farming/crops';
 import { SimulationState } from '@/lib/digital-farming/simulator';
 import { Language } from '@/types';
-import { Sparkles, Wind, Droplets } from 'lucide-react';
+import { Sparkles, Wind, Droplets, Satellite, Maximize2, Minimize2, Eye, Compass } from 'lucide-react';
 
 const TWIN3D_I18N: Record<Language, {
   dayWord: string; plantsWord: string; webglFallback: string;
   webglErr: string; modeledMoisture: string; weatherScenario: string;
+  satGroundTitle: string; angledView: string; overheadView: string;
+  fullscreen: string; exitFullscreen: string;
+  satReady: string; satLoading: string; satFallback: string;
+  satAttribution: string; satSimLabel: string;
+  healthLbl: string; stressLbl: string; pestLbl: string; yieldLbl: string; profitLbl: string;
 }> = {
   en: {
     dayWord: 'Day', plantsWord: 'plants', webglFallback: 'WebGL Fallback',
     webglErr: 'WebGL 3D hardware context is unavailable in this browser. Switch to Observed Satellite Data or update graphics drivers.',
-    modeledMoisture: 'Modeled Soil Moisture:', weatherScenario: 'Weather Scenario:',
+    modeledMoisture: 'Soil Moisture:', weatherScenario: 'Weather:',
+    satGroundTitle: '3D Satellite Digital Twin',
+    angledView: 'Angled 3D', overheadView: 'Overhead Satellite',
+    fullscreen: 'Fullscreen', exitFullscreen: 'Exit Fullscreen',
+    satReady: 'Esri Satellite Ground Aligned',
+    satLoading: 'Loading satellite tiles...',
+    satFallback: 'Satellite imagery unavailable; fallback 3D terrain active',
+    satAttribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    satSimLabel: 'Real Geographical Satellite Imagery • Predictive 3D Crop Simulation (Not Observed Live Growth)',
+    healthLbl: 'Health', stressLbl: 'Stress', pestLbl: 'Pest Risk', yieldLbl: 'Est. Yield', profitLbl: 'Proj. Profit',
   },
   kn: {
     dayWord: 'ದಿನ', plantsWord: 'ಸಸಿಗಳು', webglFallback: 'WebGL ಲಭ್ಯವಿಲ್ಲ',
     webglErr: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ 3D WebGL ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ನೇರ ಉಪಗ್ರಹ ಚಿತ್ರಣವನ್ನು ಬಳಸಿ.',
-    modeledMoisture: 'ಮಣ್ಣಿನ ತೇವಾಂಶ (ಅಂದಾಜು):', weatherScenario: 'ಹವಾಮಾನ ಸ್ಥಿತಿ:',
+    modeledMoisture: 'ಮಣ್ಣಿನ ತೇವಾಂಶ:', weatherScenario: 'ಹವಾಮಾನ:',
+    satGroundTitle: '3D ಉಪಗ್ರಹ ಡಿಜಿಟಲ್ ಟ್ವಿನ್',
+    angledView: '3D ಕೋನ ನೋಟ', overheadView: 'ಮೇಲಿನ ಉಪಗ್ರಹ ನೋಟ',
+    fullscreen: 'ಪೂರ್ಣ ಪರದೆ', exitFullscreen: 'ಪೂರ್ಣ ಪರದೆ ಮುಚ್ಚಿ',
+    satReady: 'Esri ಉಪಗ್ರಹ ಭೂಮಿ ಜೋಡಣೆಯಾಗಿದೆ',
+    satLoading: 'ಉಪಗ್ರಹ ಚಿತ್ರಗಳು ಲೋಡ್ ಆಗುತ್ತಿವೆ...',
+    satFallback: 'ಉಪಗ್ರಹ ಚಿತ್ರ ಲಭ್ಯವಿಲ್ಲ; ಪರ್ಯಾಯ 3D ಭೂಮಿ ಸಕ್ರಿಯವಾಗಿದೆ',
+    satAttribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    satSimLabel: 'ನೈಜ ಭೌಗೋಳಿಕ ಉಪಗ್ರಹ ಚಿತ್ರಣ • ಭವಿಷ್ಯದ 3D ಬೆಳೆ ಸಿಮ್ಯುಲೇಶನ್ (ನೇರ ಬೆಳವಣಿಗೆ ಅಲ್ಲ)',
+    healthLbl: 'ಆರೋಗ್ಯ', stressLbl: 'ಒತ್ತಡ', pestLbl: 'ಕೀಟ ಅಪಾಯ', yieldLbl: 'ಅಂದಾಜು ಇಳುವರಿ', profitLbl: 'ಅಂದಾಜು ಲಾಭ',
   },
   hi: {
     dayWord: 'दिन', plantsWord: 'पौधे', webglFallback: 'WebGL अनुपलब्ध',
     webglErr: 'इस ब्राउज़र में 3D WebGL उपलब्ध नहीं है। कृपया लाइव उपग्रह दृश्य देखें।',
-    modeledMoisture: 'अनुमानित मिट्टी नमी:', weatherScenario: 'मौसम परिदृश्य:',
+    modeledMoisture: 'मिट्टी नमी:', weatherScenario: 'मौसम:',
+    satGroundTitle: '3D उपग्रह डिजिटल ट्विन',
+    angledView: 'कोणीय 3D दृश्य', overheadView: 'शीर्ष उपग्रह दृश्य',
+    fullscreen: 'पूर्ण स्क्रीन', exitFullscreen: 'पूर्ण स्क्रीन बंद करें',
+    satReady: 'Esri उपग्रह भूमि संरेखित',
+    satLoading: 'उपग्रह टाइल्स लोड हो रही हैं...',
+    satFallback: 'उपग्रह छवि अनुपलब्ध; फ़ॉलबैक 3D भू-तल सक्रिय',
+    satAttribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    satSimLabel: 'वास्तविक भौगोलिक उपग्रह छवि • पूर्वानुमानित 3D फसल सिमुलेशन (लाइव देखी गई वृद्धि नहीं)',
+    healthLbl: 'स्वास्थ्य', stressLbl: 'तनाव', pestLbl: 'कीट जोखिम', yieldLbl: 'अनुमानित उपज', profitLbl: 'अनुमानित लाभ',
   },
   te: {
     dayWord: 'రోజు', plantsWord: 'మొక్కలు', webglFallback: 'WebGL అందుబాటులో లేదు',
     webglErr: 'ఈ బ్రౌజర్‌లో 3D WebGL అందుబాటులో లేదు. దయచేసి ఉపగ్రహ చిత్రాన్ని చూడండి.',
-    modeledMoisture: 'అంచనా నేల తేమ:', weatherScenario: 'వాతావరణ పరిస్థితి:',
+    modeledMoisture: 'నేల తేమ:', weatherScenario: 'వాతావరణం:',
+    satGroundTitle: '3D ఉపగ్రహ డిజిటల్ ట్విన్',
+    angledView: 'కోణీయ 3D వీక్షణం', overheadView: 'పైనుండి ఉపగ్రహ వీక్షణం',
+    fullscreen: 'పూర్తి స్క్రీన్', exitFullscreen: 'పూర్తి స్క్రీన్ మూసివేయండి',
+    satReady: 'Esri ఉపగ్రహ భూమి సమలేఖనం',
+    satLoading: 'ఉపగ్రహ టైల్స్ లోడ్ అవుతున్నాయి...',
+    satFallback: 'ఉపగ్రహ చిత్రం అందుబాటులో లేదు; ఫాల్‌బ్యాక్ 3D భూమి సక్రియం',
+    satAttribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    satSimLabel: 'నిజమైన భౌగోళిక ఉపగ్రహ చిత్రం • అంచనా 3D పంట సిమ్యులేషన్ (ప్రత్యక్ష పెరుగుదల కాదు)',
+    healthLbl: 'ఆరోగ్యం', stressLbl: 'ఒత్తిడి', pestLbl: 'తెగులు ప్రమాదం', yieldLbl: 'అంచనా దిగుబడి', profitLbl: 'అంచనా లాభం',
   },
 };
 
@@ -45,6 +86,18 @@ interface CropDigitalTwin3DProps {
   areaAcres: number;
   estimatedPopulation?: number;
   qualityTier?: 'high' | 'balanced';
+  projectedYieldKg?: number;
+  projectedProfitInr?: number;
+  estimatedHarvestDate?: string;
+}
+
+function latLonToTileFloat(lat: number, lon: number, zoom: number): { x: number; y: number } {
+  const n = Math.pow(2, zoom);
+  const clampedLat = Math.max(-85.0511, Math.min(85.0511, lat));
+  const latRad = (clampedLat * Math.PI) / 180;
+  const x = ((lon + 180) / 360) * n;
+  const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
+  return { x, y };
 }
 
 function createProceduralSoilTexture(moisturePct: number): THREE.CanvasTexture {
@@ -134,15 +187,25 @@ export function CropDigitalTwin3D({
   areaAcres,
   estimatedPopulation = 60000,
   qualityTier = 'balanced',
+  projectedYieldKg,
+  projectedProfitInr,
+  estimatedHarvestDate,
 }: CropDigitalTwin3DProps) {
   const { t, language } = useFarm();
   const L = TWIN3D_I18N[language] || TWIN3D_I18N.en;
+  const numLocale = getIntlLocale(language);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [webglUnsupported, setWebglUnsupported] = useState(false);
   const [fps, setFps] = useState<number>(0);
   const [renderedCount, setRenderedCount] = useState<number>(0);
+  const [cameraView, setCameraView] = useState<'angled' | 'overhead'>('angled');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [satStatus, setSatStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
+  const satTextureRef = useRef<THREE.CanvasTexture | null>(null);
+  const satStatusRef = useRef<'loading' | 'ready' | 'fallback'>('loading');
 
-  // Dynamic camera orbit state controlled by drag & zoom wheel
+  // Dynamic camera orbit state controlled by drag, zoom wheel & perspective presets
   const orbitRef = useRef({ theta: 0.72, phi: 0.85, radius: mode === 'field' ? 12.5 : 4.2 });
   const simRef = useRef(sim);
   const cropRef = useRef(crop);
@@ -158,12 +221,43 @@ export function CropDigitalTwin3D({
     modeRef.current = mode;
     orbitRef.current.radius = mode === 'field' ? 12.5 : 4.2;
     orbitRef.current.phi = mode === 'field' ? 0.85 : 1.08;
+    if (mode === 'field') setCameraView('angled');
   }, [mode]);
+
+  useEffect(() => {
+    satStatusRef.current = satStatus;
+  }, [satStatus]);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const handleToggleFullscreen = async () => {
+    if (!cardRef.current) return;
+    if (!document.fullscreenElement) {
+      await cardRef.current.requestFullscreen?.().catch(() => {});
+    } else {
+      await document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
+  const handleSwitchPerspective = (view: 'angled' | 'overhead') => {
+    setCameraView(view);
+    if (view === 'overhead') {
+      orbitRef.current = { theta: 0.0, phi: 0.06, radius: 13.5 };
+    } else {
+      orbitRef.current = { theta: 0.72, phi: 0.85, radius: 12.5 };
+    }
+  };
 
   const progress = Math.max(0, Math.min(1, sim.currentDay / Math.max(1, sim.totalDays)));
 
-  // Normalize mapped GeoJSON vertices around centroid to meters/scene-units
-  const normalizedPoly = useMemo(() => {
+  // Project GeoJSON vertices using Web Mercator tile coordinates so 3D plants and Esri satellite tiles align pixel-for-pixel
+  const geoProjection = useMemo(() => {
     const pts =
       points.length >= 3
         ? points
@@ -175,16 +269,126 @@ export function CropDigitalTwin3D({
           ];
     const cLat = pts.reduce((a, p) => a + p.lat, 0) / pts.length;
     const cLon = pts.reduce((a, p) => a + p.lon, 0) / pts.length;
-    const span = Math.max(
-      1e-5,
-      ...pts.map((p) => Math.max(Math.abs(p.lat - cLat), Math.abs(p.lon - cLon)))
-    );
-    const scale = 5.2 / span;
-    return pts.map((p) => ({
-      x: (p.lon - cLon) * scale,
-      z: -(p.lat - cLat) * scale,
+
+    let zoom = 17;
+    for (let z = 18; z >= 15; z--) {
+      const tPts = pts.map((p) => latLonToTileFloat(p.lat, p.lon, z));
+      const minX = Math.min(...tPts.map((p) => p.x));
+      const maxX = Math.max(...tPts.map((p) => p.x));
+      const minY = Math.min(...tPts.map((p) => p.y));
+      const maxY = Math.max(...tPts.map((p) => p.y));
+      const span = Math.max(maxX - minX, maxY - minY);
+      zoom = z;
+      if (span <= 1.65 && span >= 0.32) break;
+      if (span > 1.65) continue;
+      if (z === 18 && span < 0.32) break;
+    }
+
+    const centerTile = latLonToTileFloat(cLat, cLon, zoom);
+    const tilePts = pts.map((p) => latLonToTileFloat(p.lat, p.lon, zoom));
+    const spanX = Math.max(...tilePts.map((p) => Math.abs(p.x - centerTile.x)));
+    const spanY = Math.max(...tilePts.map((p) => Math.abs(p.y - centerTile.y)));
+    const maxSpan = Math.max(1e-4, spanX, spanY);
+    const sceneUnitsPerTile = 4.8 / maxSpan;
+
+    const poly = tilePts.map((tp) => ({
+      x: (tp.x - centerTile.x) * sceneUnitsPerTile,
+      z: (tp.y - centerTile.y) * sceneUnitsPerTile,
     }));
+
+    const tileX0 = Math.floor(centerTile.x) - 1;
+    const tileY0 = Math.floor(centerTile.y) - 1;
+    const gridCount = 3;
+    const planeSize = gridCount * sceneUnitsPerTile;
+    const planeCenterX = (tileX0 + gridCount / 2 - centerTile.x) * sceneUnitsPerTile;
+    const planeCenterZ = (tileY0 + gridCount / 2 - centerTile.y) * sceneUnitsPerTile;
+
+    const minX = Math.min(...poly.map((p) => p.x));
+    const maxX = Math.max(...poly.map((p) => p.x));
+    const minZ = Math.min(...poly.map((p) => p.z));
+    const maxZ = Math.max(...poly.map((p) => p.z));
+
+    return {
+      zoom,
+      tileX0,
+      tileY0,
+      gridCount,
+      planeSize,
+      planeCenterX,
+      planeCenterZ,
+      poly,
+      bounds: { minX, maxX, minZ, maxZ },
+      sig: `${zoom}:${tileX0}:${tileY0}:${poly.map((p) => `${p.x.toFixed(2)},${p.z.toFixed(2)}`).join(';')}`,
+    };
   }, [points]);
+
+  // Load 3x3 Esri World Imagery satellite tiles onto a 768x768 CanvasTexture
+  useEffect(() => {
+    if (mode !== 'field') return;
+    let cancelled = false;
+    setSatStatus('loading');
+
+    const tileSize = 256;
+    const { zoom, tileX0, tileY0, gridCount } = geoProjection;
+    const canvas = document.createElement('canvas');
+    canvas.width = tileSize * gridCount;
+    canvas.height = tileSize * gridCount;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      setSatStatus('fallback');
+      return;
+    }
+    ctx.fillStyle = '#2d3a2a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const maxTileIndex = Math.pow(2, zoom);
+    const promises: Promise<boolean>[] = [];
+
+    for (let dy = 0; dy < gridCount; dy++) {
+      for (let dx = 0; dx < gridCount; dx++) {
+        const tx = ((tileX0 + dx) % maxTileIndex + maxTileIndex) % maxTileIndex;
+        const ty = tileY0 + dy;
+        if (ty < 0 || ty >= maxTileIndex) continue;
+        const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`;
+        promises.push(
+          new Promise<boolean>((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              if (!cancelled) {
+                ctx.drawImage(img, dx * tileSize, dy * tileSize, tileSize, tileSize);
+              }
+              resolve(true);
+            };
+            img.onerror = () => resolve(false);
+            img.src = url;
+          })
+        );
+      }
+    }
+
+    Promise.all(promises).then((results) => {
+      if (cancelled) return;
+      const loadedAny = results.some(Boolean);
+      if (!loadedAny) {
+        satTextureRef.current?.dispose();
+        satTextureRef.current = null;
+        setSatStatus('fallback');
+        return;
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      tex.needsUpdate = true;
+      satTextureRef.current?.dispose();
+      satTextureRef.current = tex;
+      setSatStatus('ready');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [geoProjection, mode]);
 
   // Populate WebGL Scene
   useEffect(() => {
@@ -265,7 +469,7 @@ export function CropDigitalTwin3D({
       lastX = e.clientX;
       lastY = e.clientY;
       orbitRef.current.theta -= dx * 0.008;
-      orbitRef.current.phi = Math.max(0.25, Math.min(1.42, orbitRef.current.phi - dy * 0.008));
+      orbitRef.current.phi = Math.max(0.05, Math.min(1.42, orbitRef.current.phi - dy * 0.008));
     };
     const onUp = () => {
       dragging = false;
@@ -285,22 +489,24 @@ export function CropDigitalTwin3D({
     const onResize = () => {
       if (!container) return;
       const w = container.clientWidth || 680;
-      camera.aspect = w / height;
+      const h = container.clientHeight || 420;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, height);
+      renderer.setSize(w, h);
     };
     window.addEventListener('resize', onResize);
 
-    // Rebuild 3D geometry only when structural biological progress or mode changes
+    // Rebuild 3D geometry when structural biological progress, mode, polygon, or satellite texture changes
     let lastSig = '';
     const rebuildGeometry = () => {
       const s = simRef.current;
       const c = cropRef.current;
       const m = modeRef.current;
+      const satState = satStatusRef.current;
       const prog = Math.max(0, Math.min(1, s.currentDay / Math.max(1, s.totalDays)));
       const bucket = Math.floor(prog * 30);
       const moistBucket = Math.round(s.soilMoisturePct / 15);
-      const sig = `${m}|${c.id}|${bucket}|${moistBucket}|${s.soilPrepared}|${s.sown}|${s.weatherStressPct > 45}`;
+      const sig = `${m}|${c.id}|${bucket}|${moistBucket}|${s.soilPrepared}|${s.sown}|${s.weatherStressPct > 45}|${satState}|${geoProjection.sig}`;
       if (sig === lastSig) return;
       lastSig = sig;
 
@@ -312,7 +518,13 @@ export function CropDigitalTwin3D({
 
       const soilTex = createProceduralSoilTexture(s.soilMoisturePct);
       const leafTex = createLeafVeinTexture(s.weatherStressPct, prog);
-      const soilMat = new THREE.MeshStandardMaterial({ map: soilTex, roughness: 0.92, metalness: 0.02 });
+      const soilMat = new THREE.MeshStandardMaterial({
+        map: soilTex,
+        roughness: 0.92,
+        metalness: 0.02,
+        transparent: satState === 'ready',
+        opacity: satState === 'ready' ? 0.28 : 0.95,
+      });
       const leafMat = new THREE.MeshStandardMaterial({
         map: leafTex,
         roughness: 0.58,
@@ -320,29 +532,49 @@ export function CropDigitalTwin3D({
       });
 
       if (m === 'field') {
-        // Surrounds grass-earth terrain
-        const ground = new THREE.Mesh(
-          new THREE.PlaneGeometry(36, 36),
-          new THREE.MeshStandardMaterial({ color: '#9ca88f', roughness: 1.0 })
-        );
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.04;
-        ground.receiveShadow = true;
-        dynamicGroup.add(ground);
+        const polyPts = geoProjection.poly;
 
-        // Actual GeoJSON extruded field bed
+        // Geographically aligned Esri World Imagery satellite ground plane (with fallback terrain)
+        const satMat =
+          satState === 'ready' && satTextureRef.current
+            ? new THREE.MeshStandardMaterial({
+                map: satTextureRef.current,
+                roughness: 0.96,
+                metalness: 0.0,
+              })
+            : new THREE.MeshStandardMaterial({ color: '#9ca88f', roughness: 1.0 });
+
+        const satGround = new THREE.Mesh(
+          new THREE.PlaneGeometry(geoProjection.planeSize, geoProjection.planeSize),
+          satMat
+        );
+        satGround.rotation.x = -Math.PI / 2;
+        satGround.position.set(geoProjection.planeCenterX, 0, geoProjection.planeCenterZ);
+        satGround.receiveShadow = true;
+        dynamicGroup.add(satGround);
+
+        // Actual GeoJSON field polygon surface tint (keeps satellite imagery visible underneath)
         const shape = new THREE.Shape();
-        normalizedPoly.forEach((pt, idx) => {
+        polyPts.forEach((pt, idx) => {
           if (idx === 0) shape.moveTo(pt.x, -pt.z);
           else shape.lineTo(pt.x, -pt.z);
         });
         shape.closePath();
-        const parcelGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: false });
+        const parcelGeo = new THREE.ShapeGeometry(shape);
         parcelGeo.rotateX(-Math.PI / 2);
         const parcelMesh = new THREE.Mesh(parcelGeo, soilMat);
+        parcelMesh.position.y = 0.015;
         parcelMesh.receiveShadow = true;
-        parcelMesh.castShadow = true;
         dynamicGroup.add(parcelMesh);
+
+        // Crisp glowing boundary outline aligned with the mapped field vertices
+        const borderPts = [...polyPts, polyPts[0]].map((p) => new THREE.Vector3(p.x, 0.04, p.z));
+        const borderGeo = new THREE.BufferGeometry().setFromPoints(borderPts);
+        const borderLine = new THREE.Line(
+          borderGeo,
+          new THREE.LineBasicMaterial({ color: '#22c55e', linewidth: 2 })
+        );
+        dynamicGroup.add(borderLine);
 
         // Paddy standing water sheen if Paddy & moist
         if (c.visualType === 'paddy' && s.soilMoisturePct > 55) {
@@ -352,14 +584,14 @@ export function CropDigitalTwin3D({
             opacity: 0.34,
             roughness: 0.12,
           });
-          const waterMesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.02, bevelEnabled: false }), waterMat);
-          waterMesh.rotation.x = -Math.PI / 2;
-          waterMesh.position.y = 0.15;
+          const waterGeo = new THREE.ShapeGeometry(shape);
+          waterGeo.rotateX(-Math.PI / 2);
+          const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+          waterMesh.position.y = 0.028;
           dynamicGroup.add(waterMesh);
         }
 
         // Compute instanced crop plants strictly inside mapped polygon
-        const polyPts = normalizedPoly;
         const insidePoly = (px: number, pz: number) => {
           let inside = false;
           for (let i = 0, j = polyPts.length - 1; i < polyPts.length; j = i++) {
@@ -373,15 +605,18 @@ export function CropDigitalTwin3D({
         };
 
         const positions: Array<[number, number, number]> = [];
-        const stepZ = qualityTier === 'high' ? 0.52 : 0.65;
-        const stepX = qualityTier === 'high' ? 0.48 : 0.60;
-        for (let z = -5.5; z <= 5.5; z += stepZ) {
-          for (let x = -5.5; x <= 5.5; x += stepX) {
-            if (insidePoly(x, z)) {
-              const jitterX = Math.sin(x * 13.7 + z * 7.3) * 0.06;
-              const jitterZ = Math.cos(x * 5.1 + z * 19.1) * 0.05;
+        const stepZ = qualityTier === 'high' ? 0.50 : 0.62;
+        const stepX = qualityTier === 'high' ? 0.46 : 0.58;
+        const { minX, maxX, minZ, maxZ } = geoProjection.bounds;
+        for (let z = minZ; z <= maxZ; z += stepZ) {
+          for (let x = minX; x <= maxX; x += stepX) {
+            const jitterX = Math.sin(x * 13.7 + z * 7.3) * 0.05;
+            const jitterZ = Math.cos(x * 5.1 + z * 19.1) * 0.05;
+            const px = x + jitterX;
+            const pz = z + jitterZ;
+            if (insidePoly(px, pz)) {
               const varScale = 0.86 + (Math.sin(x * 31 + z * 17) * 0.5 + 0.5) * 0.28;
-              positions.push([x + jitterX, z + jitterZ, varScale]);
+              positions.push([px, pz, varScale]);
             }
           }
         }
@@ -705,31 +940,74 @@ export function CropDigitalTwin3D({
       window.removeEventListener('resize', onResize);
       renderer.dispose();
     };
-  }, [normalizedPoly, qualityTier]);
+  }, [geoProjection, qualityTier]);
 
   return (
-    <div className="rounded-2xl border border-[#DCD8CA] dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden shadow-sm">
+    <div
+      ref={cardRef}
+      className={`rounded-2xl border border-[#DCD8CA] dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden shadow-sm ${
+        isFullscreen ? 'flex flex-col h-screen' : ''
+      }`}
+    >
       <div className="p-4 border-b border-[#E9E5D8] dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#36784D]" />
+          {mode === 'field' ? (
+            <Satellite className="w-4 h-4 text-[#36784D]" />
+          ) : (
+            <Sparkles className="w-4 h-4 text-[#36784D]" />
+          )}
           <div>
             <div className="font-bold text-sm text-[#20372A] dark:text-white">
-              {mode === 'field' ? t('twinModeFieldTitle') : t('twinModeCloseupTitle')}
+              {mode === 'field' ? L.satGroundTitle : t('twinModeCloseupTitle')}
             </div>
             <div className="text-[11px] text-zinc-500">
               {localizeCropName(crop.name, language)} · {L.dayWord} {sim.currentDay}/{sim.totalDays} ({Math.round(progress * 100)}%) · {t('twinOrbitHint')}
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
           {mode === 'field' && (
-            <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-semibold">
-              {t('twinEstFieldStand')}: {estimatedPopulation.toLocaleString('en-IN')} {L.plantsWord} · {t('twinRenderedSample')}: {renderedCount}
-            </span>
+            <>
+              <button
+                type="button"
+                onClick={() => handleSwitchPerspective('angled')}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-semibold transition ${
+                  cameraView === 'angled'
+                    ? 'bg-[#173C2B] text-white border-[#173C2B]'
+                    : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300'
+                }`}
+              >
+                <Compass className="w-3 h-3" />
+                {L.angledView}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchPerspective('overhead')}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-semibold transition ${
+                  cameraView === 'overhead'
+                    ? 'bg-[#173C2B] text-white border-[#173C2B]'
+                    : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300'
+                }`}
+              >
+                <Eye className="w-3 h-3" />
+                {L.overheadView}
+              </button>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-semibold">
+                {t('twinEstFieldStand')}: {estimatedPopulation.toLocaleString(numLocale)} {L.plantsWord} · {t('twinRenderedSample')}: {renderedCount}
+              </span>
+            </>
           )}
           <span className="px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold">
             {webglUnsupported ? L.webglFallback : `${fps} FPS`}
           </span>
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            aria-label={isFullscreen ? L.exitFullscreen : L.fullscreen}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
         </div>
       </div>
 
@@ -738,7 +1016,71 @@ export function CropDigitalTwin3D({
           {L.webglErr}
         </div>
       ) : (
-        <div ref={mountRef} className="w-full h-[400px] bg-sky-100 cursor-grab active:cursor-grabbing" />
+        <div className={`relative w-full ${isFullscreen ? 'flex-1 min-h-[420px]' : 'h-[420px]'}`}>
+          <div ref={mountRef} className="w-full h-full bg-sky-100 cursor-grab active:cursor-grabbing" />
+
+          {/* Satellite Ground Status & Attribution Overlay */}
+          {mode === 'field' && (
+            <>
+              <div className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-lg bg-zinc-950/75 text-white text-[11px] font-medium flex items-center gap-1.5 pointer-events-none">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    satStatus === 'ready'
+                      ? 'bg-emerald-400'
+                      : satStatus === 'loading'
+                        ? 'bg-amber-400 animate-pulse'
+                        : 'bg-rose-400'
+                  }`}
+                />
+                <span>
+                  {satStatus === 'ready'
+                    ? L.satReady
+                    : satStatus === 'loading'
+                      ? L.satLoading
+                      : L.satFallback}
+                </span>
+              </div>
+
+              <div className="absolute bottom-2 right-2 z-10 px-2 py-0.5 rounded bg-zinc-950/70 text-[10px] text-zinc-200 pointer-events-none">
+                {L.satAttribution}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Unified Synchronized Telemetry HUD */}
+      {mode === 'field' && (
+        <div className="px-4 py-2.5 bg-white dark:bg-zinc-950 border-t border-[#E9E5D8] dark:border-zinc-800 grid grid-cols-2 sm:grid-cols-6 gap-2 text-[11px]">
+          <div className="p-2 rounded-lg bg-[#F7F5ED] dark:bg-zinc-900">
+            <div className="text-zinc-500">{L.healthLbl}</div>
+            <div className="font-bold text-emerald-700 dark:text-emerald-400">{Math.round(sim.cropHealthPct)}%</div>
+          </div>
+          <div className="p-2 rounded-lg bg-[#F7F5ED] dark:bg-zinc-900">
+            <div className="text-zinc-500">{L.modeledMoisture}</div>
+            <div className="font-bold text-sky-700 dark:text-sky-400">{Math.round(sim.soilMoisturePct)}%</div>
+          </div>
+          <div className="p-2 rounded-lg bg-[#F7F5ED] dark:bg-zinc-900">
+            <div className="text-zinc-500">{L.stressLbl}</div>
+            <div className="font-bold text-amber-700 dark:text-amber-400">{Math.round(sim.weatherStressPct)}%</div>
+          </div>
+          <div className="p-2 rounded-lg bg-[#F7F5ED] dark:bg-zinc-900">
+            <div className="text-zinc-500">{L.pestLbl}</div>
+            <div className="font-bold text-rose-700 dark:text-rose-400">{Math.round(sim.pestPressurePct)}%</div>
+          </div>
+          <div className="p-2 rounded-lg bg-[#F7F5ED] dark:bg-zinc-900">
+            <div className="text-zinc-500">{L.yieldLbl}</div>
+            <div className="font-bold text-zinc-900 dark:text-white">
+              {projectedYieldKg !== undefined ? `${Math.round(projectedYieldKg).toLocaleString(numLocale)} kg` : '—'}
+            </div>
+          </div>
+          <div className="p-2 rounded-lg bg-[#F7F5ED] dark:bg-zinc-900">
+            <div className="text-zinc-500">{L.profitLbl}</div>
+            <div className="font-bold text-emerald-700 dark:text-emerald-400">
+              {projectedProfitInr !== undefined ? `₹${Math.round(projectedProfitInr).toLocaleString(numLocale)}` : '—'}
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="px-4 py-2.5 bg-[#F7F5ED] dark:bg-zinc-900 border-t border-[#E9E5D8] dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
@@ -749,9 +1091,10 @@ export function CropDigitalTwin3D({
         <span className="inline-flex items-center gap-1.5">
           <Wind className="w-3.5 h-3.5 text-emerald-700" />
           {L.weatherScenario} <strong>{localizeCondition(sim.scenario.replace(/_/g, ' '), language)}</strong>
+          {estimatedHarvestDate ? ` · ${estimatedHarvestDate}` : ''}
         </span>
         <span className="italic">
-          {t('twinSimulatedNote')}
+          {mode === 'field' ? L.satSimLabel : t('twinSimulatedNote')}
         </span>
       </div>
     </div>

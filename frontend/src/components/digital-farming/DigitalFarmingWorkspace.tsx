@@ -133,7 +133,7 @@ const MaizeAgronomyCard = dynamic(
 );
 
 type ActiveStep = 'map' | 'profile' | 'crops' | 'simulator' | 'finance';
-type DigitalTwinViewTab = 'live_sat' | 'sat_timelapse' | 'twin_3d' | 'closeup_3d' | 'analytics';
+type DigitalTwinViewTab = 'live_sat' | 'sat_timelapse' | 'twin_3d' | 'closeup_3d';
 
 const DF_WS_I18N: Record<
   Language,
@@ -361,7 +361,7 @@ const DF_WS_I18N: Record<
     sowingShort: 'Sowing:',
     tabLiveSat: '1. Live Monitoring (Observed)',
     tabSatTimelapse: '2. Satellite Time-Lapse',
-    tabTwin3d: '3. Predictive 3D Field',
+    tabTwin3d: '3. 3D Satellite Digital Twin',
     tabCloseup3d: '4. Seed-to-Harvest Close-Up',
     tabAnalytics: '5. Crop Health & Map',
     playGrowth: 'Play Growth',
@@ -625,7 +625,7 @@ const DF_WS_I18N: Record<
     sowingShort: 'ಬಿತ್ತನೆ:',
     tabLiveSat: '1. ನೇರ ಉಪಗ್ರಹ ನಿಗಾ (ಪರಿಶೀಲಿಸಿದ)',
     tabSatTimelapse: '2. ಉಪಗ್ರಹ ಟೈಮ್-ಲ್ಯಾಪ್ಸ್',
-    tabTwin3d: '3. ಭವಿಷ್ಯದ 3D ಹೊಲ',
+    tabTwin3d: '3. 3D ಉಪಗ್ರಹ ಡಿಜಿಟಲ್ ಟ್ವಿನ್',
     tabCloseup3d: '4. ಬೀಜದಿಂದ ಕೊಯ್ಲು ನೋಟ',
     tabAnalytics: '5. ಬೆಳೆ ಆರೋಗ್ಯ ಮತ್ತು ನಕ್ಷೆ',
     playGrowth: 'ಬೆಳವಣಿಗೆ ಚಾಲನೆ',
@@ -889,7 +889,7 @@ const DF_WS_I18N: Record<
     sowingShort: 'बुवाई:',
     tabLiveSat: '1. लाइव उपग्रह निगरानी (मापा गया)',
     tabSatTimelapse: '2. उपग्रह टाइम-लैप्स',
-    tabTwin3d: '3. 3D खेत पूर्वानुमान',
+    tabTwin3d: '3. 3D उपग्रह डिजिटल ट्विन',
     tabCloseup3d: '4. बीज से कटाई नज़दीकी दृश्य',
     tabAnalytics: '5. फसल स्वास्थ्य व नक्शा',
     playGrowth: 'विकास चलाएं',
@@ -1153,7 +1153,7 @@ const DF_WS_I18N: Record<
     sowingShort: 'విత్తిన తేదీ:',
     tabLiveSat: '1. లైవ్ ఉపగ్రహ పర్యవేక్షణ (నిజమైనది)',
     tabSatTimelapse: '2. ఉపగ్రహ టైమ్-లాప్స్',
-    tabTwin3d: '3. 3D పొలం అంచనా',
+    tabTwin3d: '3. 3D ఉపగ్రహ డిజిటల్ ట్విన్',
     tabCloseup3d: '4. విత్తనం-కోత క్లోజ్-అప్',
     tabAnalytics: '5. పంట ఆరోగ్యం & మ్యాప్',
     playGrowth: 'పెరుగుదల ప్లే',
@@ -2219,14 +2219,13 @@ export function DigitalFarmingWorkspace() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[11px]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
               {(
                 [
                   { id: 'live_sat', label: w.tabLiveSat },
                   { id: 'sat_timelapse', label: w.tabSatTimelapse },
                   { id: 'twin_3d', label: w.tabTwin3d },
                   { id: 'closeup_3d', label: w.tabCloseup3d },
-                  { id: 'analytics', label: w.tabAnalytics },
                 ] as { id: DigitalTwinViewTab; label: string }[]
               ).map((tab) => (
                 <button
@@ -2269,6 +2268,9 @@ export function DigitalFarmingWorkspace() {
                     crop={selectedCrop}
                     sim={sim}
                     areaAcres={activeAreaAcres}
+                    projectedYieldKg={liveFinancialSummary.expectedProductionKg}
+                    projectedProfitInr={liveFinancialSummary.netProfitInr}
+                    estimatedHarvestDate={estimatedHarvestDate}
                     estimatedPopulation={
                       selectedCrop.id === 'maize' && maizePopulation
                         ? maizePopulation
@@ -2335,42 +2337,6 @@ export function DigitalFarmingWorkspace() {
                   currentDay={sim.currentDay}
                   meanTempC={liveWeather?.temperatureC ?? 25.5}
                   onAgronomyUpdated={(agg) => setMaizePopulation(agg?.estimated_established_population)}
-                />
-              )}
-
-              {twinTab === 'analytics' && (
-                <SatelliteCropTimeLapse
-                  points={points}
-                  crop={selectedCrop}
-                  sim={sim}
-                  areaAcres={activeAreaAcres}
-                  projectedYieldKg={liveFinancialSummary.expectedProductionKg}
-                  projectedProfitInr={liveFinancialSummary.netProfitInr}
-                  estimatedHarvestDate={estimatedHarvestDate}
-                  canStepBack={simHistory.length > 0}
-                  isCinematic={isCinematic}
-                  onTogglePlay={() =>
-                    setSim((p) => ({ ...p, started: true, isPlaying: !p.isPlaying }))
-                  }
-                  onToggleCinematic={() => {
-                    setIsCinematic((c) => {
-                      const next = !c;
-                      if (next) setSim((p) => ({ ...p, started: true, isPlaying: true }));
-                      return next;
-                    });
-                  }}
-                  onStepDay={handleStepDay}
-                  onPreviousDay={handlePreviousDay}
-                  onNextStage={handleAdvanceToNextStage}
-                  onScrubDay={handleScrubDay}
-                  onSpeedChange={(spd) => setSim((p) => ({ ...p, speedDaysPerSec: spd }))}
-                  onRestart={() => {
-                    setSim(createInitialSimulationState(selectedCrop, profile));
-                    setSimHistory([]);
-                    setIsCinematic(false);
-                    setActivityNotice('');
-                  }}
-                  onHarvest={() => handleActivity('harvest')}
                 />
               )}
 
